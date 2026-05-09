@@ -12,6 +12,38 @@ Real bugs we hit and the root cause + fix. **Newest at the top.**
 
 ---
 
+## 2026-05-09 — `prisma generate` fails with EPERM rename on `query_engine-windows.dll.node`
+
+**Symptom**: `pnpm --filter @inmolink/db db:generate` (or any operation that triggers `prisma generate`, including `prisma migrate dev`) fails on Windows with:
+
+```
+EPERM: operation not permitted, rename
+'…/.prisma/client/query_engine-windows.dll.node.tmp9196'
+-> '…/.prisma/client/query_engine-windows.dll.node'
+```
+
+The migration SQL still applies cleanly to Postgres + the migration file is created — only the client codegen step fails. Result: the DB is ahead of the generated TypeScript types, so any new schema field surfaces as a TS error in code that uses it.
+
+**Root cause**: Prisma writes the new query engine binary to a `.tmp*` file then atomically renames it. Windows refuses the rename when **any process has the existing DLL loaded**. In this monorepo that's any of the dev servers (`apps/api`, `apps/web`, `apps/public`, `apps/worker`) running under `tsx watch` / `next dev` — they all import `@prisma/client`, which lazy-loads the engine. POSIX systems silently overwrite mapped files; Windows enforces the lock.
+
+Notably the lock survives `Ctrl+C` of the watcher if a `tsx`/`node` child process leaks. PM2-managed runs are also susceptible.
+
+**Fix (this session)**: `taskkill /F /IM node.exe` to clear all Node processes, then re-run `pnpm --filter @inmolink/db db:generate`. Worked first try once nothing held the DLL.
+
+**Side effect**: kills *every* `node.exe` on the box — including `claude-code` MCP servers (we lost the `context-mode` plugin until next session restart). Only run when you can afford to lose all Node processes.
+
+**Less destructive alternatives**:
+1. **Stop only this repo's dev servers** before running migrate/generate (`pnpm dev` Ctrl+C, plus check for orphaned `tsx`/`next-server` PIDs in Task Manager).
+2. **Add `db:generate:safe` script** that does it in a freshly-spawned shell with all watchers down — not yet wired up.
+3. **Migrate inside the repo's docker-compose** (Postgres) but run `prisma generate` from a one-shot container with no shared volume on the dll path. Heavier.
+4. *(Long-term)* On Windows-heavy teams, bump to Prisma's WASM driver adapter (`@prisma/adapter-pg` + `prismaSchemaFolder` preview) — eliminates the native DLL altogether. Requires schema changes and isn't drop-in today.
+
+**Prevention**:
+- Treat any `pnpm db:migrate:dev` / `pnpm db:generate` on Windows as an operation that needs **no dev watchers running**. Add a heads-up to the README's local-dev section.
+- If the migration SQL has already applied to Postgres but `generate` failed, you can re-run `pnpm db:generate` standalone after stopping watchers — no need to re-run the migration. The `prisma_migrations` table tracks state and won't double-apply.
+
+---
+
 ## 2026-05-09 — Git push hangs silently with Windows Git Credential Manager
 
 **Symptom**: After the first successful `git push` (which used cached creds), subsequent pushes hang indefinitely with no terminal output. `GIT_TERMINAL_PROMPT=0` doesn't surface any error.
