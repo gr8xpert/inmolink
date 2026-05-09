@@ -2,6 +2,8 @@ import { prisma } from "@inmolink/db";
 import type { uploadSchemas } from "@inmolink/shared";
 import { type Storage, StorageObjectMissingError, keyFromHash } from "@inmolink/storage";
 import type { Prisma } from "@prisma/client";
+import type { Queue } from "bullmq";
+import { enqueueEagerImageVariants } from "../../lib/queues.js";
 
 /**
  * Two-step upload flow with content-addressable dedup. PLAN §5.1 / ADR 0002.
@@ -81,6 +83,7 @@ export async function signUploads(
 
 export async function registerUploads(
   storage: Storage,
+  imageVariantQueue: Queue,
   req: { uploads: Array<uploadSchemas.RegisterUploadFile> },
 ): Promise<{ results: uploadSchemas.RegisterUploadResult[] }> {
   const results: uploadSchemas.RegisterUploadResult[] = [];
@@ -141,6 +144,13 @@ export async function registerUploads(
           scheduledDeleteAt,
         },
         select: { id: true, bytes: true, r2Key: true },
+      });
+      // Eager variant generation — thumb + medium WebP. Non-image MIME types
+      // are no-ops inside the helper. PLAN §5.
+      await enqueueEagerImageVariants(imageVariantQueue, {
+        mediaObjectId: created.id,
+        sourceHash: u.hash,
+        mimeType: u.mimeType,
       });
       results.push({
         hash: u.hash,

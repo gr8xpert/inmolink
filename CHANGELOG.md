@@ -10,6 +10,17 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Added (Sprint 1 — slice D, image variant pipeline)
+
+- **`apps/worker` IMAGE_VARIANT processor** — sharp pipeline at 4 sizes (thumb 200 / small 480 / medium 1080 / large 1920) with `fit: inside` + `withoutEnlargement` (no upscaling, aspect-ratio preserved). Per PLAN §5: WebP-only at all sizes, plus a JPEG fallback at large for the cover image's `og:image`. Encoder settings frozen at WebP q=82 effort=4 / JPEG q=85 mozjpeg; bumping any of these requires bumping `mediaSchemas.PIPELINE_VERSION`. (`apps/worker/src/processors/image-variant/{pipeline,processor}.ts`)
+- **Content-addressable variant dedup** — variant output is SHA-256-hashed and `MediaVariant.hash` is UNIQUE. Same-source dedup (skip if (source × size × format × version) already exists) + cross-source dedup (two MediaObjects producing byte-identical variants share one row, refCount tracks references). P2002 race collapses to refCount bump. (`apps/worker/src/processors/image-variant/processor.ts`)
+- **Storage `download(key)` and `put(key, body, contentType)`** — added to `Storage` interface for direct worker use. R2 implements via `GetObjectCommand` (full-buffer) / `PutObjectCommand` (with `ContentLength`). LocalFs delegates to existing `readFile`/`writeFile`. Variant keys live under a `variants/` prefix (separate from source `media/`) so the orphan-cleanup worker can scan each independently. New `variantKeyFromHash()` exported. (`packages/storage/src/{interface,r2,local-fs,index}.ts`)
+- **Shared variant contract** — `packages/shared/src/schemas/media.ts` exposes `VARIANT_SIZES`, `EAGER_VARIANTS`, `PIPELINE_VERSION = 1`, `imageVariantJobSchema` (Zod), and `imageVariantJobId()` for deterministic BullMQ dedup ids (`iv:<sourceHash>:<size>:<format>:v<n>`). Re-exported from `@inmolink/shared` as `mediaSchemas`.
+- **API queue producer** — `apps/api/src/lib/queues.ts` builds the `image-variant` Queue against the shared Redis connection with sane defaults (`attempts: 5`, exponential backoff at 5s, `removeOnComplete: { age: 3600 }`, `removeOnFail: { count: 200 }`). `enqueueEagerImageVariants()` enqueues the **eager set (thumb + medium WebP)** after `MediaObject.create` in `/uploads/register`; non-image MIME types are skipped. Queues drained on `app.close()`.
+- **Lazy variant resolver** — `apps/api/src/modules/uploads/variants.ts` exports `resolveOrEnqueueVariant({mediaObjectId, sizeName, format})` returning either `{ status: 'ready', publicUrl, ... }` or `{ status: 'pending' }`. Public marketplace will call this for **small / large / cover-JPEG**, falling back to medium while pending. Slice G wires the route.
+- **Worker storage wiring** — mirrors `apps/api/src/storage.ts`. Worker reads/writes the same dev volume as the api in local-fs mode. New env vars `LOCAL_STORAGE_ROOT_DIR` + `LOCAL_STORAGE_PUBLIC_BASE_URL` on `apps/worker/.env(.example)`.
+- **New deps**: `bullmq` added to `apps/api`; `@inmolink/storage` + `@prisma/client` added to `apps/worker`.
+
 ### Security (Sprint 1 — post-review hardening)
 
 - **Open-redirect on `/sign-in`** — `callbackUrl` is now validated to be a same-origin path (`/...`, not `//...` or absolute). Previously `?callbackUrl=https://evil.com` would redirect post-login. (`apps/web/app/[locale]/sign-in/page.tsx`)

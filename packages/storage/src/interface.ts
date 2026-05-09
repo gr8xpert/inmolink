@@ -57,6 +57,20 @@ export interface Storage {
    */
   fetchAndHash(key: string): Promise<{ hash: string; bytes: number }>;
 
+  /**
+   * Download the full object body as a Buffer. Used by the variant worker
+   * to feed sharp.
+   *
+   * Throws StorageObjectMissingError if the key is absent.
+   */
+  download(key: string): Promise<Buffer>;
+
+  /**
+   * Direct PUT — used by the variant worker to upload generated variants.
+   * Browsers never call this path; they use createUploadUrl() instead.
+   */
+  put(key: string, body: Buffer, contentType: string): Promise<void>;
+
   /** True if an object exists at the given key. */
   exists(key: string): Promise<boolean>;
 
@@ -71,17 +85,31 @@ export interface Storage {
 }
 
 const KEY_PREFIX = "media";
+const VARIANT_KEY_PREFIX = "variants";
 
-/** Hash → storage key mapping. PLAN §5.1 / ADR 0002. */
-export function keyFromHash(hash: string): string {
+function assertSha256Hex(hash: string): void {
   if (!/^[a-f0-9]{64}$/.test(hash)) {
     throw new Error("Hash must be lowercase 64-character hex (SHA-256)");
   }
+}
+
+/** Hash → storage key mapping for source originals. PLAN §5.1 / ADR 0002. */
+export function keyFromHash(hash: string): string {
+  assertSha256Hex(hash);
   return `${KEY_PREFIX}/${hash.slice(0, 2)}/${hash.slice(2, 4)}/${hash}`;
+}
+
+/** Hash → storage key mapping for derived variants. Separate prefix from
+ * originals so orphan-cleanup scans can target each independently. */
+export function variantKeyFromHash(hash: string): string {
+  assertSha256Hex(hash);
+  return `${VARIANT_KEY_PREFIX}/${hash.slice(0, 2)}/${hash.slice(2, 4)}/${hash}`;
 }
 
 /** Inverse, useful for sanity-checks. */
 export function hashFromKey(key: string): string | null {
-  const m = key.match(new RegExp(`^${KEY_PREFIX}/[a-f0-9]{2}/[a-f0-9]{2}/([a-f0-9]{64})$`));
-  return m ? m[1]! : null;
+  const m = key.match(
+    new RegExp(`^(?:${KEY_PREFIX}|${VARIANT_KEY_PREFIX})/[a-f0-9]{2}/[a-f0-9]{2}/([a-f0-9]{64})$`),
+  );
+  return m ? (m[1] as string) : null;
 }

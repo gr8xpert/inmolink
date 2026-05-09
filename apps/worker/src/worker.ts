@@ -1,8 +1,10 @@
-import { Worker, type Job } from "bullmq";
+import { type Job, type Processor, Worker } from "bullmq";
 import { Redis } from "ioredis";
 import pino from "pino";
 import { loadConfig } from "./config.js";
-import { QUEUE_NAMES } from "./queues.js";
+import { makeImageVariantProcessor } from "./processors/image-variant/processor.js";
+import { QUEUE_NAMES, type QueueName } from "./queues.js";
+import { createStorage } from "./storage.js";
 
 const env = loadConfig();
 
@@ -27,19 +29,31 @@ const connection = new Redis(env.REDIS_URL, {
 connection.on("connect", () => logger.info("Redis connected"));
 connection.on("error", (err) => logger.error({ err }, "Redis error"));
 
+const storage = createStorage(env);
+logger.info({ kind: storage.kind }, "Storage backend selected");
+
 /**
- * Placeholder processor — Sprint 0 scaffold only.
- * Real processors land in their respective sprints:
- * - IMAGE_VARIANT: Sprint 1 (sharp variant generation per MediaObject)
+ * Placeholder processor for queues whose real handler lands in a later sprint:
  * - FEED_IMPORT: Sprint 5 (Kyero / Resale Online / Generic XML connectors)
  * - EMAIL_SEND: Sprint 6 + Sprint 8 (per-agency SMTP)
  * - WEBHOOK_DELIVER: Sprint 10 (HMAC-signed deliveries with retry + DLQ)
  * - SEARCH_REINDEX: Sprint 3 (outbox pattern → Meilisearch)
  * - EXPORT_GENERATE: Sprint 11 (CSV + PDF via Puppeteer)
- * - MEDIA_CLEANUP: Sprint 1 (orphan R2 objects past grace period)
+ * - CHAT_FANOUT: Sprint 6
+ * - MEDIA_CLEANUP: Sprint 1 (orphan R2 objects past grace period — slice E)
  */
-async function placeholderProcessor(job: Job): Promise<void> {
-  logger.info({ jobId: job.id, queue: job.queueName, name: job.name }, "Job received (placeholder)");
+const placeholderProcessor: Processor = async (job: Job) => {
+  logger.info(
+    { jobId: job.id, queue: job.queueName, name: job.name },
+    "Job received (placeholder)",
+  );
+};
+
+const imageVariantProcessor = makeImageVariantProcessor({ storage, logger });
+
+function processorFor(queueName: QueueName): Processor {
+  if (queueName === QUEUE_NAMES.IMAGE_VARIANT) return imageVariantProcessor;
+  return placeholderProcessor;
 }
 
 const workers: Worker[] = [];
@@ -54,7 +68,7 @@ for (const [key, queueName] of Object.entries(QUEUE_NAMES)) {
     return 2;
   })();
 
-  const worker = new Worker(queueName, placeholderProcessor, {
+  const worker = new Worker(queueName, processorFor(queueName), {
     connection,
     concurrency,
     autorun: true,

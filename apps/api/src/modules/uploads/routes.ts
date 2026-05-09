@@ -1,14 +1,15 @@
 import { uploadSchemas } from "@inmolink/shared";
 import type { Storage } from "@inmolink/storage";
+import type { Queue } from "bullmq";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { registerUploads, signUploads } from "./service";
 
 export async function uploadRoutes(
   app: FastifyInstance,
-  opts: { storage: Storage },
+  opts: { storage: Storage; imageVariantQueue: Queue },
 ): Promise<void> {
-  const { storage } = opts;
+  const { storage, imageVariantQueue } = opts;
   const fastify = app.withTypeProvider<ZodTypeProvider>();
 
   fastify.post(
@@ -42,7 +43,7 @@ export async function uploadRoutes(
     },
     async (request) => {
       request.requireUser();
-      return registerUploads(storage, request.body);
+      return registerUploads(storage, imageVariantQueue, request.body);
     },
   );
 }

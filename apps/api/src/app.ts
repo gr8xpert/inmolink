@@ -13,6 +13,7 @@ import {
 } from "fastify-type-provider-zod";
 import { Redis } from "ioredis";
 import type { Env } from "./config";
+import { closeQueues, getImageVariantQueue } from "./lib/queues";
 import { propertyRoutes } from "./modules/properties/routes";
 import { uploadRoutes } from "./modules/uploads/routes";
 import { installAuth } from "./plugins/auth";
@@ -123,14 +124,18 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   const storage = createStorage(env);
   app.log.info({ kind: storage.kind }, "Storage backend selected");
 
+  // BullMQ producer for image-variant jobs (consumed by apps/worker).
+  const imageVariantQueue = getImageVariantQueue(redis);
+
   // Routes
   await app.register(healthRoutes, { prefix: "/api/health" });
   await app.register(propertyRoutes, { prefix: "/api/dashboard/properties" });
-  await app.register(uploadRoutes, { prefix: "/api/uploads", storage });
+  await app.register(uploadRoutes, { prefix: "/api/uploads", storage, imageVariantQueue });
   await app.register(localStorageRoutes, { prefix: "/api/_local-storage", storage });
 
-  // Graceful shutdown — drain in-flight requests + close Redis (PLAN §11.7)
+  // Graceful shutdown — drain in-flight requests + close queues + Redis (PLAN §11.7)
   app.addHook("onClose", async () => {
+    await closeQueues();
     await redis.quit();
   });
 

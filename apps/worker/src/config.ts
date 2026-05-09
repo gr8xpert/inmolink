@@ -29,6 +29,10 @@ const envSchema = z.object({
   R2_SECRET_ACCESS_KEY: optionalString,
   R2_BUCKET: z.string().default("inmolink-media"),
 
+  // Local-fs fallback (mirror of apps/api) — used when R2 vars unset.
+  LOCAL_STORAGE_ROOT_DIR: z.string().default("./tmp/r2-local"),
+  LOCAL_STORAGE_PUBLIC_BASE_URL: z.string().default("http://localhost:3001"),
+
   // Anthropic (icon suggester + translation drafts)
   ANTHROPIC_API_KEY: optionalString,
 

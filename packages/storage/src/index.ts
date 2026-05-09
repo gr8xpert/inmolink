@@ -12,6 +12,7 @@
 export {
   hashFromKey,
   keyFromHash,
+  variantKeyFromHash,
   type SignedUploadUrl,
   type Storage,
   StorageObjectMissingError,
