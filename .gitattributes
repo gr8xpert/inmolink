@@ -1,0 +1,46 @@
+# Auto detect text files and perform LF normalization
+* text=auto eol=lf
+
+# Force LF for source / config / docs (cross-platform consistency)
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.html text eol=lf
+*.xml text eol=lf
+*.sh text eol=lf
+*.toml text eol=lf
+*.env.example text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+.editorconfig text eol=lf
+.nvmrc text eol=lf
+.npmrc text eol=lf
+
+# Binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.tar binary
+*.woff binary
+*.woff2 binary
+
+# Generated / lock files — managed automatically
+pnpm-lock.yaml -diff linguist-generated=true
+package-lock.json -diff linguist-generated=true
+yarn.lock -diff linguist-generated=true

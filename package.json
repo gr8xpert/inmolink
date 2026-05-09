@@ -1,0 +1,37 @@
+{
+  "name": "inmolink",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Multi-agent real-estate marketplace for EU agencies",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@10.33.2",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "clean": "turbo run clean",
+    "db:generate": "pnpm --filter @inmolink/db prisma generate",
+    "db:migrate:dev": "pnpm --filter @inmolink/db prisma migrate dev",
+    "db:migrate:deploy": "pnpm --filter @inmolink/db prisma migrate deploy",
+    "db:studio": "pnpm --filter @inmolink/db prisma studio",
+    "db:seed": "pnpm --filter @inmolink/db tsx seed.ts",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^22.10.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10",
+    "tsx": "^4.19.2",
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0"
+  }
+}
