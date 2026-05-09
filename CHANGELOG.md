@@ -10,6 +10,16 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Added (Sprint 1 — slice F.1, dashboard property read-only path)
+
+- **`/[locale]/dashboard/properties` list page** — Server Component, calls the api via the new `apiFetch` helper that forwards the request `cookie` header (so Auth.js v5 session is shared between web origin and api origin). Cursor-paginated. Status chip per row, locale-aware money + date, transaction-type / bed / bath / m² metadata.
+- **`/[locale]/dashboard/properties/[id]` detail page** — fetches detail + image list in parallel. Picks the best translation (requested locale → en → first available). Renders cover + gallery, key facts grid (price, status, visibility, bed/bath/area/plot/yearBuilt), and description block. Variant URLs land in slice G; for now we render the source MediaObject directly.
+- **`apps/web/src/lib/api.ts`** — typed fetch with `ApiError` class. Reads cookies from `next/headers`, base URL from `NEXT_PUBLIC_API_URL`, `cache: "no-store"` for now (revalidation tags arrive later).
+- **`apps/web/src/lib/format.ts`** — locale-aware money + date formatters (`Intl.NumberFormat` / `Intl.DateTimeFormat`); maps the project's 2-letter locale codes to BCP-47 tags.
+- **`<AgencyBadge>` in `@inmolink/ui`** — shared, mandatory badge (PLAN §1 row 4) for cards / detail / exports / emails. Server-Component-safe pure JSX with `cn` + Tailwind. Two sizes: `sm` (cards) / `md` (detail headers).
+- **`GET /api/dashboard/properties/:id/images`** added to slice E's images module — listed by position; same read scope as property detail (PRIVATE only to owner / agency_admin / super_admin). New `propertyImageSchemas.listPropertyImagesResponseSchema`.
+- **i18n**: `properties` namespace populated in en/es/de/fr message files (status / visibility / transaction enums + page strings). Dashboard home now links to `/properties`.
+
 ### Added (Sprint 1 — slice E, property-image attach + media cleanup)
 
 - **Property-image attach API** under `/api/dashboard/properties/:id/images`:

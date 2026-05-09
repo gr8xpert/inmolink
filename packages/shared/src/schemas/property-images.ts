@@ -59,6 +59,10 @@ export const deletePropertyImageResponseSchema = z.object({
   ok: z.literal(true),
 });
 
+export const listPropertyImagesResponseSchema = z.object({
+  images: z.array(propertyImageSchema),
+});
+
 export type AttachPropertyImageItem = z.infer<typeof attachPropertyImageItemSchema>;
 export type AttachPropertyImagesRequest = z.infer<typeof attachPropertyImagesRequestSchema>;
 export type PatchPropertyImageRequest = z.infer<typeof patchPropertyImageRequestSchema>;

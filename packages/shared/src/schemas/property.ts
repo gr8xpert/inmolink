@@ -126,6 +126,8 @@ export const propertyListItemSchema = z.object({
   updatedAt: z.string().datetime(),
 });
 
+export type PropertyListItem = z.infer<typeof propertyListItemSchema>;
+
 export const propertyListResponseSchema = z.object({
   items: z.array(propertyListItemSchema),
   nextCursor: z.string().nullable(),

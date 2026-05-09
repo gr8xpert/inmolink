@@ -164,6 +164,23 @@ export async function patchImageForUser(
   return { image: toImageDto(storage, updated) };
 }
 
+export async function listImagesForUser(
+  storage: Storage,
+  user: AuthenticatedUser,
+  propertyId: string,
+) {
+  // Same read scope as the property detail endpoint — readable by any
+  // logged-in agent for SHARED/PUBLIC properties; PRIVATE only to the
+  // owner / agency_admin / super-admin.
+  const property = await getPropertyById(propertyId);
+  if (!property) throw new NotFoundError("Property not found");
+  if (property.visibility === "PRIVATE" && !ownershipMatches(user, property)) {
+    throw new NotFoundError("Property not found");
+  }
+  const rows = await listImagesForProperty(propertyId);
+  return { images: rows.map((r) => toImageDto(storage, r)) };
+}
+
 export async function deleteImageForUser(
   user: AuthenticatedUser,
   propertyId: string,

@@ -17,5 +17,49 @@
     "chat": "Chat",
     "marketing": "Marketing",
     "settings": "Einstellungen"
+  },
+  "properties": {
+    "title": "Immobilien",
+    "subtitle": "Eigene und von der Agentur geteilte Listings.",
+    "backToDashboard": "Zurück zum Dashboard",
+    "backToList": "Alle Immobilien",
+    "empty": "Noch keine Immobilien. Lege eine an, um zu beginnen.",
+    "nextPage": "Nächste Seite",
+    "untitled": "(ohne Titel)",
+    "noImages": "Keine Bilder angehängt.",
+    "gallery": "Galerie",
+    "description": "Beschreibung",
+    "price": "Preis",
+    "priceFrom": "ab",
+    "pricePoa": "Auf Anfrage",
+    "transactionType": "Transaktion",
+    "bedroomsLabel": "Schlafzimmer",
+    "bathroomsLabel": "Badezimmer",
+    "areaLabel": "Wohnfläche",
+    "plotLabel": "Grundstück",
+    "yearBuiltLabel": "Baujahr",
+    "createdAt": "Erstellt",
+    "created": "Hinzugefügt",
+    "bedrooms": "{n} Zi.",
+    "bathrooms": "{n} Bad",
+    "status": {
+      "label": "Status",
+      "DRAFT": "Entwurf",
+      "ACTIVE": "Aktiv",
+      "RESERVED": "Reserviert",
+      "SOLD": "Verkauft",
+      "WITHDRAWN": "Zurückgezogen"
+    },
+    "visibility": {
+      "label": "Sichtbarkeit",
+      "PRIVATE": "Privat",
+      "SHARED": "Geteilt",
+      "PUBLIC": "Öffentlich"
+    },
+    "transaction": {
+      "SALE": "Verkauf",
+      "RENT": "Langzeitmiete",
+      "SHORT_TERM": "Kurzzeitmiete"
+    }
   }
 }

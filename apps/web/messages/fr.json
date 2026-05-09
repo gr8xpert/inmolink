@@ -17,5 +17,49 @@
     "chat": "Chat",
     "marketing": "Marketing",
     "settings": "Paramètres"
+  },
+  "properties": {
+    "title": "Biens",
+    "subtitle": "Annonces que vous possédez et partagées avec l'agence.",
+    "backToDashboard": "Retour au tableau de bord",
+    "backToList": "Tous les biens",
+    "empty": "Aucun bien pour le moment. Créez-en un pour commencer.",
+    "nextPage": "Page suivante",
+    "untitled": "(sans titre)",
+    "noImages": "Aucune image attachée.",
+    "gallery": "Galerie",
+    "description": "Description",
+    "price": "Prix",
+    "priceFrom": "à partir de",
+    "pricePoa": "Sur demande",
+    "transactionType": "Transaction",
+    "bedroomsLabel": "Chambres",
+    "bathroomsLabel": "Salles de bain",
+    "areaLabel": "Surface habitable",
+    "plotLabel": "Terrain",
+    "yearBuiltLabel": "Année de construction",
+    "createdAt": "Créé",
+    "created": "Ajouté",
+    "bedrooms": "{n} ch.",
+    "bathrooms": "{n} sdb",
+    "status": {
+      "label": "Statut",
+      "DRAFT": "Brouillon",
+      "ACTIVE": "Active",
+      "RESERVED": "Réservé",
+      "SOLD": "Vendu",
+      "WITHDRAWN": "Retiré"
+    },
+    "visibility": {
+      "label": "Visibilité",
+      "PRIVATE": "Privé",
+      "SHARED": "Partagé",
+      "PUBLIC": "Public"
+    },
+    "transaction": {
+      "SALE": "Vente",
+      "RENT": "Location longue durée",
+      "SHORT_TERM": "Location courte durée"
+    }
   }
 }

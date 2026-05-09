@@ -17,5 +17,49 @@
     "chat": "Chat",
     "marketing": "Marketing",
     "settings": "Ajustes"
+  },
+  "properties": {
+    "title": "Propiedades",
+    "subtitle": "Listados tuyos y compartidos en la agencia.",
+    "backToDashboard": "Volver al panel",
+    "backToList": "Todas las propiedades",
+    "empty": "Aún no hay propiedades. Crea una para empezar.",
+    "nextPage": "Siguiente página",
+    "untitled": "(sin título)",
+    "noImages": "Sin imágenes adjuntas.",
+    "gallery": "Galería",
+    "description": "Descripción",
+    "price": "Precio",
+    "priceFrom": "desde",
+    "pricePoa": "Consultar",
+    "transactionType": "Operación",
+    "bedroomsLabel": "Dormitorios",
+    "bathroomsLabel": "Baños",
+    "areaLabel": "Superficie construida",
+    "plotLabel": "Parcela",
+    "yearBuiltLabel": "Año de construcción",
+    "createdAt": "Creado",
+    "created": "Añadido",
+    "bedrooms": "{n} dorm.",
+    "bathrooms": "{n} baño",
+    "status": {
+      "label": "Estado",
+      "DRAFT": "Borrador",
+      "ACTIVE": "Activa",
+      "RESERVED": "Reservada",
+      "SOLD": "Vendida",
+      "WITHDRAWN": "Retirada"
+    },
+    "visibility": {
+      "label": "Visibilidad",
+      "PRIVATE": "Privada",
+      "SHARED": "Compartida",
+      "PUBLIC": "Pública"
+    },
+    "transaction": {
+      "SALE": "Venta",
+      "RENT": "Alquiler",
+      "SHORT_TERM": "Alquiler de temporada"
+    }
   }
 }

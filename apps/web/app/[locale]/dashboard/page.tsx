@@ -1,5 +1,6 @@
 import { auth, signOut } from "@inmolink/auth";
 import { setRequestLocale } from "next-intl/server";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 type Props = {
@@ -36,15 +37,16 @@ export default async function DashboardHome({ params }: Props) {
         </form>
       </div>
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">Sprint 1 status</h2>
-        <ul className="list-inside list-disc space-y-1 text-sm">
-          <li>Auth.js v5 ✅ — you&apos;re logged in</li>
-          <li>Property CRUD API — coming next</li>
-          <li>R2 signed-URL upload — after that</li>
-          <li>Image variant generation worker — after that</li>
-          <li>Property list / create / edit UI — final</li>
-        </ul>
+      <section className="grid gap-3 sm:grid-cols-2">
+        <Link
+          href={`/${locale}/dashboard/properties`}
+          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+        >
+          <h2 className="font-semibold">Properties</h2>
+          <p className="text-sm text-muted-foreground">
+            Browse + manage listings (your own and the agency&apos;s shared inventory).
+          </p>
+        </Link>
       </section>
 
       <section className="space-y-2 rounded-md border bg-muted/30 p-4 text-xs text-muted-foreground">

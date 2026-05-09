@@ -3,7 +3,12 @@ import type { Storage } from "@inmolink/storage";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
-import { attachImagesForUser, deleteImageForUser, patchImageForUser } from "./service.js";
+import {
+  attachImagesForUser,
+  deleteImageForUser,
+  listImagesForUser,
+  patchImageForUser,
+} from "./service.js";
 
 /**
  * PropertyImage routes. Mounted under the same prefix as propertyRoutes
@@ -26,6 +31,22 @@ export async function propertyImageRoutes(
     id: z.string().min(1),
     imageId: z.string().min(1),
   });
+
+  fastify.get(
+    "/:id/images",
+    {
+      schema: {
+        tags: ["properties", "images"],
+        summary: "List images attached to a property",
+        params: propertyParam,
+        response: { 200: propertyImageSchemas.listPropertyImagesResponseSchema },
+      },
+    },
+    async (request) => {
+      const user = request.requireUser();
+      return listImagesForUser(storage, user, request.params.id);
+    },
+  );
 
   fastify.post(
     "/:id/images",

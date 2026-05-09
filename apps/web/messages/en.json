@@ -17,5 +17,49 @@
     "chat": "Chat",
     "marketing": "Marketing",
     "settings": "Settings"
+  },
+  "properties": {
+    "title": "Properties",
+    "subtitle": "Listings owned by you and shared across the agency.",
+    "backToDashboard": "Back to dashboard",
+    "backToList": "All properties",
+    "empty": "No properties yet. Create one to get started.",
+    "nextPage": "Next page",
+    "untitled": "(untitled)",
+    "noImages": "No images attached.",
+    "gallery": "Gallery",
+    "description": "Description",
+    "price": "Price",
+    "priceFrom": "from",
+    "pricePoa": "POA",
+    "transactionType": "Transaction",
+    "bedroomsLabel": "Bedrooms",
+    "bathroomsLabel": "Bathrooms",
+    "areaLabel": "Built area",
+    "plotLabel": "Plot",
+    "yearBuiltLabel": "Year built",
+    "createdAt": "Created",
+    "created": "Added",
+    "bedrooms": "{n} bed",
+    "bathrooms": "{n} bath",
+    "status": {
+      "label": "Status",
+      "DRAFT": "Draft",
+      "ACTIVE": "Active",
+      "RESERVED": "Reserved",
+      "SOLD": "Sold",
+      "WITHDRAWN": "Withdrawn"
+    },
+    "visibility": {
+      "label": "Visibility",
+      "PRIVATE": "Private",
+      "SHARED": "Shared",
+      "PUBLIC": "Public"
+    },
+    "transaction": {
+      "SALE": "For sale",
+      "RENT": "Long-term rental",
+      "SHORT_TERM": "Short-term rental"
+    }
   }
 }
