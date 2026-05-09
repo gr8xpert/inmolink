@@ -10,6 +10,25 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Added (Sprint 1 — slice H, unit tests)
+
+- **Vitest wired** in `packages/auth`, `packages/storage`, `apps/api` (each gets `vitest@^2.1.8` devDep + `test` / `test:watch` scripts). Root `pnpm test` already runs the matrix via Turbo. `packages/imports` script bumped to `--passWithNoTests` so its empty-fixture state doesn't fail the whole graph.
+- **`packages/auth/src/can.test.ts`** — 12 tests covering the permission predicate matrix:
+  - SUPER_ADMIN bypass (feature gate, write/read on any resource regardless of agency, even on FREE)
+  - Paid-feature gate denies on FREE / allows on PRO/BUSINESS/ENTERPRISE
+  - AGENCY_ADMIN can write within own agency / blocked outside / fails closed when `ownerAgencyId` is missing / can read regardless
+  - AGENT can read but never returns true for writes from `can()` (caller does the userId match itself — documents the current contract)
+  - Unknown action shape: SUPER_ADMIN early-return wins; everyone else fails closed.
+- **`packages/storage/src/interface.test.ts`** — 12 tests on the key derivation helpers:
+  - `keyFromHash` / `variantKeyFromHash` — happy path + reject short/long/uppercase/non-hex
+  - `hashFromKey` — extracts from media/ + variants/ keys, returns `null` for wrong shape / wrong directory letters
+  - `keyFromHash` ↔ `hashFromKey` round-trip
+  - `StorageObjectMissingError` instance shape (carries key, stable code, extends Error)
+- **`apps/api/src/modules/uploads/service.test.ts`** — 8 tests on the dedup + register pipeline. `vi.hoisted` mocks `@inmolink/db` (prisma) and the queue producer; storage is a hand-rolled fake.
+  - `signUploads`: dedup hit returns `exists`; novel returns `upload`; mixed batch keeps per-file outcome
+  - `registerUploads`: existing hash returns id without re-fetch; missing storage object → `UploadMissingError`; hash mismatch → `UploadVerifyError`; happy path inserts MediaObject + enqueues eager variants; **P2002 race returns the existing row and does NOT enqueue duplicate variant jobs**.
+- **32 tests across 3 packages, 0 failures.** Playwright E2E intentionally deferred — see CHECKLIST H.
+
 ### Added (Sprint 1 — slice G.2, public marketplace search/list)
 
 - **`GET /api/public/properties`** — Postgres-backed list endpoint with cursor pagination over `(createdAt DESC, id DESC)` (mirrors the dashboard's cursor shape; no OFFSET on hot lists per PLAN §11.2). Same hard visibility filter as the detail endpoint (`PUBLIC + ACTIVE + deletedAt:null`). Filters: `transactionType`, `propertyTypeId`, `locationId`, `minPriceCents` / `maxPriceCents` (BigInt range), `bedrooms` (≥), free-text `q` (Prisma `contains` insensitive on title + description across any locale's translation — Sprint 3 swaps for Meilisearch with proper tokenisation/faceting). Each item includes the cover image (cover-first with position fallback via multi-key orderBy + take:1) and denormalised agency badge.

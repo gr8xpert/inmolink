@@ -183,11 +183,13 @@
 - [ ] *(deferred Sprint 3)* Variant URLs in detail/list responses (lazy resolver hydration)
 - [ ] *(deferred Sprint 3)* Meilisearch swap (per-locale indices, faceting)
 
-### H — Tests
+### H — Tests ✅ (vitest only; e2e deferred)
 
-- [ ] Vitest unit: dedup logic in upload service
-- [ ] Vitest unit: permission `can()` matrix
-- [ ] Playwright E2E: login → create property → upload images → verify variants
+- [x] Vitest unit: dedup logic in upload service (`apps/api/src/modules/uploads/service.test.ts` — 8 tests, prisma + queue mocked via `vi.hoisted`)
+- [x] Vitest unit: permission `can()` matrix (`packages/auth/src/can.test.ts` — 12 tests, every role × action × tier combo)
+- [x] Vitest unit: storage key helpers (`packages/storage/src/interface.test.ts` — 12 tests on keyFromHash / variantKeyFromHash / hashFromKey + StorageObjectMissingError)
+- [x] `pnpm test` runs the whole matrix via Turbo (32 / 32 passing)
+- [ ] **Playwright E2E** — explicitly deferred to **Sprint 12** (per PLAN §11.12 "Pressure test + launch"). Rationale: full E2E needs the dev stack running with R2 wired; the user explicitly mentioned no R2 account yet. Sprint 12 ships seed-load-test + Playwright harness alongside the production smoke tests.
 
 ---
 
