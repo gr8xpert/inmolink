@@ -10,7 +10,10 @@ const envSchema = z.object({
   REDIS_URL: z.string().url().default("redis://localhost:6379"),
   MEILISEARCH_HOST: z.string().url().default("http://localhost:7700"),
   MEILISEARCH_API_KEY: z.string().default("masterKeyForLocalDevOnly"),
-  ENCRYPTION_KEY: z.string().length(32),
+  // 32 raw bytes encoded as 64 lowercase hex chars (matches apps/api).
+  ENCRYPTION_KEY: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/, "ENCRYPTION_KEY must be 64 lowercase hex chars (32 bytes)"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 
   // Concurrency caps per queue (PLAN §11.7)

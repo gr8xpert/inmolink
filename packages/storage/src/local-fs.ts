@@ -1,7 +1,7 @@
 import { createHash, createHmac } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { SignedUploadUrl, Storage } from "./interface";
+import { type SignedUploadUrl, type Storage, StorageObjectMissingError } from "./interface";
 
 export type LocalFsConfig = {
   /** Absolute path to the dev storage root. Created if missing. */
@@ -92,7 +92,15 @@ export class LocalFsStorage implements Storage {
   }
 
   async fetchAndHash(key: string): Promise<{ hash: string; bytes: number }> {
-    const data = await fs.readFile(this.absPath(key));
+    let data: Buffer;
+    try {
+      data = await fs.readFile(this.absPath(key));
+    } catch (e: unknown) {
+      if ((e as { code?: string })?.code === "ENOENT") {
+        throw new StorageObjectMissingError(key);
+      }
+      throw e;
+    }
     const hash = createHash("sha256").update(data).digest("hex");
     return { hash, bytes: data.byteLength };
   }

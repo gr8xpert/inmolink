@@ -14,6 +14,7 @@ export {
   keyFromHash,
   type SignedUploadUrl,
   type Storage,
+  StorageObjectMissingError,
 } from "./interface";
 export { type LocalFsConfig, LocalFsStorage } from "./local-fs";
 export { type R2Config, R2Storage } from "./r2";

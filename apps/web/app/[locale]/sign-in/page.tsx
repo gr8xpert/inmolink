@@ -15,10 +15,14 @@ export default async function SignInPage({ params, searchParams }: Props) {
   async function action(formData: FormData) {
     "use server";
     try {
+      // Only accept same-origin paths. Reject protocol-relative ("//evil.com")
+      // and absolute URLs to block open-redirect via ?callbackUrl=.
+      const raw = formData.get("callbackUrl")?.toString();
+      const safe = raw?.startsWith("/") && !raw.startsWith("//") ? raw : `/${locale}/dashboard`;
       await signIn("credentials", {
         email: formData.get("email"),
         password: formData.get("password"),
-        redirectTo: formData.get("callbackUrl")?.toString() || `/${locale}/dashboard`,
+        redirectTo: safe,
       });
     } catch (e) {
       if (e instanceof AuthError) {

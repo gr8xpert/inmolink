@@ -33,8 +33,13 @@ const envSchema = z.object({
   // Auth.js v5
   AUTH_SECRET: z.string().min(32),
 
-  // Encryption key for AES-256-GCM secrets at rest (PLAN §9.3)
-  ENCRYPTION_KEY: z.string().length(32),
+  // Encryption key for AES-256-GCM secrets at rest (PLAN §9.3).
+  // 32 raw bytes encoded as 64 lowercase hex chars. Generate with:
+  //   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+  // Load with `Buffer.from(env.ENCRYPTION_KEY, "hex")` (NOT "utf8").
+  ENCRYPTION_KEY: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/, "ENCRYPTION_KEY must be 64 lowercase hex chars (32 bytes)"),
 
   // Logging
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),

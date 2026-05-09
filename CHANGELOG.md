@@ -10,6 +10,16 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Security (Sprint 1 — post-review hardening)
+
+- **Open-redirect on `/sign-in`** — `callbackUrl` is now validated to be a same-origin path (`/...`, not `//...` or absolute). Previously `?callbackUrl=https://evil.com` would redirect post-login. (`apps/web/app/[locale]/sign-in/page.tsx`)
+- **R2 presigned PUT now binds `content-type`** — added `signableHeaders: new Set(["content-type"])` so the browser cannot upload a different MIME than the URL was issued for. Prevents a malicious client from storing `.exe` against an `image/jpeg`-signed URL. (`packages/storage/src/r2.ts`)
+- **`ENCRYPTION_KEY` validated as 64-char lowercase hex (32 bytes)** — was 32 chars (UTF-8 multi-byte chars produced wrong key length for AES-256-GCM). Both `apps/api/src/config.ts` and `apps/worker/src/config.ts`. `.env.example` files updated; existing dev `.env` keys regenerated to a 64-char hex value. Decryption code (forthcoming) must use `Buffer.from(key, "hex")`.
+
+### Changed
+
+- **`/uploads/register` collapses TOCTOU window** — dropped the separate `storage.exists()` precheck; `fetchAndHash()` now throws a typed `StorageObjectMissingError` on missing-key (R2 `NotFound`/`NoSuchKey`/HTTP 404, LocalFs `ENOENT`), which the service maps to `UploadMissingError` (404). Removes the gap where the orphan-cleanup worker could delete the object between `exists` and `fetchAndHash`, and avoids two storage round-trips. (`packages/storage/src/{interface,r2,local-fs}.ts`, `apps/api/src/modules/uploads/service.ts`)
+
 ### Added (Sprint 0 — Step 3 monorepo scaffold)
 
 - **Root configs**: `package.json` (workspace root, turbo-delegated scripts, pinned pnpm@10.33.2, Node ≥20), `pnpm-workspace.yaml`, `turbo.json` (Turbo 2 syntax with proper `dependsOn` graph), `tsconfig.base.json` (strict + verbatim module syntax + noUncheckedIndexedAccess), `biome.json` (replaces ESLint+Prettier per ADR 0001), `.gitattributes` (LF normalization), `.editorconfig`, `.nvmrc`, `.npmrc` (pnpm tuning).

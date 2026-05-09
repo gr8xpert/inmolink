@@ -20,6 +20,21 @@ export type SignedUploadUrl = {
   requiredHeaders: Record<string, string>;
 };
 
+/**
+ * Thrown by `fetchAndHash` when the underlying object is missing.
+ *
+ * Lets callers (e.g. /uploads/register) distinguish "client never uploaded"
+ * (404) from real I/O errors (500), without a separate `exists()` precheck
+ * that would create a TOCTOU window with the orphan-cleanup worker.
+ */
+export class StorageObjectMissingError extends Error {
+  readonly code = "STORAGE_OBJECT_MISSING";
+  constructor(public readonly key: string) {
+    super(`Storage object missing: ${key}`);
+    this.name = "StorageObjectMissingError";
+  }
+}
+
 export interface Storage {
   /**
    * Issue a presigned PUT URL for a fresh upload.
@@ -37,6 +52,8 @@ export interface Storage {
    * Fetch the object at a key and return its SHA-256 + bytes. Used by
    * /api/uploads/register to verify the client's claimed hash matches the
    * actual bytes (security check against malicious clients).
+   *
+   * Throws StorageObjectMissingError if the key is absent.
    */
   fetchAndHash(key: string): Promise<{ hash: string; bytes: number }>;
 

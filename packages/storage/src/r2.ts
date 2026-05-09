@@ -7,7 +7,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import type { SignedUploadUrl, Storage } from "./interface";
+import { type SignedUploadUrl, type Storage, StorageObjectMissingError } from "./interface";
 
 export type R2Config = {
   endpoint: string; // https://<accountId>.r2.cloudflarestorage.com
@@ -62,7 +62,13 @@ export class R2Storage implements Storage {
       Key: args.key,
       ContentType: args.mimeType,
     });
-    const uploadUrl = await getSignedUrl(this.client, cmd, { expiresIn: this.ttl });
+    // Bind content-type into the signature so the browser can't swap MIME at
+    // upload time (e.g. uploading `.exe` against an `image/jpeg` URL). Without
+    // this the SDK signs only `host` + `x-amz-*` headers by default.
+    const uploadUrl = await getSignedUrl(this.client, cmd, {
+      expiresIn: this.ttl,
+      signableHeaders: new Set(["content-type"]),
+    });
     return {
       uploadUrl,
       key: args.key,
@@ -72,10 +78,13 @@ export class R2Storage implements Storage {
   }
 
   async fetchAndHash(key: string): Promise<{ hash: string; bytes: number }> {
-    const response = await this.client.send(
-      new GetObjectCommand({ Bucket: this.cfg.bucket, Key: key }),
-    );
-    if (!response.Body) throw new Error(`Empty body for key ${key}`);
+    const response = await this.client
+      .send(new GetObjectCommand({ Bucket: this.cfg.bucket, Key: key }))
+      .catch((e: unknown) => {
+        if (isS3NotFound(e)) throw new StorageObjectMissingError(key);
+        throw e;
+      });
+    if (!response.Body) throw new StorageObjectMissingError(key);
 
     const hasher = createHash("sha256");
     let bytes = 0;
@@ -92,16 +101,7 @@ export class R2Storage implements Storage {
       await this.client.send(new HeadObjectCommand({ Bucket: this.cfg.bucket, Key: key }));
       return true;
     } catch (e: unknown) {
-      // S3 SDK throws NotFound (status 404) for missing objects
-      if (
-        typeof e === "object" &&
-        e !== null &&
-        ("name" in e ? (e as { name?: string }).name === "NotFound" : false)
-      ) {
-        return false;
-      }
-      const status = (e as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
-      if (status === 404) return false;
+      if (isS3NotFound(e)) return false;
       throw e;
     }
   }
@@ -113,4 +113,12 @@ export class R2Storage implements Storage {
   publicUrl(key: string): string {
     return `${this.cfg.publicBaseUrl.replace(/\/$/, "")}/${key}`;
   }
+}
+
+function isS3NotFound(e: unknown): boolean {
+  if (typeof e !== "object" || e === null) return false;
+  const name = (e as { name?: string }).name;
+  if (name === "NotFound" || name === "NoSuchKey") return true;
+  const status = (e as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+  return status === 404;
 }

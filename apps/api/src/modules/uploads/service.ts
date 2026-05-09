@@ -1,6 +1,6 @@
 import { prisma } from "@inmolink/db";
 import type { uploadSchemas } from "@inmolink/shared";
-import { type Storage, keyFromHash } from "@inmolink/storage";
+import { type Storage, StorageObjectMissingError, keyFromHash } from "@inmolink/storage";
 import type { Prisma } from "@prisma/client";
 
 /**
@@ -105,14 +105,20 @@ export async function registerUploads(
       continue;
     }
 
-    // Novel hash. Verify the upload actually happened.
-    if (!(await storage.exists(key))) {
-      throw new UploadMissingError(`Upload for hash ${u.hash.slice(0, 16)}… not found at ${key}`);
+    // Novel hash. Re-hash on server in a single round-trip — server is
+    // authoritative against malicious clients claiming a hash they don't
+    // actually have. The previous separate `exists()` precheck created a
+    // TOCTOU window with the orphan-cleanup worker; collapsed to one call.
+    let serverHash: string;
+    let serverBytes: number;
+    try {
+      ({ hash: serverHash, bytes: serverBytes } = await storage.fetchAndHash(key));
+    } catch (e: unknown) {
+      if (e instanceof StorageObjectMissingError) {
+        throw new UploadMissingError(`Upload for hash ${u.hash.slice(0, 16)}… not found at ${key}`);
+      }
+      throw e;
     }
-
-    // Re-hash on server (defense against malicious clients claiming a
-    // hash they don't actually have). Server is authoritative.
-    const { hash: serverHash, bytes: serverBytes } = await storage.fetchAndHash(key);
     if (serverHash !== u.hash) {
       throw new UploadVerifyError(
         `Hash mismatch: client claimed ${u.hash.slice(0, 16)}…, server computed ${serverHash.slice(0, 16)}…`,
