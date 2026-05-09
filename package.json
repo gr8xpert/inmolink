@@ -18,11 +18,11 @@
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e",
     "clean": "turbo run clean",
-    "db:generate": "pnpm --filter @inmolink/db prisma generate",
-    "db:migrate:dev": "pnpm --filter @inmolink/db prisma migrate dev",
-    "db:migrate:deploy": "pnpm --filter @inmolink/db prisma migrate deploy",
-    "db:studio": "pnpm --filter @inmolink/db prisma studio",
-    "db:seed": "pnpm --filter @inmolink/db tsx seed.ts",
+    "db:generate": "pnpm --filter @inmolink/db exec prisma generate",
+    "db:migrate:dev": "pnpm --filter @inmolink/db exec prisma migrate dev",
+    "db:migrate:deploy": "pnpm --filter @inmolink/db exec prisma migrate deploy",
+    "db:studio": "pnpm --filter @inmolink/db exec prisma studio",
+    "db:seed": "pnpm --filter @inmolink/db exec tsx seed.ts",
     "prepare": "husky"
   },
   "devDependencies": {

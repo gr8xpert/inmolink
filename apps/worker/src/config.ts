@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+/** Treat empty-string env vars as unset. */
+const optionalString = z.preprocess((v) => (v === "" ? undefined : v), z.string().optional());
+const optionalUrl = z.preprocess((v) => (v === "" ? undefined : v), z.string().url().optional());
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   DATABASE_URL: z.string().url(),
@@ -16,17 +20,17 @@ const envSchema = z.object({
   CONCURRENCY_WEBHOOKS: z.coerce.number().int().positive().default(5),
   CONCURRENCY_REINDEX: z.coerce.number().int().positive().default(2),
 
-  // R2 (used for variant uploads)
-  R2_ENDPOINT: z.string().url().optional(),
-  R2_ACCESS_KEY_ID: z.string().optional(),
-  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  // R2 (used for variant uploads). Empty values in .env treated as unset.
+  R2_ENDPOINT: optionalUrl,
+  R2_ACCESS_KEY_ID: optionalString,
+  R2_SECRET_ACCESS_KEY: optionalString,
   R2_BUCKET: z.string().default("inmolink-media"),
 
   // Anthropic (icon suggester + translation drafts)
-  ANTHROPIC_API_KEY: z.string().optional(),
+  ANTHROPIC_API_KEY: optionalString,
 
   // Resend (transactional email)
-  RESEND_API_KEY: z.string().optional(),
+  RESEND_API_KEY: optionalString,
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -34,9 +38,7 @@ export type Env = z.infer<typeof envSchema>;
 export function loadConfig(): Env {
   const parsed = envSchema.safeParse(process.env);
   if (!parsed.success) {
-    const issues = parsed.error.issues
-      .map((i) => `  ${i.path.join(".")}: ${i.message}`)
-      .join("\n");
+    const issues = parsed.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`).join("\n");
     throw new Error(`Invalid worker environment configuration:\n${issues}`);
   }
   return parsed.data;

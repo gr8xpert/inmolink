@@ -39,27 +39,11 @@ services:
       timeout: 3s
       retries: 10
 
-  pgbouncer:
-    image: bitnami/pgbouncer:1.23.1
-    container_name: inmolink-pgbouncer
-    restart: unless-stopped
-    environment:
-      POSTGRESQL_HOST: postgres
-      POSTGRESQL_PORT: 5432
-      POSTGRESQL_USERNAME: inmolink
-      POSTGRESQL_PASSWORD: inmolink
-      POSTGRESQL_DATABASE: inmolink
-      PGBOUNCER_PORT: 6432
-      PGBOUNCER_DATABASE: inmolink
-      PGBOUNCER_POOL_MODE: transaction
-      PGBOUNCER_MAX_CLIENT_CONN: 1000
-      PGBOUNCER_DEFAULT_POOL_SIZE: 50
-      PGBOUNCER_AUTH_TYPE: scram-sha-256
-    ports:
-      - "6432:6432"
-    depends_on:
-      postgres:
-        condition: service_healthy
+  # PgBouncer is production-only. Local dev hits Postgres directly on 5432.
+  # When we add docker-compose.prod.yml for the VPS, PgBouncer goes there with
+  # a maintained image (edoburu/pgbouncer or pgbouncer/pgbouncer). Per PLAN
+  # §11.2: 1000s of app connections → ~50 actual Postgres connections via
+  # transaction pooling.
 
   redis:
     image: redis:7-alpine
@@ -100,10 +84,15 @@ services:
     ports:
       - "7700:7700"
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:7700/health"]
+      # Meilisearch's image has busybox wget where --spider exits non-zero on
+      # 200 OK. Using --no-verbose + explicit exit code per their docs.
+      test:
+        - "CMD-SHELL"
+        - "wget --no-verbose --tries=1 --spider 'http://localhost:7700/health' || exit 1"
       interval: 5s
       timeout: 3s
       retries: 10
+      start_period: 10s
 
 volumes:
   postgres-data:
