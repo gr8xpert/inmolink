@@ -1,0 +1,114 @@
+# Inmolink local development stack.
+# Brings up Postgres + Redis + Meilisearch + PgBouncer.
+#
+# Usage:
+#   docker-compose up -d
+#   docker-compose down -v      # destroy data
+#
+# App processes (web / public / api / worker) are NOT in here — run them with
+# `pnpm dev` so HMR works. For full prod-on-one-box deployment, use
+# docker-compose.prod.yml (added later).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: inmolink-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: inmolink
+      POSTGRES_PASSWORD: inmolink
+      POSTGRES_DB: inmolink
+      # PLAN §11.2 — `pg_stat_statements` from day 1.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    command:
+      - postgres
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements"
+      - "-c"
+      - "pg_stat_statements.track=all"
+      - "-c"
+      - "max_connections=200"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inmolink -d inmolink"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  pgbouncer:
+    image: bitnami/pgbouncer:1.23.1
+    container_name: inmolink-pgbouncer
+    restart: unless-stopped
+    environment:
+      POSTGRESQL_HOST: postgres
+      POSTGRESQL_PORT: 5432
+      POSTGRESQL_USERNAME: inmolink
+      POSTGRESQL_PASSWORD: inmolink
+      POSTGRESQL_DATABASE: inmolink
+      PGBOUNCER_PORT: 6432
+      PGBOUNCER_DATABASE: inmolink
+      PGBOUNCER_POOL_MODE: transaction
+      PGBOUNCER_MAX_CLIENT_CONN: 1000
+      PGBOUNCER_DEFAULT_POOL_SIZE: 50
+      PGBOUNCER_AUTH_TYPE: scram-sha-256
+    ports:
+      - "6432:6432"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    container_name: inmolink-redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - "--maxmemory"
+      - "1gb"
+      - "--maxmemory-policy"
+      - "allkeys-lru"
+      # BullMQ + persistence (PLAN §11.14)
+      - "--appendonly"
+      - "yes"
+      - "--save"
+      - ""
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.12
+    container_name: inmolink-meilisearch
+    restart: unless-stopped
+    environment:
+      MEILI_ENV: development
+      MEILI_MASTER_KEY: masterKeyForLocalDevOnly
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_LOG_LEVEL: INFO
+    volumes:
+      - meili-data:/meili_data
+    ports:
+      - "7700:7700"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:7700/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  meili-data:
+    driver: local
