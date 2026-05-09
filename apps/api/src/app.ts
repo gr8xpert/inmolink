@@ -16,6 +16,7 @@ import type { Env } from "./config";
 import { closeQueues, getImageVariantQueue } from "./lib/queues";
 import { propertyImageRoutes } from "./modules/properties/images/routes";
 import { propertyRoutes } from "./modules/properties/routes";
+import { publicPropertyRoutes } from "./modules/public/property-routes";
 import { taxonomyRoutes } from "./modules/taxonomy/routes";
 import { uploadRoutes } from "./modules/uploads/routes";
 import { installAuth } from "./plugins/auth";
@@ -135,6 +136,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   await app.register(propertyImageRoutes, { prefix: "/api/dashboard/properties", storage });
   await app.register(taxonomyRoutes, { prefix: "/api/dashboard" });
   await app.register(uploadRoutes, { prefix: "/api/uploads", storage, imageVariantQueue });
+  await app.register(publicPropertyRoutes, { prefix: "/api/public", storage });
   await app.register(localStorageRoutes, { prefix: "/api/_local-storage", storage });
 
   // Graceful shutdown — drain in-flight requests + close queues + Redis (PLAN §11.7)

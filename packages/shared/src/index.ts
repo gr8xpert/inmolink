@@ -8,6 +8,7 @@ export * from "./permissions";
 export * as mediaSchemas from "./schemas/media";
 export * as propertyImageSchemas from "./schemas/property-images";
 export * as propertySchemas from "./schemas/property";
+export * as publicPropertySchemas from "./schemas/public-property";
 export * as taxonomySchemas from "./schemas/taxonomy";
 export * as uploadSchemas from "./schemas/upload";
 

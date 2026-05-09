@@ -157,12 +157,25 @@
 - [ ] *(deferred to slice G)* Surface variant URLs from the lazy resolver on the detail page
 - [ ] *(deferred)* PropertyFloorPlan + PropertyVideo attach endpoints + UI — same shape as PropertyImage
 
-### G — Public marketplace property pages (basic)
+### G.1 — Public marketplace property detail ✅
 
-- [ ] `/[locale]/property/[slug]-[id]` — ISR-cached detail page
-- [ ] JSON-LD `RealEstateListing` structured data
-- [ ] OpenGraph + Twitter Card meta
-- [ ] `/[locale]/search` — basic Postgres-backed faceted search (Meilisearch in Sprint 3)
+- [x] `/[locale]/property/[slug]-[id]` — Server Component, `revalidate: 300` (PLAN §11.4)
+- [x] Slug-mismatch redirect (canonical URL via permanentRedirect)
+- [x] Missing/deleted properties 301 home (PLAN: never 404 public pages)
+- [x] JSON-LD `RealEstateListing` (name / description / images / Offer / numberOfRooms / floorSize)
+- [x] OpenGraph + Twitter Card meta via `generateMetadata`
+- [x] AgencyBadge in header (from `@inmolink/ui`)
+- [x] `/api/public/properties/:id` + `/api/public/properties/:id/images` anonymous endpoints, `visibility=PUBLIC + status=ACTIVE + deletedAt=NULL` hard filter
+- [x] Address + postcode stripped from public response (privacy)
+- [x] `publicPropertySchemas` in `@inmolink/shared`
+- [x] `apps/public/src/lib/api.ts` (anonymous, ISR-friendly) + format helpers
+
+### G.2 — Public search / list (next)
+
+- [ ] `/[locale]/search` — basic Postgres-backed faceted search (Meilisearch lands in Sprint 3)
+- [ ] `/api/public/properties` list endpoint with cursor + filters (transaction, price range, beds, location)
+- [ ] Per-locale ISR + pagination via cursor
+- [ ] Variant URLs surfaced via the lazy resolver (or hydrated into the detail/list responses)
 
 ### H — Tests
 

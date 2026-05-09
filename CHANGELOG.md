@@ -10,6 +10,23 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Added (Sprint 1 — slice G.1, public marketplace property detail)
+
+- **Public api routes** at `/api/public/*` (anonymous, no `requireUser()`):
+  - `GET /api/public/properties/:id?locale=` — detail. Hard-filtered to `visibility=PUBLIC + status=ACTIVE + deletedAt=NULL` (PLAN §1 row 5). Sensitive fields stripped: no `addressLine`, `postcode`, `ownerUserId`, `ownerAgencyId`. Agency badge data (`{id, slug, name, logoUrl}`) denormalised into the response so the page renders without a join request. 404 throws via `app.httpErrors.notFound` (consistent with the rest of the api).
+  - `GET /api/public/properties/:id/images` — same visibility check on the parent so an image-list scrape can't leak from `PRIVATE`/`SHARED` rows even with a known id. Tighter rate limit than dashboard (120/min/IP).
+- **`publicPropertySchemas`** in `@inmolink/shared` — public DTO + agency-badge embed + image schema. `PropertyStatus` enum widened to mirror the actual Prisma enum (`UNDER_OFFER`, `RENTED` were missing from the dashboard schema — separate hardening for the dashboard schema deferred).
+- **`/[locale]/property/[slugId]` Server Component** in `apps/public`:
+  - URL shape `<slug>-<id>`. Parser accepts both `slug-id` and bare-`id` forms; if the slug part doesn't match the canonical translation slug, **permanent-redirects** (301) to the canonical URL.
+  - Per PLAN: missing / non-PUBLIC / deleted properties **301 home**, never 404 — preserves SEO equity Google has crawled.
+  - **`export const revalidate = 300`** — Next.js ISR; matches PLAN §11.4 stale-while-revalidate budget.
+  - **JSON-LD `RealEstateListing`** inline `<script>` per schema.org — title / description / images / `Offer` (price + currency + agent) / `numberOfRooms` / `floorSize`.
+  - **`generateMetadata`** — title, description (meta or first 160 chars of body), canonical, OpenGraph (with cover image), Twitter `summary_large_image` card.
+  - `<AgencyBadge size="md">` from `@inmolink/ui` in the header.
+  - Hero img `fetchpriority="high"`; gallery imgs `loading="lazy"`.
+- **`apps/public/src/lib/api.ts`** — anonymous `publicApiFetch<T>` (no cookie forwarding) with Next.js `next: { revalidate, tags }` integration. Default 300s revalidation. Typed `ApiError`.
+- **`apps/public/src/lib/format.ts`** — locale-aware money + date (mirror of the web helper).
+
 ### Added (Sprint 1 — slice F.3.b, edit form + image management)
 
 - **`/[locale]/dashboard/properties/[id]/edit`** — Server Component shell prefetches detail + types + locations in parallel, renders the unified `PropertyForm` in `mode="edit"` with `initial` prefill. Non-owners are redirected back to the detail page (defense-in-depth — the api enforces the same check). New `updatePropertyAction` (PATCH) lives in `[id]/edit/actions.ts`; redirects to detail on success, returns typed error on failure.
