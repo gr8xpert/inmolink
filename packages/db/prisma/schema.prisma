@@ -1,0 +1,1519 @@
+// Inmolink Prisma schema
+// Source of truth: ../../../PLAN.md §10 (Data Model Overview)
+//
+// Conventions:
+// - String IDs via cuid()
+// - All timestamps in UTC (Postgres `timestamptz`)
+// - Money in BigInt cents (avoid float precision issues)
+// - Encrypted-at-rest fields suffixed `Enc` (AES-256-GCM via app layer)
+// - Translation tables: separate per entity, keyed by (parentId, locale)
+// - Soft-delete via `deletedAt` + `hardDeleteAt`
+// - Cursor pagination friendly: every list table has (createdAt DESC, id DESC) index
+//
+// Partitioning trigger (PLAN §11.2): Property > 10M live rows → declarative
+// partition by countryCode. Will require a raw SQL migration; ADR drafted before.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions", "fullTextSearchPostgres"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgcrypto, citext]
+}
+
+// ============================================================================
+// SECTION 1 — TENANCY
+// ============================================================================
+
+enum UserRole {
+  SUPER_ADMIN
+  AGENCY_ADMIN
+  AGENT
+}
+
+model User {
+  id                   String    @id @default(cuid())
+  email                String    @unique @db.Citext
+  passwordHash         String?
+  emailVerifiedAt      DateTime?
+
+  agencyId             String?
+  role                 UserRole  @default(AGENT)
+
+  slug                 String    @unique
+  firstName            String
+  lastName             String
+  photoR2Key           String?
+  phone                String?
+  whatsappNumber       String?
+  bio                  String?   @db.Text
+  languagesSpoken      String[]
+  publicProfileEnabled Boolean   @default(true)
+
+  isActive             Boolean   @default(true)
+
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  // Relations
+  agency               Agency?                 @relation(fields: [agencyId], references: [id])
+  settings             UserSettings?
+  properties           Property[]              @relation("PropertyOwner")
+  invitesSent          AgencyInvite[]          @relation("InviteSender")
+  feedConnections      FeedConnection[]        @relation("FeedConnectionOwner")
+  viewingRequestsAsOwner      ViewingRequest[] @relation("ViewingOwner")
+  viewingRequestsAsIntroducer ViewingRequest[] @relation("ViewingIntroducer")
+  dealsAsOwner         Deal[]                  @relation("DealOwner")
+  dealsAsIntroducer    Deal[]                  @relation("DealIntroducer")
+  chatThreadsAsA       ChatThread[]            @relation("ChatA")
+  chatThreadsAsB       ChatThread[]            @relation("ChatB")
+  chatMessages         ChatMessage[]
+  chatReads            ChatThreadRead[]
+  ticketsOpened        Ticket[]                @relation("TicketOpener")
+  ticketsAssigned      Ticket[]                @relation("TicketAssignee")
+  ticketMessages       TicketMessage[]
+  exports              Export[]
+  auditLogs            AuditLog[]
+  // Auth.js v5 relations
+  accounts             Account[]
+  sessions             Session[]
+
+  @@index([agencyId])
+  @@index([role])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+}
+
+model Agency {
+  id              String    @id @default(cuid())
+  slug            String    @unique
+  name            String
+
+  logoR2Key       String?
+  bannerR2Key     String?
+  heroImageR2Key  String?
+
+  email           String?
+  phone           String?
+  website         String?
+  whatsappNumber  String?
+  socialFacebook  String?
+  socialInstagram String?
+  socialLinkedin  String?
+  socialTwitter   String?
+
+  countryCode     String
+
+  isPublic        Boolean   @default(true)
+  isActive        Boolean   @default(true)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  members         User[]
+  invites         AgencyInvite[]
+  properties      Property[]
+  translations    AgencyTranslation[]
+  settings        AgencySettings?
+  subscription    AgencySubscription?
+  emailConfig     AgencyEmailConfig?
+  emailDomains    AgencyEmailDomain[]
+  emailTemplates  EmailTemplate[]
+  emailCampaigns  EmailCampaign[]
+  emailSuppressions EmailSuppression[]
+  featuredListings FeaturedListing[]
+  webhookEndpoints WebhookEndpoint[]
+
+  @@index([countryCode])
+  @@index([isActive])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+}
+
+model AgencyTranslation {
+  id              String  @id @default(cuid())
+  agencyId        String
+  locale          String
+  description     String? @db.Text
+  metaTitle       String?
+  metaDescription String?
+
+  agency          Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@unique([agencyId, locale])
+}
+
+model AgencyInvite {
+  id           String    @id @default(cuid())
+  agencyId     String
+  email        String    @db.Citext
+  invitedRole  UserRole  @default(AGENT)
+  invitedById  String
+
+  token        String    @unique
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  acceptedById String?
+
+  createdAt    DateTime  @default(now())
+
+  agency       Agency    @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  invitedBy    User      @relation("InviteSender", fields: [invitedById], references: [id])
+
+  @@index([email])
+  @@index([token])
+  @@index([agencyId])
+}
+
+model AgencySettings {
+  id                          String  @id @default(cuid())
+  agencyId                    String  @unique
+
+  // PLAN §1 row 21 — defaults; per-deal can override during ViewingRequest creation
+  defaultCommissionPct        Decimal @db.Decimal(5, 2) @default(5.00)
+  defaultIntroducerSharePct   Decimal @db.Decimal(5, 2) @default(50.00)
+  viewingResponseDays         Int     @default(3)
+  dealConfirmationDays        Int     @default(14)
+
+  agency                      Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+}
+
+model UserSettings {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  preferredLocale        String   @default("en")
+
+  notifyOnViewingRequest Boolean  @default(true)
+  notifyOnChatMessage    Boolean  @default(true)
+  notifyOnLead           Boolean  @default(true)
+  notifyOnDealEvent      Boolean  @default(true)
+  notifyOnImportFailure  Boolean  @default(true)
+  emailDigestFrequency   String   @default("INSTANT") // INSTANT | DAILY | WEEKLY
+
+  // 2FA — TOTP secret AES-256-GCM-encrypted (PLAN §9.3)
+  totpSecretEnc          String?
+  totpEnabledAt          DateTime?
+  totpRecoveryCodesEnc   String?
+
+  user                   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Auth.js v5 Prisma adapter tables — DO NOT add domain logic here.
+// https://authjs.dev/getting-started/adapters/prisma
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+// ============================================================================
+// SECTION 2 — MEDIA (content-addressable; PLAN §5.1, ADR 0002)
+// ============================================================================
+
+/// MediaObject is content-addressable: the row is keyed by SHA-256 of the
+/// original bytes. Multiple PropertyImage / PropertyFloorPlan / PropertyVideo
+/// rows can reference the same MediaObject — that's the dedup mechanism.
+model MediaObject {
+  id                String    @id @default(cuid())
+  hash              String    @unique // sha256 hex (64 chars)
+  r2Key             String    // derived from hash: "media/<h0..1>/<h2..3>/<hash>"
+  bytes             Int
+  mimeType          String
+  width             Int?
+  height            Int?
+  durationSec       Int?
+  refCount          Int       @default(1)
+  pipelineVersion   Int       @default(1)
+  scheduledDeleteAt DateTime? // = NOW() + 7d when refCount reaches 0
+
+  createdAt         DateTime  @default(now())
+
+  variants          MediaVariant[]
+  propertyImages    PropertyImage[]
+  propertyFloorPlans PropertyFloorPlan[]
+  propertyVideos    PropertyVideo[]
+
+  @@index([scheduledDeleteAt]) // worker scans for cleanup
+  @@index([refCount])
+}
+
+model MediaVariant {
+  id                  String   @id @default(cuid())
+  sourceMediaObjectId String
+  hash                String   @unique
+  format              String   // 'webp' | 'jpeg'
+  sizeName            String   // 'thumb' | 'small' | 'medium' | 'large'
+  width               Int
+  height              Int
+  bytes               Int
+  refCount            Int      @default(1)
+  pipelineVersion     Int      @default(1)
+
+  createdAt           DateTime @default(now())
+
+  source              MediaObject @relation(fields: [sourceMediaObjectId], references: [id], onDelete: Cascade)
+
+  @@index([sourceMediaObjectId, sizeName, format])
+}
+
+// ============================================================================
+// SECTION 3 — PROPERTIES
+// ============================================================================
+
+enum PropertySource {
+  MANUAL
+  KYERO
+  RESALE_ONLINE
+  GENERIC_XML
+}
+
+enum PropertyStatus {
+  DRAFT
+  ACTIVE
+  UNDER_OFFER
+  SOLD
+  RENTED
+  WITHDRAWN
+}
+
+enum PropertyVisibility {
+  PRIVATE
+  SHARED
+  PUBLIC
+}
+
+enum TransactionType {
+  SALE
+  RENT
+  SHORT_TERM
+}
+
+model Property {
+  id              String             @id @default(cuid())
+
+  ownerUserId     String
+  ownerAgencyId   String
+  source          PropertySource     @default(MANUAL)
+  externalRef     String?
+  importBatchId   String?
+
+  status          PropertyStatus     @default(DRAFT)
+  visibility      PropertyVisibility @default(SHARED)
+  publishedAt     DateTime?
+
+  deletedAt       DateTime?
+  hardDeleteAt    DateTime? // = deletedAt + 30d (PLAN §1 row 9)
+
+  transactionType TransactionType
+  priceCents      BigInt
+  currency        String             // ISO-4217
+  priceType       String             // 'fixed' | 'poa' | 'from'
+
+  bedrooms        Int?
+  bathrooms       Int?
+  areaM2          Int?
+  plotM2          Int?
+  yearBuilt       Int?
+
+  propertyTypeId  String
+  locationId      String
+
+  latitude        Decimal?           @db.Decimal(9, 6)
+  longitude       Decimal?           @db.Decimal(9, 6)
+  addressLine     String?
+  postcode        String?
+
+  virtualTourUrl  String?
+
+  // Field-level locks (PLAN §1 row 16): array of field names the agent locked,
+  // skipped during feed re-import. Stored as JSON for flexibility.
+  lockedFields    Json?
+  version         Int                @default(1)
+
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  owner           User               @relation("PropertyOwner", fields: [ownerUserId], references: [id])
+  agency          Agency             @relation(fields: [ownerAgencyId], references: [id])
+  propertyType    PropertyType       @relation(fields: [propertyTypeId], references: [id])
+  location        Location           @relation(fields: [locationId], references: [id])
+
+  features        PropertyFeature[]
+  images          PropertyImage[]
+  floorPlans      PropertyFloorPlan[]
+  videos          PropertyVideo[]
+  translations    PropertyTranslation[]
+  viewingRequests ViewingRequest[]
+  deals           Deal[]
+  featuredListings FeaturedListing[]
+
+  @@unique([source, externalRef]) // dedup on re-import
+  @@index([ownerUserId])
+  @@index([ownerAgencyId])
+  @@index([status, visibility])
+  @@index([locationId, status, visibility])
+  @@index([propertyTypeId, status, visibility])
+  @@index([deletedAt])
+  @@index([hardDeleteAt])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@index([publishedAt(sort: Desc), id(sort: Desc)])
+}
+
+model PropertyTranslation {
+  id              String   @id @default(cuid())
+  propertyId      String
+  locale          String
+  title           String
+  description     String   @db.Text
+  slug            String
+  metaTitle       String?
+  metaDescription String?
+
+  property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, locale])
+  @@unique([locale, slug])
+  @@index([locale])
+}
+
+model PropertyImage {
+  id            String      @id @default(cuid())
+  propertyId    String
+  mediaObjectId String
+  altText       String?
+  position      Int         @default(0)
+  isCover       Boolean     @default(false)
+
+  createdAt     DateTime    @default(now())
+
+  property      Property    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  mediaObject   MediaObject @relation(fields: [mediaObjectId], references: [id])
+
+  @@index([propertyId, position])
+  @@index([mediaObjectId])
+}
+
+model PropertyFloorPlan {
+  id            String      @id @default(cuid())
+  propertyId    String
+  mediaObjectId String
+  label         String?
+  position      Int         @default(0)
+
+  createdAt     DateTime    @default(now())
+
+  property      Property    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  mediaObject   MediaObject @relation(fields: [mediaObjectId], references: [id])
+
+  @@index([propertyId, position])
+  @@index([mediaObjectId])
+}
+
+model PropertyVideo {
+  id            String      @id @default(cuid())
+  propertyId    String
+  mediaObjectId String
+  label         String?
+  position      Int         @default(0)
+
+  createdAt     DateTime    @default(now())
+
+  property      Property    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  mediaObject   MediaObject @relation(fields: [mediaObjectId], references: [id])
+
+  @@index([propertyId, position])
+  @@index([mediaObjectId])
+}
+
+model PropertyFeature {
+  propertyId String
+  featureId  String
+
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  feature    Feature  @relation(fields: [featureId], references: [id])
+
+  @@id([propertyId, featureId])
+  @@index([featureId])
+}
+
+// ============================================================================
+// SECTION 4 — LOCATIONS (super-admin curated, drag-n-drop, m2m groups)
+// ============================================================================
+
+enum LocationLevel {
+  COUNTRY
+  REGION
+  CITY
+  AREA
+}
+
+model Location {
+  id           String                @id @default(cuid())
+  level        LocationLevel
+  parentId     String?
+
+  countryCode  String
+  latitude     Decimal?              @db.Decimal(9, 6)
+  longitude    Decimal?              @db.Decimal(9, 6)
+
+  position     Int                   @default(0)
+  isActive     Boolean               @default(true)
+
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  parent       Location?             @relation("LocParent", fields: [parentId], references: [id])
+  children     Location[]            @relation("LocParent")
+  translations LocationTranslation[]
+  groups       LocationGroupMember[]
+  properties   Property[]
+
+  @@index([parentId, position])
+  @@index([level, countryCode])
+  @@index([countryCode, level, position])
+}
+
+model LocationTranslation {
+  id              String   @id @default(cuid())
+  locationId      String
+  locale          String
+  name            String
+  slug            String
+  metaTitle       String?
+  metaDescription String?
+
+  location        Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([locationId, locale])
+  @@unique([locale, slug])
+  @@index([locale, name])
+}
+
+model LocationGroup {
+  id           String                     @id @default(cuid())
+  position     Int                        @default(0)
+  isActive     Boolean                    @default(true)
+
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
+
+  members      LocationGroupMember[]
+  translations LocationGroupTranslation[]
+}
+
+model LocationGroupMember {
+  groupId    String
+  locationId String
+  position   Int           @default(0)
+
+  group      LocationGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  location   Location      @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, locationId])
+  @@index([groupId, position])
+  @@index([locationId])
+}
+
+model LocationGroupTranslation {
+  id              String        @id @default(cuid())
+  groupId         String
+  locale          String
+  name            String
+  slug            String
+  metaTitle       String?
+  metaDescription String?
+
+  group           LocationGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, locale])
+  @@unique([locale, slug])
+}
+
+// ============================================================================
+// SECTION 5 — PROPERTY TYPES & FEATURES (super-admin curated)
+// ============================================================================
+
+enum IconKind {
+  LIBRARY // Lucide icon name
+  CUSTOM  // R2-hosted SVG/PNG (PropertyType only)
+}
+
+model PropertyTypeGroup {
+  id           String                          @id @default(cuid())
+  position     Int                             @default(0)
+  isActive     Boolean                         @default(true)
+
+  createdAt    DateTime                        @default(now())
+  updatedAt    DateTime                        @updatedAt
+
+  types        PropertyType[]
+  translations PropertyTypeGroupTranslation[]
+}
+
+model PropertyTypeGroupTranslation {
+  id     String            @id @default(cuid())
+  groupId String
+  locale  String
+  name    String
+  slug    String
+
+  group   PropertyTypeGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, locale])
+  @@unique([locale, slug])
+}
+
+model PropertyType {
+  id                String   @id @default(cuid())
+  groupId           String
+  position          Int      @default(0)
+  isActive          Boolean  @default(true)
+
+  iconKind          IconKind  @default(LIBRARY)
+  iconName          String?
+  iconR2Key         String?
+  iconAiSuggestedAt DateTime?
+  iconAdminOverrode Boolean   @default(false)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  group             PropertyTypeGroup @relation(fields: [groupId], references: [id])
+  translations      PropertyTypeTranslation[]
+  properties        Property[]
+
+  @@index([groupId, position])
+}
+
+model PropertyTypeTranslation {
+  id     String       @id @default(cuid())
+  typeId String
+  locale String
+  name   String
+  slug   String
+
+  type   PropertyType @relation(fields: [typeId], references: [id], onDelete: Cascade)
+
+  @@unique([typeId, locale])
+  @@unique([locale, slug])
+}
+
+model FeatureGroup {
+  id           String                @id @default(cuid())
+  position     Int                   @default(0)
+  isActive     Boolean               @default(true)
+
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  features     Feature[]
+  translations FeatureGroupTranslation[]
+}
+
+model FeatureGroupTranslation {
+  id      String       @id @default(cuid())
+  groupId String
+  locale  String
+  name    String
+
+  group   FeatureGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, locale])
+}
+
+model Feature {
+  id                String   @id @default(cuid())
+  groupId           String
+  position          Int      @default(0)
+  isActive          Boolean  @default(true)
+
+  // Lucide icon library only (PLAN row 12)
+  iconName          String?
+  iconAiSuggestedAt DateTime?
+  iconAdminOverrode Boolean  @default(false)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  group             FeatureGroup @relation(fields: [groupId], references: [id])
+  translations      FeatureTranslation[]
+  properties        PropertyFeature[]
+
+  @@index([groupId, position])
+}
+
+model FeatureTranslation {
+  id        String  @id @default(cuid())
+  featureId String
+  locale    String
+  name      String
+
+  feature   Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@unique([featureId, locale])
+}
+
+// ============================================================================
+// SECTION 6 — IMPORTS (Kyero priority)
+// ============================================================================
+
+enum FeedConnectorKind {
+  KYERO
+  RESALE_ONLINE
+  GENERIC_XML
+}
+
+enum FeedRunStatus {
+  QUEUED
+  RUNNING
+  SUCCESS
+  PARTIAL
+  FAILED
+  CANCELLED
+}
+
+enum FeedRunTrigger {
+  CRON
+  MANUAL
+  RETRY
+}
+
+model FeedConnection {
+  id              String            @id @default(cuid())
+  ownerUserId     String
+  agencyId        String?
+
+  kind            FeedConnectorKind
+  feedUrl         String
+  credentialsEnc  String?           // AES-256-GCM (PLAN §9.3)
+  fieldMappings   Json?             // GENERIC_XML mapping
+  defaults        Json?
+
+  syncEnabled     Boolean           @default(true)
+  cronSchedule    String            @default("0 */6 * * *")
+  lastRunAt       DateTime?
+  lastSuccessAt   DateTime?
+  lastError       String?           @db.Text
+
+  isLocked        Boolean           @default(false) // run mutex
+  lockedAt        DateTime?
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  owner           User              @relation("FeedConnectionOwner", fields: [ownerUserId], references: [id])
+  runs            FeedRun[]
+
+  @@index([ownerUserId])
+  @@index([syncEnabled])
+}
+
+model FeedRun {
+  id                  String          @id @default(cuid())
+  connectionId        String
+  status              FeedRunStatus
+  triggeredBy         FeedRunTrigger
+  triggeredByUserId   String?
+
+  startedAt           DateTime
+  finishedAt          DateTime?
+
+  itemsTotal          Int             @default(0)
+  itemsCreated        Int             @default(0)
+  itemsUpdated        Int             @default(0)
+  itemsSkippedLocked  Int             @default(0)
+  itemsFailed         Int             @default(0)
+
+  errorSummary        String?         @db.Text
+  errorsLog           Json?
+
+  connection          FeedConnection  @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId, startedAt(sort: Desc)])
+  @@index([status])
+}
+
+// ============================================================================
+// SECTION 7 — VIEWING REQUESTS + DEALS (tracked-only commission flow)
+// ============================================================================
+
+enum ViewingStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  RESCHEDULED
+  CANCELLED
+  COMPLETED
+  EXPIRED
+}
+
+enum ViewingOutcome {
+  NO_INTEREST
+  INTERESTED
+  OFFER_MADE
+  SOLD
+  RENTED
+}
+
+enum DealStatus {
+  PENDING_BOTH
+  PENDING_OWNER
+  PENDING_INTRODUCER
+  CONFIRMED
+  DISPUTED
+  CANCELLED
+}
+
+model ViewingRequest {
+  id                 String          @id @default(cuid())
+  propertyId         String
+  ownerUserId        String          // listing agent at time of request
+  introducerUserId   String          // requesting agent
+  introducerAgencyId String?
+
+  // Client info — AES-256-GCM at rest (PLAN §9.3)
+  clientNameEnc      String
+  clientEmailEnc     String?
+  clientPhoneEnc     String?
+  clientNotesEnc     String?
+
+  preferredDates     Json?
+  scheduledAt        DateTime?
+  durationMinutes    Int?
+  meetingPoint       String?
+
+  status             ViewingStatus   @default(PENDING)
+  outcome            ViewingOutcome?
+
+  chatThreadId       String?         @unique
+
+  expiresAt          DateTime
+
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  property           Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  owner              User            @relation("ViewingOwner", fields: [ownerUserId], references: [id])
+  introducer         User            @relation("ViewingIntroducer", fields: [introducerUserId], references: [id])
+  chatThread         ChatThread?     @relation(fields: [chatThreadId], references: [id])
+  deal               Deal?
+
+  @@index([propertyId])
+  @@index([ownerUserId, status])
+  @@index([introducerUserId, status])
+  @@index([scheduledAt])
+  @@index([status, expiresAt]) // for the auto-expire worker
+}
+
+model Deal {
+  id                       String      @id @default(cuid())
+  viewingRequestId         String      @unique
+  propertyId               String
+
+  ownerUserId              String
+  introducerUserId         String
+  ownerAgencyId            String
+  introducerAgencyId       String?
+
+  agreedPriceCents         BigInt
+  currency                 String
+
+  // Snapshot of % at time of deal creation (per-agency settings can change later)
+  commissionPct            Decimal     @db.Decimal(5, 2)
+  introducerSharePct       Decimal     @db.Decimal(5, 2)
+
+  totalCommissionCents     BigInt
+  ownerAmountCents         BigInt
+  introducerAmountCents    BigInt
+
+  status                   DealStatus  @default(PENDING_BOTH)
+
+  ownerSubmittedAt         DateTime?
+  introducerSubmittedAt    DateTime?
+  ownerConfirmedAt         DateTime?
+  introducerConfirmedAt    DateTime?
+
+  disputeOpenedAt          DateTime?
+  disputeOpenedById        String?
+  disputeReason            String?     @db.Text
+  disputeResolvedAt        DateTime?
+  disputeResolvedById      String?
+
+  closingDate              DateTime?
+
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
+
+  viewingRequest           ViewingRequest @relation(fields: [viewingRequestId], references: [id])
+  property                 Property       @relation(fields: [propertyId], references: [id])
+  owner                    User           @relation("DealOwner", fields: [ownerUserId], references: [id])
+  introducer               User           @relation("DealIntroducer", fields: [introducerUserId], references: [id])
+
+  @@index([status])
+  @@index([propertyId])
+  @@index([ownerUserId, status])
+  @@index([introducerUserId, status])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+}
+
+// ============================================================================
+// SECTION 8 — CHAT (Socket.io + WhatsApp/email handoff)
+// ============================================================================
+
+enum ChatThreadKind {
+  VIEWING // auto-pinned to a ViewingRequest
+  DIRECT  // free-form 1:1
+}
+
+model ChatThread {
+  id                  String          @id @default(cuid())
+  kind                ChatThreadKind
+
+  participantAUserId  String
+  participantBUserId  String
+  // Deterministic ordering for the unique-direct constraint
+  userMin             String
+  userMax             String
+
+  lastMessageAt       DateTime?
+  lastMessagePreview  String?         @db.VarChar(200)
+
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  participantA        User            @relation("ChatA", fields: [participantAUserId], references: [id])
+  participantB        User            @relation("ChatB", fields: [participantBUserId], references: [id])
+  viewingRequest      ViewingRequest?
+  messages            ChatMessage[]
+  reads               ChatThreadRead[]
+
+  @@unique([kind, userMin, userMax], name: "uniqueDirectThread")
+  @@index([participantAUserId, lastMessageAt(sort: Desc)])
+  @@index([participantBUserId, lastMessageAt(sort: Desc)])
+}
+
+model ChatMessage {
+  id            String      @id @default(cuid())
+  threadId      String
+  senderUserId  String
+  body          String      @db.Text
+  attachments   Json?
+  systemKind    String?     // 'property_card' | 'viewing_proposed' | 'deal_summary' | null
+  systemPayload Json?
+
+  editedAt      DateTime?
+  deletedAt     DateTime?
+  createdAt     DateTime    @default(now())
+
+  thread        ChatThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender        User        @relation(fields: [senderUserId], references: [id])
+
+  @@index([threadId, createdAt(sort: Desc), id(sort: Desc)]) // cursor pagination
+  @@index([senderUserId])
+}
+
+model ChatThreadRead {
+  threadId           String
+  userId             String
+  lastReadAt         DateTime
+  lastReadMessageId  String?
+
+  thread             ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user               User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([threadId, userId])
+  @@index([userId])
+}
+
+// ============================================================================
+// SECTION 9 — MARKETING (paid-gated; PLAN §6 + §11)
+// ============================================================================
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  PAUSED
+  CANCELLED
+  FAILED
+}
+
+enum SuppressionReason {
+  BOUNCE
+  UNSUBSCRIBE
+  COMPLAINT
+  MANUAL
+}
+
+model AgencyEmailConfig {
+  id                String   @id @default(cuid())
+  agencyId          String   @unique
+
+  smtpHost          String
+  smtpPort          Int
+  smtpUser          String
+  smtpPasswordEnc   String   // AES-256-GCM
+  smtpSecure        Boolean  @default(false)
+  fromEmail         String
+  fromName          String
+
+  // DKIM
+  dkimDomain        String?
+  dkimSelector      String?
+  dkimPrivateKeyEnc String?
+
+  testStatus        String?  // 'OK' | 'FAIL' | 'NOT_TESTED'
+  testedAt          DateTime?
+
+  agency            Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+}
+
+model AgencyEmailDomain {
+  id                String    @id @default(cuid())
+  agencyId          String
+  domain            String
+  verifiedAt        DateTime?
+  verificationToken String
+  spfStatus         String    @default("PENDING")
+  dkimStatus        String    @default("PENDING")
+  dmarcStatus       String?
+
+  agency            Agency    @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@unique([agencyId, domain])
+}
+
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  agencyId  String
+  name      String
+  subject   String
+  bodyHtml  String   @db.Text
+  bodyText  String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agency    Agency          @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  campaigns EmailCampaign[]
+
+  @@index([agencyId])
+}
+
+model EmailCampaign {
+  id                String         @id @default(cuid())
+  agencyId          String
+  templateId        String?
+
+  name              String
+  subject           String
+  bodyHtml          String         @db.Text
+  bodyText          String?        @db.Text
+
+  recipientFilter   Json?          // { source: 'leads' | 'contacts', filters }
+  recipientCount    Int            @default(0)
+
+  scheduledFor      DateTime?
+  status            CampaignStatus @default(DRAFT)
+
+  sentCount         Int            @default(0)
+  deliveredCount    Int            @default(0)
+  openedCount       Int            @default(0)
+  clickedCount      Int            @default(0)
+  bouncedCount      Int            @default(0)
+  unsubscribedCount Int            @default(0)
+
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  startedAt         DateTime?
+  finishedAt        DateTime?
+
+  agency            Agency         @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  template          EmailTemplate? @relation(fields: [templateId], references: [id])
+  recipients        EmailCampaignRecipient[]
+
+  @@index([agencyId, status])
+  @@index([scheduledFor])
+}
+
+model EmailCampaignRecipient {
+  id              String   @id @default(cuid())
+  campaignId      String
+  email           String
+  name            String?
+  contactId       String?
+  leadId          String?
+
+  status          String   // QUEUED | SENT | DELIVERED | OPENED | CLICKED | BOUNCED | UNSUBSCRIBED | FAILED
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  openedAt        DateTime?
+  clickedAt       DateTime?
+  bouncedAt       DateTime?
+  unsubscribedAt  DateTime?
+
+  errorMessage    String?
+
+  campaign        EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, status])
+  @@index([email])
+}
+
+model EmailSuppression {
+  id         String              @id @default(cuid())
+  agencyId   String
+  email      String              @db.Citext
+  reason     SuppressionReason
+  bounceType String?             // 'hard' | 'soft' | 'block'
+  notes      String?             @db.Text
+
+  createdAt  DateTime            @default(now())
+
+  agency     Agency              @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@unique([agencyId, email])
+  @@index([agencyId])
+}
+
+model FeaturedListing {
+  id          String   @id @default(cuid())
+  propertyId  String
+  agencyId    String
+  surface     String   // 'PUBLIC_HOME' | 'LOCATION_PAGE' | 'SEARCH_TOP' | 'AGENCY_PROFILE_TOP'
+  startsAt    DateTime
+  endsAt      DateTime
+  position    Int      @default(0)
+  source      String   // 'PLAN_INCLUDED' | 'PAID_BOOST'
+
+  createdAt   DateTime @default(now())
+
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  agency      Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([surface, startsAt, endsAt])
+  @@index([propertyId])
+}
+
+// ============================================================================
+// SECTION 10 — TICKETS
+// ============================================================================
+
+enum TicketCategory {
+  BUG
+  FEATURE_REQUEST
+  BILLING
+  ACCOUNT
+  OTHER
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model Ticket {
+  id              String          @id @default(cuid())
+  number          Int             @default(autoincrement())
+  openedById      String
+  agencyId        String?
+
+  category        TicketCategory
+  priority        TicketPriority  @default(NORMAL)
+  status          TicketStatus    @default(OPEN)
+  subject         String
+
+  assignedToId    String?
+
+  resolvedAt      DateTime?
+  closedAt        DateTime?
+  lastActivityAt  DateTime        @default(now())
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  openedBy        User            @relation("TicketOpener", fields: [openedById], references: [id])
+  assignedTo      User?           @relation("TicketAssignee", fields: [assignedToId], references: [id])
+  messages        TicketMessage[]
+
+  @@index([status, priority, lastActivityAt(sort: Desc)])
+  @@index([openedById])
+  @@index([assignedToId])
+}
+
+model TicketMessage {
+  id          String   @id @default(cuid())
+  ticketId    String
+  authorId    String
+  body        String   @db.Text
+  attachments Json?
+  isInternal  Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+
+  ticket      Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author      User   @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId, createdAt])
+}
+
+// ============================================================================
+// SECTION 11 — BILLING (Stripe subscriptions only — no Connect)
+// ============================================================================
+
+enum PlanTier {
+  FREE
+  PRO
+  BUSINESS
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  INCOMPLETE
+  UNPAID
+  PAUSED
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+model Plan {
+  id                    String   @id @default(cuid())
+  tier                  PlanTier @unique
+  name                  String
+  description           String?  @db.Text
+
+  stripeProductId       String?
+  stripePriceMonthlyEur String?
+  stripePriceYearlyEur  String?
+  stripePriceMonthlyGbp String?
+  stripePriceYearlyGbp  String?
+
+  // Typed feature flags + numeric limits as JSON for flexibility
+  features              Json
+  position              Int      @default(0)
+  isActive              Boolean  @default(true)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model AgencySubscription {
+  id                       String              @id @default(cuid())
+  agencyId                 String              @unique
+
+  planTier                 PlanTier            @default(FREE)
+  status                   SubscriptionStatus  @default(ACTIVE)
+
+  stripeCustomerId         String?
+  stripeSubscriptionId     String?
+  stripePriceId            String?
+  billingCycle             BillingCycle?
+  currency                 String?             // 'EUR' | 'GBP'
+
+  currentPeriodStart       DateTime?
+  currentPeriodEnd         DateTime?
+  cancelAtPeriodEnd        Boolean             @default(false)
+  cancelledAt              DateTime?
+
+  // Super-admin manual grant (PLAN row 31)
+  grantedManually          Boolean             @default(false)
+  grantedById              String?
+  grantedReason            String?
+  grantedUntil             DateTime?
+
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
+
+  agency                   Agency              @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  invoices                 SubscriptionInvoice[]
+
+  @@index([planTier, status])
+  @@index([currentPeriodEnd])
+}
+
+model SubscriptionInvoice {
+  id                String              @id @default(cuid())
+  subscriptionId    String
+  stripeInvoiceId   String              @unique
+
+  amountCents       Int
+  taxCents          Int
+  totalCents        Int
+  currency          String
+
+  status            String              // 'open' | 'paid' | 'void' | 'uncollectible'
+  paidAt            DateTime?
+  invoicePdfUrl     String?
+  hostedInvoiceUrl  String?
+
+  periodStart       DateTime
+  periodEnd         DateTime
+
+  createdAt         DateTime            @default(now())
+
+  subscription      AgencySubscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId, createdAt(sort: Desc)])
+}
+
+model ProcessedStripeEvent {
+  id            String   @id @default(cuid())
+  stripeEventId String   @unique
+  type          String
+  processedAt   DateTime @default(now())
+}
+
+// ============================================================================
+// SECTION 12 — EXPORT (CSV + PDF, paid-gated)
+// ============================================================================
+
+enum ExportKind {
+  CSV
+  PDF_PROPERTY
+  PDF_PORTFOLIO
+}
+
+enum ExportStatus {
+  QUEUED
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+model Export {
+  id            String       @id @default(cuid())
+  requestedById String
+  agencyId      String
+  kind          ExportKind
+  status        ExportStatus @default(QUEUED)
+  filters       Json?
+  propertyIds   Json?
+  locale        String       @default("en")
+  resultR2Key   String?
+  resultBytes   Int?
+  expiresAt     DateTime?
+  errorMessage  String?
+
+  createdAt     DateTime     @default(now())
+  finishedAt    DateTime?
+
+  requestedBy   User         @relation(fields: [requestedById], references: [id])
+
+  @@index([agencyId, createdAt(sort: Desc)])
+  @@index([status])
+}
+
+// ============================================================================
+// SECTION 13 — WEBHOOKS (out — full event catalog)
+// ============================================================================
+
+enum WebhookEventType {
+  PROPERTY_CREATED
+  PROPERTY_UPDATED
+  PROPERTY_DELETED
+  LEAD_CREATED
+  VIEWING_REQUESTED
+  VIEWING_ACCEPTED
+  VIEWING_DECLINED
+  VIEWING_COMPLETED
+  DEAL_CONFIRMED
+  DEAL_DISPUTED
+  AGENT_INVITED
+  AGENT_JOINED
+  IMPORT_RUN_COMPLETED
+  IMPORT_RUN_FAILED
+  CHAT_MESSAGE_RECEIVED
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  DEAD_LETTERED
+}
+
+model WebhookEndpoint {
+  id          String              @id @default(cuid())
+  agencyId    String
+  url         String
+  secretEnc   String              // AES-256-GCM HMAC secret
+  events      String[]            // subscribed event types
+  isActive    Boolean             @default(true)
+  description String?
+
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  agency      Agency              @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  deliveries  WebhookDelivery[]
+
+  @@index([agencyId, isActive])
+}
+
+model WebhookEvent {
+  id         String              @id @default(cuid())
+  type       WebhookEventType
+  agencyId   String
+  payload    Json
+  createdAt  DateTime            @default(now())
+
+  deliveries WebhookDelivery[]
+
+  @@index([agencyId, type, createdAt(sort: Desc)])
+}
+
+model WebhookDelivery {
+  id             String                   @id @default(cuid())
+  eventId        String
+  endpointId     String
+  status         WebhookDeliveryStatus    @default(PENDING)
+  attemptCount   Int                      @default(0)
+  lastAttemptAt  DateTime?
+  nextAttemptAt  DateTime?
+  succeededAt    DateTime?
+  deadLetteredAt DateTime?
+  responseStatus Int?
+  errorMessage   String?
+
+  event          WebhookEvent             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  endpoint       WebhookEndpoint          @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  attempts       WebhookDeliveryAttempt[]
+
+  @@index([status, nextAttemptAt])
+  @@index([endpointId, status])
+}
+
+model WebhookDeliveryAttempt {
+  id                String          @id @default(cuid())
+  deliveryId        String
+  attemptedAt       DateTime        @default(now())
+  responseStatus    Int?
+  responseBodyTrunc String?         @db.VarChar(2000)
+  errorMessage      String?
+  durationMs        Int?
+
+  delivery          WebhookDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryId, attemptedAt])
+}
+
+// ============================================================================
+// SECTION 14 — AUDIT LOG (security-sensitive events only)
+// ============================================================================
+
+enum AuditEventType {
+  USER_LOGIN
+  USER_LOGOUT
+  PASSWORD_CHANGED
+  TOTP_ENABLED
+  TOTP_DISABLED
+  ROLE_CHANGED
+  EMAIL_VERIFIED
+  PLAN_CHANGED
+  PLAN_GRANTED_MANUALLY
+  PLAN_REVOKED
+  PROPERTY_DELETED
+  PROPERTY_HARD_DELETED
+  AGENCY_CREATED
+  AGENCY_SUSPENDED
+  AGENCY_REACTIVATED
+  DEAL_DISPUTED
+  DEAL_DISPUTE_RESOLVED
+  IMPORT_CREDENTIALS_UPDATED
+  WEBHOOK_REPLAYED
+  SUPER_ADMIN_BULK_OPERATION
+  SUPER_ADMIN_IMPERSONATE_START
+  SUPER_ADMIN_IMPERSONATE_END
+}
+
+model AuditLog {
+  id          String         @id @default(cuid())
+  type        AuditEventType
+  actorUserId String?
+  actorIp     String?
+  actorUa     String?
+  targetKind  String?
+  targetId    String?
+  agencyId    String?
+  metadata    Json?
+
+  createdAt   DateTime       @default(now())
+
+  actor       User?          @relation(fields: [actorUserId], references: [id])
+
+  @@index([actorUserId, createdAt(sort: Desc)])
+  @@index([type, createdAt(sort: Desc)])
+  @@index([agencyId, createdAt(sort: Desc)])
+  @@index([targetKind, targetId])
+}
+
+// ============================================================================
+// SECTION 15 — OUTBOX (Meilisearch reindex via outbox pattern; PLAN §11.5)
+// ============================================================================
+
+enum OutboxEventStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
+model OutboxEvent {
+  id         String            @id @default(cuid())
+  topic      String            // e.g., 'search.property.upsert', 'search.property.delete'
+  payload    Json
+  status     OutboxEventStatus @default(PENDING)
+  attempts   Int               @default(0)
+  errorLast  String?           @db.Text
+  createdAt  DateTime          @default(now())
+  processedAt DateTime?
+
+  @@index([status, createdAt])
+  @@index([topic])
+}
