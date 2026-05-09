@@ -10,6 +10,20 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Added (Sprint 1 — slice F.3.a, image upload widget)
+
+- **`ImageUploader` Client Component** (`apps/web/app/[locale]/dashboard/properties/[id]/image-uploader.tsx`) — drag-and-drop / file-picker upload widget that drives the full pipeline:
+  1. SHA-256 each file via Web Crypto (`crypto.subtle.digest`)
+  2. Detect dimensions via `createImageBitmap` (best-effort — some HEIC files can't decode in-browser, in which case width/height go null)
+  3. POST `/api/uploads/sign` (server action wrapper)
+  4. PUT each novel file directly to the storage backend (R2 in prod, dev `/api/_local-storage/upload` HMAC route in dev) — the auth cookie does not travel with this request
+  5. POST `/api/uploads/register` so the api re-hashes + creates `MediaObject`
+  6. POST `/api/dashboard/properties/:id/images` to attach (slice E)
+- **Per-file status surfacing** — Queued / Hashing / Signing / Uploading / Registering / Attaching / Done / Error — so partial failures are visible. UI caps: 25 MB per file, 20 files per batch (api caps stay 500 MB / 50).
+- **3 new Server Actions** in `app/[locale]/dashboard/properties/[id]/actions.ts` (`signUploadsAction`, `registerUploadsAction`, `attachImagesAction`). Routing all api calls through Server Actions keeps cookie forwarding in `apiFetch` uniform; the api's CORS allowlist doesn't have to grow with every new browser-side caller. `attachImagesAction` calls `revalidatePath` on the detail page so the gallery refreshes; `router.refresh()` on the client side complements that for the in-flight session.
+- **Detail page renders the uploader for owners only** — same matrix as the api's ownership service: SUPER_ADMIN, AGENCY_ADMIN of owning agency, AGENT owner. Computed from the session vs `property.ownerUserId` / `ownerAgencyId`.
+- **`uploadImages` i18n key** added in all 4 locales.
+
 ### Added (Sprint 1 — slice F.2, property create form)
 
 - **`/[locale]/dashboard/properties/new`** — full create form. Server Component shell prefetches the type + location pickers in parallel; `PropertyCreateForm` Client Component handles the rest (RHF + Zod resolver, `react-hook-form@^7.54` and `@hookform/resolvers@^3.9`).

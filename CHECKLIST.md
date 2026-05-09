@@ -135,11 +135,20 @@
 - [x] `.input` Tailwind component class for neutral form styling
 - [x] gitignore: `apps/*/tmp/` (dev LocalFsStorage volume)
 
-### F.3 — Image upload widget + edit form (next)
+### F.3.a — Image upload widget ✅
 
-- [ ] Image upload widget (Client Component) — Web Crypto SHA-256 client-side, calls `/api/uploads/sign` → PUT → `/api/uploads/register` → `/api/dashboard/properties/:id/images` (attach)
+- [x] `ImageUploader` Client Component — drag-drop + file picker, Web Crypto SHA-256, dimension detection via `createImageBitmap`, per-file status (Queued / Hashing / Signing / Uploading / Registering / Attaching / Done / Error)
+- [x] 3 Server Actions: `signUploadsAction`, `registerUploadsAction`, `attachImagesAction` (cookie-forwarding `apiFetch` keeps cookie/CORS off the table)
+- [x] `attachImagesAction` calls `revalidatePath` so the detail-page gallery refreshes; client also calls `router.refresh()`
+- [x] Detail page renders uploader only for owners (SUPER_ADMIN / AGENCY_ADMIN of agency / AGENT owner)
+- [x] UI caps: 25 MB per file, 20 files per batch (api caps stay 500 MB / 50)
+- [x] `uploadImages` i18n key in all 4 locales
+
+### F.3.b — Edit form + image management (next)
+
 - [ ] `/[locale]/dashboard/properties/[id]/edit` — edit form (same component as create, prefilled, calls PATCH)
-- [ ] Surface variants from the lazy resolver on the detail page (call a new `/api/dashboard/properties/:id/images/:imageId/variants/resolve` or batch endpoint)
+- [ ] Image management: reorder (drag or up/down), set cover, edit alt text, delete (per-image actions calling `/images/:imageId`)
+- [ ] Surface variant URLs from the lazy resolver on the detail page (new `/variants/resolve` endpoint or batch field)
 - [ ] PropertyFloorPlan + PropertyVideo attach endpoints + UI — deferred (same shape as PropertyImage; build alongside their sections in the edit form)
 
 ### G — Public marketplace property pages (basic)

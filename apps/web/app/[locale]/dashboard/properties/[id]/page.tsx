@@ -5,6 +5,7 @@ import type { propertyImageSchemas, propertySchemas } from "@inmolink/shared";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { ImageUploader } from "./image-uploader";
 
 type Props = {
   params: Promise<{ locale: string; id: string }>;
@@ -46,6 +47,14 @@ export default async function PropertyDetailPage({ params }: Props) {
 
   const cover = images.images.find((i) => i.isCover) ?? images.images[0] ?? null;
   const gallery = images.images.filter((i) => i.id !== cover?.id);
+
+  // Same matrix as apps/api/src/modules/properties/service.ts ownershipMatches —
+  // SUPER_ADMIN, AGENCY_ADMIN of owning agency, AGENT owner.
+  const role = session.user.role;
+  const isOwner =
+    role === "SUPER_ADMIN" ||
+    (role === "AGENCY_ADMIN" && session.user.agencyId === property.ownerAgencyId) ||
+    (role === "AGENT" && session.user.id === property.ownerUserId);
 
   return (
     <main className="container mx-auto max-w-4xl space-y-8 p-8">
@@ -130,6 +139,13 @@ export default async function PropertyDetailPage({ params }: Props) {
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {isOwner && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">{t("uploadImages")}</h2>
+          <ImageUploader locale={locale} propertyId={property.id} />
         </section>
       )}
     </main>
