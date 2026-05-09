@@ -74,6 +74,9 @@ $RECYCLE.BIN/
 /uploads/
 .cache/
 
+# Dev local-fs storage (LocalFsStorage writes here when R2 isn't configured)
+apps/*/tmp/
+
 # PM2
 .pm2/
 

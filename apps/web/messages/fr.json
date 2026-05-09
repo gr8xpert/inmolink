@@ -21,6 +21,7 @@
   "properties": {
     "title": "Biens",
     "subtitle": "Annonces que vous possédez et partagées avec l'agence.",
+    "createNew": "Nouveau bien",
     "backToDashboard": "Retour au tableau de bord",
     "backToList": "Tous les biens",
     "empty": "Aucun bien pour le moment. Créez-en un pour commencer.",

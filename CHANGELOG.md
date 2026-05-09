@@ -10,6 +10,17 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Added (Sprint 1 — slice F.2, property create form)
+
+- **`/[locale]/dashboard/properties/new`** — full create form. Server Component shell prefetches the type + location pickers in parallel; `PropertyCreateForm` Client Component handles the rest (RHF + Zod resolver, `react-hook-form@^7.54` and `@hookform/resolvers@^3.9`).
+- **Locale tabs** for translations: `en` required, `es/de/fr` optional and dropped from the payload if title+description are blank. Slug auto-derives from title via a Unicode-property slugify (`\p{M}` strips combining diacritics so "Málaga" → "malaga"); user can override.
+- **Server Action `createPropertyAction`** posts to `/api/dashboard/properties` via `apiFetch` (cookie forwarding works through Server Actions same as Server Components). Returns typed `CreatePropertyResult` so the form can surface inline errors; on success, redirects server-side to the new property's detail page.
+- **Form-level Zod** is intentionally permissive (numeric fields are strings the user types) — values are massaged to `propertyCreateSchema` shape on submit, then re-validated against the canonical schema before sending. Catches edge cases (cents overflow, malformed slug) without fighting RHF over blank fields.
+- **`GET /api/dashboard/property-types` + `GET /api/dashboard/locations`** in the new `taxonomy` module. Read-only, locale-aware (`?locale=` falls back to en, then first translation). New `taxonomySchemas` namespace in `@inmolink/shared`.
+- **Seed extension** — 1 PropertyTypeGroup ("Residential") + 5 PropertyTypes (Apartment, House, Villa, Plot, Commercial) + 1 Country (Spain) + 3 Cities (Málaga, Madrid, Barcelona), each with all 4 locale translations. Stable explicit ids → idempotent re-seed. Sufficient to use the create form end-to-end without Sprint 2's super-admin curation UI.
+- **`.input` Tailwind component class** in `apps/web/app/globals.css` — neutral input styling reused across the form's inputs, selects, and textareas. Avoids pulling in shadcn primitives this slice.
+- **`createNew` i18n key** added in all 4 locales; list page now has a "New property" CTA.
+
 ### Added (Sprint 1 — slice F.1, dashboard property read-only path)
 
 - **`/[locale]/dashboard/properties` list page** — Server Component, calls the api via the new `apiFetch` helper that forwards the request `cookie` header (so Auth.js v5 session is shared between web origin and api origin). Cursor-paginated. Status chip per row, locale-aware money + date, transaction-type / bed / bath / m² metadata.

@@ -55,12 +55,20 @@ export default async function PropertiesListPage({ params, searchParams }: Props
           <h1 className="text-2xl font-bold">{t("title")}</h1>
           <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
         </div>
-        <Link
-          href={`/${locale}/dashboard`}
-          className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          {t("backToDashboard")}
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href={`/${locale}/dashboard/properties/new`}
+            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90"
+          >
+            {t("createNew")}
+          </Link>
+          <Link
+            href={`/${locale}/dashboard`}
+            className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            {t("backToDashboard")}
+          </Link>
+        </div>
       </header>
 
       {data.items.length === 0 ? (

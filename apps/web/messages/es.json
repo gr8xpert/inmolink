@@ -21,6 +21,7 @@
   "properties": {
     "title": "Propiedades",
     "subtitle": "Listados tuyos y compartidos en la agencia.",
+    "createNew": "Nueva propiedad",
     "backToDashboard": "Volver al panel",
     "backToList": "Todas las propiedades",
     "empty": "Aún no hay propiedades. Crea una para empezar.",

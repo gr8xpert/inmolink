@@ -21,6 +21,7 @@
   "properties": {
     "title": "Immobilien",
     "subtitle": "Eigene und von der Agentur geteilte Listings.",
+    "createNew": "Neue Immobilie",
     "backToDashboard": "Zurück zum Dashboard",
     "backToList": "Alle Immobilien",
     "empty": "Noch keine Immobilien. Lege eine an, um zu beginnen.",

@@ -21,6 +21,7 @@
   "properties": {
     "title": "Properties",
     "subtitle": "Listings owned by you and shared across the agency.",
+    "createNew": "New property",
     "backToDashboard": "Back to dashboard",
     "backToList": "All properties",
     "empty": "No properties yet. Create one to get started.",

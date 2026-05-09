@@ -1,8 +1,4 @@
-import {
-  type PaidFeature,
-  type PlanTier,
-  type UserRole,
-} from "@inmolink/shared";
+import type { PaidFeature, PlanTier, UserRole } from "@inmolink/shared";
 
 /**
  * Permission predicate. Locked behavior:
@@ -19,20 +15,14 @@ export type Subject = {
   planTier: PlanTier;
 };
 
-export type Action =
-  | PaidFeature
-  | `resource:${string}:${"read" | "create" | "update" | "delete"}`;
+export type Action = PaidFeature | `resource:${string}:${"read" | "create" | "update" | "delete"}`;
 
 export type Resource = {
   ownerUserId?: string;
   ownerAgencyId?: string;
 };
 
-const PRO_OR_HIGHER: ReadonlySet<PlanTier> = new Set<PlanTier>([
-  "PRO",
-  "BUSINESS",
-  "ENTERPRISE",
-]);
+const PRO_OR_HIGHER: ReadonlySet<PlanTier> = new Set<PlanTier>(["PRO", "BUSINESS", "ENTERPRISE"]);
 
 export function can(subject: Subject, action: Action, resource?: Resource): boolean {
   // Super-admin bypass
@@ -47,18 +37,15 @@ export function can(subject: Subject, action: Action, resource?: Resource): bool
   // AGENCY_ADMIN: full access within their agency.
   // AGENT: own resources only.
   if (action.startsWith("resource:")) {
-    const isWrite = action.endsWith(":create") ||
-      action.endsWith(":update") ||
-      action.endsWith(":delete");
+    const isWrite =
+      action.endsWith(":create") || action.endsWith(":update") || action.endsWith(":delete");
 
     // Reads are open by default — visibility filtering happens at the query layer
     // (PLAN §3: "Property visibility filter applied in every read query").
     if (!isWrite) return true;
 
     if (subject.role === "AGENCY_ADMIN") {
-      return Boolean(
-        resource?.ownerAgencyId && subject.agencyId === resource.ownerAgencyId,
-      );
+      return Boolean(resource?.ownerAgencyId && subject.agencyId === resource.ownerAgencyId);
     }
 
     if (subject.role === "AGENT") {
