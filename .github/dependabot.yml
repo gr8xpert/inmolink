@@ -1,0 +1,36 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Madrid"
+    open-pull-requests-limit: 5
+    groups:
+      next:
+        patterns: ["next", "react", "react-dom", "next-intl"]
+      prisma:
+        patterns: ["prisma", "@prisma/*"]
+      fastify:
+        patterns: ["fastify", "@fastify/*", "fastify-*"]
+      auth:
+        patterns: ["next-auth", "@auth/*"]
+      types:
+        patterns: ["@types/*"]
+      dev-tools:
+        patterns: ["@biomejs/*", "turbo", "typescript", "tsx", "vitest"]
+    ignore:
+      # Major version bumps require manual review (architectural impact).
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Madrid"
+    open-pull-requests-limit: 3
