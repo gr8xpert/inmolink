@@ -78,31 +78,69 @@
 - [x] Upload schemas in `@inmolink/shared` (`uploadSchemas` namespace)
 - [x] Verified end-to-end: sign → PUT → register → re-sign hits dedup → GET returns identical bytes with matching hash
 
-### D — Image variant generation worker (next)
+### Post-review hardening ✅ (commit `b48ec2d`)
 
-- [ ] BullMQ processor on `IMAGE_VARIANT` queue (sharp pipeline)
-- [ ] WebP variants at thumb (200) / small (480) / medium (1080) / large (1920)
-- [ ] +1 JPEG fallback at "large" for og:image cover only
-- [ ] Each variant content-addressable: hash output, dedup via `MediaVariant`
-- [ ] Lazy: generate thumb + medium eagerly, small + large on first request
-- [ ] Update `PropertyImage.variants` JSON manifest after generation
+- [x] P0-1: callbackUrl validated to same-origin path on `/sign-in` (open-redirect fix)
+- [x] P0-2: `/uploads/register` TOCTOU collapsed — typed `StorageObjectMissingError` from `fetchAndHash`, dropped separate `exists()` precheck
+- [x] P0-3: R2 presigned PUT now binds `content-type` via `signableHeaders` (prevents MIME swap at upload)
+- [x] P1-5: `ENCRYPTION_KEY` validated as 64-char lowercase hex (32 bytes); both `apps/api` + `apps/worker` configs; `.env.example` updated; dev `.env` keys regenerated
 
-### E — PropertyImage attach + media management
+### D — Image variant generation worker ✅ (commit `6be4676`)
 
-- [ ] `POST /api/dashboard/properties/:id/images` — attach uploaded media
-- [ ] `PATCH /api/dashboard/properties/:id/images/:imageId` — reorder, set cover, alt text
-- [ ] `DELETE /api/dashboard/properties/:id/images/:imageId` — decrement refCount
-- [ ] Worker: `MEDIA_CLEANUP` daily cron (refCount=0 + scheduledDeleteAt past)
+- [x] BullMQ processor on `IMAGE_VARIANT` queue (sharp pipeline)
+- [x] WebP variants at thumb (200) / small (480) / medium (1080) / large (1920)
+- [x] +1 JPEG fallback at "large" — generated on demand for the cover image (lazy resolver)
+- [x] Each variant content-addressable: SHA-256 of output, `MediaVariant.hash` UNIQUE
+- [x] Lazy: thumb + medium eagerly enqueued on `/uploads/register`; small / large / cover-JPEG on first request via `resolveOrEnqueueVariant`
+- [x] `Storage.download(key)` + `Storage.put(key, body, ct)` added to interface; R2 + LocalFs impls
+- [x] `variantKeyFromHash()` — variants under separate `variants/` prefix (independent orphan scan)
+- [x] Shared variant contract in `@inmolink/shared` (`mediaSchemas`): `VARIANT_SIZES`, `EAGER_VARIANTS`, `PIPELINE_VERSION = 1`, `imageVariantJobId()` for stable BullMQ dedup
+- [x] API queue producer (`apps/api/src/lib/queues.ts`) — attempts 5, exp backoff 5s, removeOnComplete age 1h, removeOnFail count 200; drained on `app.close()`
+- [x] Same-source dedup + cross-source refCount bump on output-hash collision (P2002 race collapses to bump)
+- [ ] *(deferred)* Update `PropertyImage.variants` JSON manifest — there is no manifest field today; lazy resolver returns variant URLs directly. Manifest can land in slice G if the public page benefits.
 
-### F — Web dashboard property UI
+### E — PropertyImage attach + media management ✅ (commit `f097300`)
 
-- [ ] `<AgencyBadge>` shared component in `@inmolink/ui`
-- [ ] `/[locale]/dashboard/properties` — list page (cursor pagination, filters)
-- [ ] `/[locale]/dashboard/properties/new` — create form (RHF + Zod)
-- [ ] Image upload widget — SHA-256 client-side, calls `/api/uploads/sign`
-- [ ] `/[locale]/dashboard/properties/[id]` — detail view (owner/admin can edit)
-- [ ] `/[locale]/dashboard/properties/[id]/edit` — edit form
-- [ ] Multi-locale title/description tabs (en/es/de/fr)
+- [x] Schema migration `20260509201152_slice_e_media_orphan_tracking`:
+  - [x] `MediaObject.refCount` default `1` → `0` (matches service insert; closes review P1-3)
+  - [x] `MediaVariant.sourceMediaObjectId` nullable; FK Cascade → SetNull
+  - [x] `MediaVariant.scheduledDeleteAt` + index for orphan scan
+- [x] `POST /api/dashboard/properties/:id/images` — bulk attach 1–50; validates `image/*` MIME; transactional refCount++ + clear `scheduledDeleteAt` + cover-uniqueness
+- [x] `PATCH /api/dashboard/properties/:id/images/:imageId` — alt text, position, isCover (with cover-uniqueness)
+- [x] `DELETE /api/dashboard/properties/:id/images/:imageId` — drop row + refCount-- ; if 0 set `scheduledDeleteAt = NOW()+7d`
+- [x] `GET /api/dashboard/properties/:id/images` — list endpoint (slice F.1 extension); same read scope as detail
+- [x] `MEDIA_CLEANUP` worker — repeatable scheduler (BullMQ `upsertJobScheduler`), pattern `0 0 3 * * *` (daily 03:00:00), idempotent on every boot
+- [x] Pass 1: MediaObject orphans → decrement variant refCounts (schedule each at 7d if drops to 0), delete source blob, delete row
+- [x] Pass 2: MediaVariant orphans → delete blob, delete row. Storage failures logged + DB GC continues. Batch 500/pass.
+- [x] `propertyImageSchemas` in `@inmolink/shared` — attach (max 50) + patch (refine non-empty) + response wrappers + list
+
+### F.1 — Web dashboard property UI (read-only path) ✅ (commit `6576d89`)
+
+- [x] `<AgencyBadge>` shared component in `@inmolink/ui` — Server-Component-safe, two sizes (sm cards / md detail headers)
+- [x] `/[locale]/dashboard/properties` — list page (cursor pagination, status chip per row, locale-aware money + date)
+- [x] `/[locale]/dashboard/properties/[id]` — detail view (cover + gallery + key-facts grid + best-translation pick)
+- [x] `apps/web/src/lib/api.ts` — `apiFetch<T>` with cookie forwarding via `next/headers` (Auth.js cookie reaches Fastify on `:3001`); typed `ApiError`
+- [x] `apps/web/src/lib/format.ts` — locale-aware `Intl` money + date
+- [x] i18n: `properties` namespace populated in en/es/de/fr (status / visibility / transaction enums + page strings)
+
+### F.2 — Web dashboard property UI (create form) ✅ (commit `fb0cde4`)
+
+- [x] `/[locale]/dashboard/properties/new` — Server Component shell + `PropertyCreateForm` Client Component (RHF + Zod resolver)
+- [x] Locale tabs: en required, es/de/fr optional (dropped from payload if title+description blank)
+- [x] Slug auto-derives from title via Unicode-property slugify (`\p{M}` strips diacritics)
+- [x] `createPropertyAction` Server Action — POSTs to `/api/dashboard/properties` via `apiFetch`; success redirects server-side to detail; error returned typed for inline rendering
+- [x] Two-step Zod: permissive form schema → re-validated against canonical `propertyCreateSchema` before send
+- [x] Taxonomy module: `GET /api/dashboard/property-types` + `GET /api/dashboard/locations` — locale-aware (?locale=, falls back en → first); new `taxonomySchemas` in `@inmolink/shared`
+- [x] Seed extension: `Residential` PropertyTypeGroup + 5 PropertyTypes (Apartment/House/Villa/Plot/Commercial) + Spain country + 3 cities (Málaga/Madrid/Barcelona) — all 4 locale translations, idempotent
+- [x] `.input` Tailwind component class for neutral form styling
+- [x] gitignore: `apps/*/tmp/` (dev LocalFsStorage volume)
+
+### F.3 — Image upload widget + edit form (next)
+
+- [ ] Image upload widget (Client Component) — Web Crypto SHA-256 client-side, calls `/api/uploads/sign` → PUT → `/api/uploads/register` → `/api/dashboard/properties/:id/images` (attach)
+- [ ] `/[locale]/dashboard/properties/[id]/edit` — edit form (same component as create, prefilled, calls PATCH)
+- [ ] Surface variants from the lazy resolver on the detail page (call a new `/api/dashboard/properties/:id/images/:imageId/variants/resolve` or batch endpoint)
+- [ ] PropertyFloorPlan + PropertyVideo attach endpoints + UI — deferred (same shape as PropertyImage; build alongside their sections in the edit form)
 
 ### G — Public marketplace property pages (basic)
 
