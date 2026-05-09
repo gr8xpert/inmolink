@@ -10,7 +10,33 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
-### Added
+### Added (Sprint 0 — Step 3 monorepo scaffold)
+
+- **Root configs**: `package.json` (workspace root, turbo-delegated scripts, pinned pnpm@10.33.2, Node ≥20), `pnpm-workspace.yaml`, `turbo.json` (Turbo 2 syntax with proper `dependsOn` graph), `tsconfig.base.json` (strict + verbatim module syntax + noUncheckedIndexedAccess), `biome.json` (replaces ESLint+Prettier per ADR 0001), `.gitattributes` (LF normalization), `.editorconfig`, `.nvmrc`, `.npmrc` (pnpm tuning).
+- **`apps/web`** — Next.js 15 dashboard scaffold. App Router, locale-prefixed routing via next-intl (4 locales), Tailwind + shadcn-ready, port 3000.
+- **`apps/public`** — Next.js 15 marketplace scaffold. ISR-aggressive (`Cache-Control: s-maxage=300, stale-while-revalidate=600` on property/buy routes per PLAN §11.4), `robots.ts` allows public, port 3002.
+- **`apps/api`** — Fastify 5 with Zod type provider. Helmet, CORS, Redis-backed rate limiter, multipart, sensible, swagger + swagger-ui at `/docs`. Pino logger with PII redaction. Health routes `/api/health/{live,ready}`. Graceful shutdown drains Redis. Port 3001.
+- **`apps/worker`** — BullMQ workers across 8 named queues with priority tiers per PLAN §11.7 (high: email/webhook/chat-fanout; medium: imports/exports; low: variants/reindex/media-cleanup). Concurrency caps per queue.
+- **`packages/db`** — Prisma client singleton + full schema (~50 models, ~25 enums) + dev seed (FREE + PRO plans + super-admin agency-of-one). Schema validates clean; client generates via `pnpm db:generate`.
+- **`packages/shared`** — Zod re-export + locked `LOCALES`, `USER_ROLES`, `PAID_FEATURES`, `PLAN_TIERS` constants used everywhere.
+- **`packages/auth`** — Auth.js v5 + Prisma adapter wiring stub. `can(subject, action, resource)` permission matrix. Argon2id password hash/verify (@node-rs/argon2 per ADR 0001 §11.9). `PlanRequiredError` thrown by middleware on 403.
+- **`packages/search`** — `SearchAdapter` interface + `MeilisearchAdapter` with per-locale indices, faceted search, `_geoRadius` support, ping for `/ready`. Swap-ready per ADR 0001.
+- **`packages/ai`** — Anthropic SDK wired with Claude Haiku as default. `suggestIcon()` stub for Sprint 2 super-admin icon curation.
+- **`packages/imports`** — `FeedConnector` interface + `NormalizedListing` DTO. Connectors emit `AsyncIterable` so worker streams without buffering (production feeds reach 100+ MB).
+- **`packages/pdf`** — Puppeteer + Handlebars renderer with browser singleton + memory-constrained Chromium flags.
+- **`packages/ui`** — shadcn/ui pattern. `cn()` helper (clsx + tailwind-merge).
+- **`docker-compose.yml`** — Postgres 16 (with `pg_stat_statements` preloaded), PgBouncer transaction pooling, Redis 7 with AOF persistence, Meilisearch v1.12. All four healthchecked.
+- **`infra/postgres/init.sql`** — installs pgcrypto, citext, pg_stat_statements on first container start.
+- **`nginx/inmolink.conf`** + `nginx/_proxy.conf` — production reverse proxy template for 3 vhosts (public marketplace + dashboard + API+WebSocket with sticky sessions). Per-route rate limits per PLAN §11.4. HSTS, X-Frame-Options, etc.
+- **`ecosystem.config.cjs`** — PM2 cluster config (web/public/api ×2 cluster, worker ×2 fork, graceful shutdown windows).
+- **`.github/workflows/ci.yml`** — 4-job CI: lint+typecheck, prisma-validate, test (with Postgres+Redis services), build (with bundle-stats artifact). Concurrency cancellation on PR refs.
+- **`.github/dependabot.yml`** — weekly grouped npm + monthly Actions updates; major bumps ignored.
+- **`.github/PULL_REQUEST_TEMPLATE.md`** — terse template with non-obvious checks (migration committed, all 4 locales touched, can() gate verified, encrypted fields use Enc convention).
+- **`.husky/pre-commit`** + `lint-staged.config.cjs` — Biome auto-fix on staged files; Prisma validate+format on schema changes.
+- **`pnpm-lock.yaml`** — locked dependency tree; reproducible installs everywhere.
+- **All 12 workspace packages typecheck cleanly** under TypeScript strict + verbatim module syntax + noUncheckedIndexedAccess.
+
+### Added (earlier in Sprint 0)
 
 - **Project plan** (`PLAN.md`) — full architecture, 50-row decisions matrix, 14 sections covering exec summary, infrastructure, auth, i18n, storage, plan tiers, scaling phases, public marketplace URLs, cross-cutting concerns, ~50-model data inventory, performance & optimizations catalog, sprint roadmap (12 sprints), risks, verification, and status.
 - **Storage deduplication** in PLAN.md §5.1 — content-addressable R2 via SHA-256, `MediaObject` + `MediaVariant` tables with refCount, cross-agency global dedup, 7-day grace before physical R2 delete. ADR 0002 documents the rationale.

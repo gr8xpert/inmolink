@@ -27,7 +27,70 @@ In active development. v1 in progress (Sprint 0 — Foundation).
 
 ## Local development
 
-(To be populated during Sprint 0.)
+### Prerequisites
+
+- Node 20+ (use `.nvmrc` — `nvm use` or fnm)
+- pnpm 10.33+ (Corepack: `corepack enable && corepack prepare pnpm@10.33.2 --activate`)
+- Docker + Docker Compose (for the local Postgres / Redis / Meilisearch stack)
+
+### First-time setup
+
+```bash
+# 1. Install dependencies (12 workspace packages)
+pnpm install
+
+# 2. Start the local infra stack (Postgres + Redis + Meilisearch + PgBouncer)
+docker-compose up -d
+
+# 3. Copy env templates — fill in any missing values (most defaults work for local)
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env
+cp apps/public/.env.example apps/public/.env
+cp apps/worker/.env.example apps/worker/.env
+cp packages/db/.env.example packages/db/.env
+
+# 4. Generate Prisma client + run migrations + seed
+pnpm db:generate
+pnpm db:migrate:dev    # creates the schema in your local Postgres
+pnpm db:seed           # plans + super-admin agency-of-one
+
+# 5. Start everything in dev mode (turbo runs all apps in parallel)
+pnpm dev
+```
+
+Once `pnpm dev` is up:
+
+- Agent dashboard: http://localhost:3000
+- Public marketplace: http://localhost:3002
+- API + OpenAPI docs: http://localhost:3001/docs
+- Meilisearch: http://localhost:7700
+- Prisma Studio: `pnpm db:studio` (browser DB explorer)
+
+### Useful commands
+
+```bash
+pnpm lint           # Biome check
+pnpm lint:fix       # Biome fix
+pnpm format         # Biome format only
+pnpm typecheck      # tsc --noEmit across all workspaces
+pnpm test           # Vitest unit tests
+pnpm test:e2e       # Playwright E2E (when set up in Sprint 12)
+pnpm build          # Production build of every app
+pnpm clean          # Wipe build outputs (turbo + .next + dist)
+
+# DB workflows
+pnpm db:generate            # regenerate Prisma client after schema edits
+pnpm db:migrate:dev         # create + apply a new migration in dev
+pnpm db:migrate:deploy      # apply pending migrations in prod
+pnpm db:studio              # browse DB visually
+pnpm db:seed                # rerun the seed script
+```
+
+### Working with the Kyero sample
+
+The fixture at `samples/feeds/kyero-sample.xml` (3.4 MB, 270 properties) is the
+primary unit-test input for the Kyero connector (Sprint 5). See
+`samples/feeds/README.md` for schema + 10 implementation notes.
 
 ## License
 
