@@ -1,4 +1,4 @@
-import { getAnthropicClient, HAIKU_MODEL } from "./client.js";
+import { HAIKU_MODEL, getAnthropicClient } from "./client";
 
 /**
  * Suggest a Lucide icon name for a PropertyType or Feature.

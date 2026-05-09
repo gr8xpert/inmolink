@@ -1,7 +1,11 @@
 /**
- * Auth package — Auth.js v5 wiring + permission helpers.
+ * Auth package — Auth.js v5 wiring + permission helpers (Node runtime entry).
  *
- * Sprint 0 scaffold. Real Auth.js config + Prisma adapter wires up in Sprint 4.
+ * For Edge runtime (middleware), import from `@inmolink/auth/edge` instead —
+ * that entry point avoids Prisma + Argon2 native deps.
  */
-export * from "./can.js";
-export * from "./password.js";
+export { auth, handlers, signIn, signOut } from "./auth";
+export { authConfig } from "./auth.config";
+export { AuthError, CredentialsSignin } from "next-auth";
+export * from "./can";
+export * from "./password";

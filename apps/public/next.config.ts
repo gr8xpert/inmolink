@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   typedRoutes: true,
+  transpilePackages: ["@inmolink/db", "@inmolink/shared", "@inmolink/search", "@inmolink/ui"],
+  serverExternalPackages: ["@prisma/client", "prisma"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "*.r2.cloudflarestorage.com" },

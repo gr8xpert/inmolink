@@ -10,4 +10,4 @@
  * IMPORTANT: PDFs are paid-tier-only (PLAN §6, §11). Auth check happens in the
  * Export queue handler, not here.
  */
-export * from "./renderer.js";
+export * from "./renderer";

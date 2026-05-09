@@ -7,5 +7,5 @@
  * - description-writer: Sprint 1+ (paid feature, agent-triggered)
  * - search-query-parser: Sprint 3 (public marketplace NL search)
  */
-export * from "./client.js";
-export * from "./icon-suggester.js";
+export * from "./client";
+export * from "./icon-suggester";

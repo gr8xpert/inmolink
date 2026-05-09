@@ -7,9 +7,21 @@
  *
  * Run: pnpm db:seed
  */
+import { hash } from "@node-rs/argon2";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
+
+/**
+ * Dev-only default password. Override via DEV_ADMIN_PASSWORD env var.
+ * Do NOT use in production — Sprint 4 will add password change + email
+ * verification flows.
+ */
+const DEV_ADMIN_PASSWORD = process.env.DEV_ADMIN_PASSWORD ?? "Inmolink-Dev-2026!";
+
+// Argon2id params kept in sync with packages/auth/src/password.ts (OWASP 2024+).
+// We don't import from @inmolink/auth to avoid circular dep (auth → db → auth).
+const ARGON2_OPTS = { memoryCost: 19_456, timeCost: 2, outputLen: 32, parallelism: 1 } as const;
 
 async function main(): Promise<void> {
   // --- Plans ---
@@ -80,6 +92,8 @@ async function main(): Promise<void> {
     update: {},
   });
 
+  const passwordHash = await hash(DEV_ADMIN_PASSWORD, ARGON2_OPTS);
+
   await prisma.user.upsert({
     where: { email: "admin@inmolink.local" },
     create: {
@@ -90,14 +104,26 @@ async function main(): Promise<void> {
       role: "SUPER_ADMIN",
       agencyId: adminAgency.id,
       languagesSpoken: ["en", "es", "de", "fr"],
-      // Password set out of band — Sprint 4 wires up the registration flow.
-      passwordHash: null,
+      emailVerifiedAt: new Date(), // dev: skip verification flow
+      passwordHash,
     },
-    update: {},
+    update: {
+      // Always reset the dev password on re-seed (idempotent).
+      passwordHash,
+      emailVerifiedAt: new Date(),
+    },
   });
 
   // biome-ignore lint/suspicious/noConsoleLog: seed script
-  console.log("Seed complete: plans (FREE, PRO), super-admin agency + user.");
+  console.log("Seed complete:");
+  // biome-ignore lint/suspicious/noConsoleLog: seed script
+  console.log("  - plans (FREE, PRO)");
+  // biome-ignore lint/suspicious/noConsoleLog: seed script
+  console.log("  - super-admin agency: inmolink-admin");
+  // biome-ignore lint/suspicious/noConsoleLog: seed script
+  console.log("  - super-admin user:  admin@inmolink.local");
+  // biome-ignore lint/suspicious/noConsoleLog: seed script
+  console.log(`  - dev password:      ${DEV_ADMIN_PASSWORD}`);
 }
 
 main()

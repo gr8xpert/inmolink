@@ -12,4 +12,4 @@
  * Implementation rule (PLAN §11): use streaming SAX parser (sax),
  * NEVER load full feed into memory. Production feeds reach 100+ MB.
  */
-export * from "./connector.js";
+export * from "./connector";

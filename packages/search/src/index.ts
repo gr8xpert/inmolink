@@ -12,5 +12,5 @@ export type {
   PropertySearchDocument,
   SearchQuery,
   SearchResult,
-} from "./adapter.js";
-export { MeilisearchAdapter } from "./meilisearch-adapter.js";
+} from "./adapter";
+export { MeilisearchAdapter } from "./meilisearch-adapter";

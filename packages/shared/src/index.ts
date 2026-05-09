@@ -3,8 +3,8 @@
  *
  * Sprint 0 scaffold — module-specific schemas land in their respective sprints.
  */
-export * from "./locales.js";
-export * from "./permissions.js";
+export * from "./locales";
+export * from "./permissions";
 
 // Re-export Zod for callers
 export { z } from "zod";

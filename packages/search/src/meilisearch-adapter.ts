@@ -1,11 +1,6 @@
 import { LOCALES, type Locale } from "@inmolink/shared";
 import { MeiliSearch } from "meilisearch";
-import type {
-  PropertySearchDocument,
-  SearchAdapter,
-  SearchQuery,
-  SearchResult,
-} from "./adapter.js";
+import type { PropertySearchDocument, SearchAdapter, SearchQuery, SearchResult } from "./adapter";
 
 const INDEX_PREFIX = "properties_";
 
