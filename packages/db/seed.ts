@@ -7,7 +7,6 @@
  *
  * Run: pnpm db:seed
  */
-// @ts-expect-error Prisma client not generated until `pnpm db:generate` runs
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -20,7 +19,8 @@ async function main(): Promise<void> {
     create: {
       tier: "FREE",
       name: "Free",
-      description: "Manual upload + imports + chat + viewing requests. No public marketplace listing, no exports, no marketing.",
+      description:
+        "Manual upload + imports + chat + viewing requests. No public marketplace listing, no exports, no marketing.",
       position: 0,
       isActive: true,
       features: {
@@ -45,7 +45,8 @@ async function main(): Promise<void> {
     create: {
       tier: "PRO",
       name: "Pro",
-      description: "Unlock public marketplace, exports, full email marketing, custom domain, featured listings.",
+      description:
+        "Unlock public marketplace, exports, full email marketing, custom domain, featured listings.",
       position: 1,
       isActive: true,
       features: {

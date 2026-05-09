@@ -48,9 +48,7 @@ export class MeilisearchAdapter implements SearchAdapter {
 
   async delete(propertyId: string, locales: Locale[] = [...LOCALES]): Promise<void> {
     await Promise.all(
-      locales.map((locale) =>
-        this.client.index(this.indexName(locale)).deleteDocument(propertyId),
-      ),
+      locales.map((locale) => this.client.index(this.indexName(locale)).deleteDocument(propertyId)),
     );
   }
 
@@ -58,10 +56,13 @@ export class MeilisearchAdapter implements SearchAdapter {
     const index = this.client.index(this.indexName(query.locale));
 
     const filters: string[] = [];
-    if (query.filters?.transactionType) filters.push(`transactionType = "${query.filters.transactionType}"`);
+    if (query.filters?.transactionType)
+      filters.push(`transactionType = "${query.filters.transactionType}"`);
     if (query.filters?.countryCode) filters.push(`countryCode = "${query.filters.countryCode}"`);
     if (query.filters?.propertyTypeIds?.length) {
-      filters.push(`propertyTypeId IN [${query.filters.propertyTypeIds.map((id) => `"${id}"`).join(",")}]`);
+      filters.push(
+        `propertyTypeId IN [${query.filters.propertyTypeIds.map((id) => `"${id}"`).join(",")}]`,
+      );
     }
     if (query.filters?.locationIds?.length) {
       filters.push(`locationId IN [${query.filters.locationIds.map((id) => `"${id}"`).join(",")}]`);

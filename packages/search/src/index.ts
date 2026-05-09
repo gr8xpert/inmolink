@@ -7,5 +7,10 @@
  * Sprint 0 — interface + Meilisearch implementation stub.
  * Real indexing + outbox pattern wiring in Sprint 3.
  */
-export type { SearchAdapter, PropertySearchDocument, SearchQuery, SearchResult } from "./adapter.js";
-export { MeilisearchAdapter } from "./meilisearch.js";
+export type {
+  SearchAdapter,
+  PropertySearchDocument,
+  SearchQuery,
+  SearchResult,
+} from "./adapter.js";
+export { MeilisearchAdapter } from "./meilisearch-adapter.js";
