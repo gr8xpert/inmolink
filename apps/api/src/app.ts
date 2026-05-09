@@ -12,8 +12,10 @@ import {
   validatorCompiler,
 } from "fastify-type-provider-zod";
 import { Redis } from "ioredis";
-import type { Env } from "./config.js";
-import { healthRoutes } from "./routes/health.js";
+import type { Env } from "./config";
+import { propertyRoutes } from "./modules/properties/routes";
+import { installAuth } from "./plugins/auth";
+import { healthRoutes } from "./routes/health";
 
 export async function buildApp(env: Env): Promise<FastifyInstance> {
   const app = Fastify({
@@ -109,8 +111,14 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
     uiConfig: { docExpansion: "list", deepLinking: true },
   });
 
+  // Auth — parses Auth.js v5 session cookie set by apps/web, attaches
+  // request.user. Installs hook + decorator at root scope (no encapsulation),
+  // so subsequently-registered route plugins inherit them.
+  installAuth(app, { secret: env.AUTH_SECRET });
+
   // Routes
   await app.register(healthRoutes, { prefix: "/api/health" });
+  await app.register(propertyRoutes, { prefix: "/api/dashboard/properties" });
 
   // Graceful shutdown — drain in-flight requests + close Redis (PLAN §11.7)
   app.addHook("onClose", async () => {

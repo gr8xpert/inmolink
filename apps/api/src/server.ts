@@ -1,5 +1,5 @@
-import { buildApp } from "./app.js";
-import { loadConfig } from "./config.js";
+import { buildApp } from "./app";
+import { loadConfig } from "./config";
 
 async function main() {
   const env = loadConfig();
@@ -22,10 +22,7 @@ async function main() {
 
   try {
     await app.listen({ port: env.PORT, host: env.HOST });
-    app.log.info(
-      { port: env.PORT, host: env.HOST, env: env.NODE_ENV },
-      "Inmolink API listening",
-    );
+    app.log.info({ port: env.PORT, host: env.HOST, env: env.NODE_ENV }, "Inmolink API listening");
   } catch (err) {
     app.log.error({ err }, "Failed to start server");
     process.exit(1);
