@@ -49,8 +49,9 @@
       "label": "Estado",
       "DRAFT": "Borrador",
       "ACTIVE": "Activa",
-      "RESERVED": "Reservada",
+      "UNDER_OFFER": "En oferta",
       "SOLD": "Vendida",
+      "RENTED": "Alquilada",
       "WITHDRAWN": "Retirada"
     },
     "visibility": {

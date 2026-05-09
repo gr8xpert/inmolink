@@ -49,8 +49,9 @@
       "label": "Status",
       "DRAFT": "Entwurf",
       "ACTIVE": "Aktiv",
-      "RESERVED": "Reserviert",
+      "UNDER_OFFER": "Unter Angebot",
       "SOLD": "Verkauft",
+      "RENTED": "Vermietet",
       "WITHDRAWN": "Zurückgezogen"
     },
     "visibility": {

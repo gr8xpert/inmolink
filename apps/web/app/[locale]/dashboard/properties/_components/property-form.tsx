@@ -70,7 +70,9 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-const STATUSES = ["DRAFT", "ACTIVE", "RESERVED", "SOLD", "WITHDRAWN"] as const;
+// Mirrors the Prisma PropertyStatus enum + propertyStatusSchema in
+// @inmolink/shared. Keep these three in sync.
+const STATUSES = ["DRAFT", "ACTIVE", "UNDER_OFFER", "SOLD", "RENTED", "WITHDRAWN"] as const;
 const VISIBILITIES = ["PRIVATE", "SHARED", "PUBLIC"] as const;
 const TRANSACTIONS = ["SALE", "RENT", "SHORT_TERM"] as const;
 const PRICE_TYPES = ["fixed", "from", "poa"] as const;

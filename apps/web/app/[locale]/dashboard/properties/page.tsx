@@ -19,8 +19,9 @@ type ListResponse = {
 const STATUS_CHIP: Record<string, string> = {
   DRAFT: "bg-zinc-100 text-zinc-800",
   ACTIVE: "bg-emerald-100 text-emerald-800",
-  RESERVED: "bg-amber-100 text-amber-800",
+  UNDER_OFFER: "bg-amber-100 text-amber-800",
   SOLD: "bg-blue-100 text-blue-800",
+  RENTED: "bg-blue-100 text-blue-800",
   WITHDRAWN: "bg-rose-100 text-rose-800",
 };
 

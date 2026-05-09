@@ -49,8 +49,9 @@
       "label": "Status",
       "DRAFT": "Draft",
       "ACTIVE": "Active",
-      "RESERVED": "Reserved",
+      "UNDER_OFFER": "Under offer",
       "SOLD": "Sold",
+      "RENTED": "Rented",
       "WITHDRAWN": "Withdrawn"
     },
     "visibility": {

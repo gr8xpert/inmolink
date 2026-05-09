@@ -11,7 +11,7 @@ import { z } from "zod";
  * Hard filters applied at every read:
  *   - `visibility = "PUBLIC"` (PLAN §1 row 5 — only paid PUBLIC tier shows)
  *   - `deletedAt IS NULL`
- *   - `status = "ACTIVE"`  (DRAFT / RESERVED / SOLD / WITHDRAWN don't surface)
+ *   - `status = "ACTIVE"`  (DRAFT / UNDER_OFFER / SOLD / RENTED / WITHDRAWN don't surface)
  *
  * Sensitive fields stripped: `addressLine`, `postcode`, `ownerUserId`,
  * `ownerAgencyId`, exact `lat/long` for now (city-level only). The agency

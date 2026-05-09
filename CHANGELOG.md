@@ -10,6 +10,10 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Fixed
+
+- **PropertyStatus UI ↔ Prisma drift** — UI surfaces (form options, list status chip, i18n status namespace in all 4 locales, one stale comment) referenced `RESERVED` and were missing `UNDER_OFFER` + `RENTED`. The Prisma enum + Zod schema were already correct; consumers had drifted. The form would have let a user pick `RESERVED` and only failed at submit-time Zod validation. Now: STATUSES + STATUS_CHIP + i18n status namespace match `["DRAFT", "ACTIVE", "UNDER_OFFER", "SOLD", "RENTED", "WITHDRAWN"]` end-to-end.
+
 ### Added (Sprint 1 — slice G.1, public marketplace property detail)
 
 - **Public api routes** at `/api/public/*` (anonymous, no `requireUser()`):

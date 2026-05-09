@@ -49,8 +49,9 @@
       "label": "Statut",
       "DRAFT": "Brouillon",
       "ACTIVE": "Active",
-      "RESERVED": "Réservé",
+      "UNDER_OFFER": "Sous offre",
       "SOLD": "Vendu",
+      "RENTED": "Loué",
       "WITHDRAWN": "Retiré"
     },
     "visibility": {
