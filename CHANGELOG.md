@@ -10,6 +10,26 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Added (Sprint 1 — slice E, property-image attach + media cleanup)
+
+- **Property-image attach API** under `/api/dashboard/properties/:id/images`:
+  - `POST` — bulk attach 1–50 MediaObjects (validates each is an `image/*` MIME, rejects unknown ids). One transaction per request: creates `PropertyImage` rows + bumps `MediaObject.refCount` + clears the 24h orphan-grace `scheduledDeleteAt`. Cover-uniqueness enforced (only one `isCover=true` per property; old cover gets unset in the same tx).
+  - `PATCH /:imageId` — alt text, position, isCover.
+  - `DELETE /:imageId` — drops the row + decrements refCount; if it hits 0 the service sets `scheduledDeleteAt = NOW() + 7d` for the cleanup worker.
+  - All endpoints require ownership: SUPER_ADMIN, AGENCY_ADMIN of the owning agency, or the AGENT owner. Same matrix as the existing property endpoints.
+- **`MEDIA_CLEANUP` worker** (`apps/worker/src/processors/media-cleanup`) — dedicated processor + repeatable scheduler. Runs daily at 03:00:00 via `Queue.upsertJobScheduler('media-cleanup-daily', { pattern: '0 0 3 * * *' }, ...)` (BullMQ 6-field cron, seconds first). Idempotent — every worker boot re-upserts the same scheduler id, so adding pods needs no ops step.
+  - Pass 1 — MediaObject orphans (`refCount<=0` + `scheduledDeleteAt<=NOW()`): decrements refCount on every variant whose source points here (when a variant drops to 0, schedule its own delete = NOW()+7d), deletes the source R2 blob, then deletes the row. Variant rows survive parent deletion thanks to the FK SetNull.
+  - Pass 2 — MediaVariant orphans (same WHERE): deletes the variant blob, then the row.
+  - Storage delete failures are logged but don't block DB GC. Batch size capped at 500 rows/pass to bound a single tick's runtime.
+- **Shared `propertyImageSchemas`** in `@inmolink/shared` — `attachPropertyImagesRequestSchema` (max 50 per call), `patchPropertyImageRequestSchema` (with `refine` for "at least one field"), `propertyImageSchema` DTO + response wrappers.
+
+### Changed (Sprint 1 — slice E, schema)
+
+- **Migration `20260509201152_slice_e_media_orphan_tracking`**:
+  - `MediaObject.refCount` default `1` → `0` (fix P1-3 from review — service inserts at 0, schema must match).
+  - `MediaVariant.sourceMediaObjectId` made nullable; FK `onDelete: Cascade` → `SetNull`. Variants are globally dedup'd by output hash (refCount tracks references); a source dying doesn't invalidate the variant blob if other sources still reference it.
+  - `MediaVariant.scheduledDeleteAt DateTime?` added with index for the cleanup worker scan.
+
 ### Added (Sprint 1 — slice D, image variant pipeline)
 
 - **`apps/worker` IMAGE_VARIANT processor** — sharp pipeline at 4 sizes (thumb 200 / small 480 / medium 1080 / large 1920) with `fit: inside` + `withoutEnlargement` (no upscaling, aspect-ratio preserved). Per PLAN §5: WebP-only at all sizes, plus a JPEG fallback at large for the cover image's `og:image`. Encoder settings frozen at WebP q=82 effort=4 / JPEG q=85 mozjpeg; bumping any of these requires bumping `mediaSchemas.PIPELINE_VERSION`. (`apps/worker/src/processors/image-variant/{pipeline,processor}.ts`)

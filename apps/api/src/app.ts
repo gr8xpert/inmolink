@@ -14,6 +14,7 @@ import {
 import { Redis } from "ioredis";
 import type { Env } from "./config";
 import { closeQueues, getImageVariantQueue } from "./lib/queues";
+import { propertyImageRoutes } from "./modules/properties/images/routes";
 import { propertyRoutes } from "./modules/properties/routes";
 import { uploadRoutes } from "./modules/uploads/routes";
 import { installAuth } from "./plugins/auth";
@@ -130,6 +131,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   // Routes
   await app.register(healthRoutes, { prefix: "/api/health" });
   await app.register(propertyRoutes, { prefix: "/api/dashboard/properties" });
+  await app.register(propertyImageRoutes, { prefix: "/api/dashboard/properties", storage });
   await app.register(uploadRoutes, { prefix: "/api/uploads", storage, imageVariantQueue });
   await app.register(localStorageRoutes, { prefix: "/api/_local-storage", storage });
 

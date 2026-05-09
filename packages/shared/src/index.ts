@@ -6,6 +6,7 @@
 export * from "./locales";
 export * from "./permissions";
 export * as mediaSchemas from "./schemas/media";
+export * as propertyImageSchemas from "./schemas/property-images";
 export * as propertySchemas from "./schemas/property";
 export * as uploadSchemas from "./schemas/upload";
 

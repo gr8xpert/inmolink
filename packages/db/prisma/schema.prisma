@@ -255,9 +255,13 @@ model MediaObject {
   width             Int?
   height            Int?
   durationSec       Int?
-  refCount          Int       @default(1)
+  // Default 0 — /uploads/register inserts at refCount=0 with a 24h orphan
+  // grace; attach endpoints bump refCount + clear scheduledDeleteAt.
+  refCount          Int       @default(0)
   pipelineVersion   Int       @default(1)
-  scheduledDeleteAt DateTime? // = NOW() + 7d when refCount reaches 0
+  // 24h grace from /register if never attached. Reset to NOW()+7d when
+  // refCount drops back to 0 via detach (PLAN §5.1 delete flow).
+  scheduledDeleteAt DateTime?
 
   createdAt DateTime @default(now())
 
@@ -271,22 +275,29 @@ model MediaObject {
 }
 
 model MediaVariant {
-  id                  String @id @default(cuid())
-  sourceMediaObjectId String
-  hash                String @unique
+  id                  String    @id @default(cuid())
+  // Nullable so a variant blob can survive its first-known source being
+  // hard-deleted (variants are globally dedup'd by output hash; refCount
+  // is the authoritative reference count). On parent delete, FK SetNull
+  // and the cleanup pass schedules the variant blob's own delete.
+  sourceMediaObjectId String?
+  hash                String    @unique
   format              String // 'webp' | 'jpeg'
   sizeName            String // 'thumb' | 'small' | 'medium' | 'large'
   width               Int
   height              Int
   bytes               Int
-  refCount            Int    @default(1)
-  pipelineVersion     Int    @default(1)
+  refCount            Int       @default(1)
+  pipelineVersion     Int       @default(1)
+  // Set to NOW()+7d when refCount drops to 0 via source cleanup.
+  scheduledDeleteAt   DateTime?
 
   createdAt DateTime @default(now())
 
-  source MediaObject @relation(fields: [sourceMediaObjectId], references: [id], onDelete: Cascade)
+  source MediaObject? @relation(fields: [sourceMediaObjectId], references: [id], onDelete: SetNull)
 
   @@index([sourceMediaObjectId, sizeName, format])
+  @@index([scheduledDeleteAt]) // cleanup worker scans
 }
 
 // ============================================================================

@@ -1,8 +1,9 @@
-import { type Job, type Processor, Worker } from "bullmq";
+import { type Job, type Processor, Queue, Worker } from "bullmq";
 import { Redis } from "ioredis";
 import pino from "pino";
 import { loadConfig } from "./config.js";
 import { makeImageVariantProcessor } from "./processors/image-variant/processor.js";
+import { makeMediaCleanupProcessor } from "./processors/media-cleanup/processor.js";
 import { QUEUE_NAMES, type QueueName } from "./queues.js";
 import { createStorage } from "./storage.js";
 
@@ -40,7 +41,6 @@ logger.info({ kind: storage.kind }, "Storage backend selected");
  * - SEARCH_REINDEX: Sprint 3 (outbox pattern → Meilisearch)
  * - EXPORT_GENERATE: Sprint 11 (CSV + PDF via Puppeteer)
  * - CHAT_FANOUT: Sprint 6
- * - MEDIA_CLEANUP: Sprint 1 (orphan R2 objects past grace period — slice E)
  */
 const placeholderProcessor: Processor = async (job: Job) => {
   logger.info(
@@ -50,11 +50,23 @@ const placeholderProcessor: Processor = async (job: Job) => {
 };
 
 const imageVariantProcessor = makeImageVariantProcessor({ storage, logger });
+const mediaCleanupProcessor = makeMediaCleanupProcessor({ storage, logger });
 
 function processorFor(queueName: QueueName): Processor {
   if (queueName === QUEUE_NAMES.IMAGE_VARIANT) return imageVariantProcessor;
+  if (queueName === QUEUE_NAMES.MEDIA_CLEANUP) return mediaCleanupProcessor;
   return placeholderProcessor;
 }
+
+/**
+ * MEDIA_CLEANUP Queue + scheduler. The scheduler is upserted on every
+ * worker boot so adding a worker pod is enough — no separate ops step.
+ * Pattern is BullMQ's 6-field cron with seconds first ("0 0 3 * * *"
+ * means 03:00:00 every day). PLAN §5.1.
+ */
+const mediaCleanupQueue = new Queue(QUEUE_NAMES.MEDIA_CLEANUP, { connection });
+const MEDIA_CLEANUP_SCHEDULE_PATTERN = "0 0 3 * * *";
+const MEDIA_CLEANUP_SCHEDULE_ID = "media-cleanup-daily";
 
 const workers: Worker[] = [];
 
@@ -85,10 +97,31 @@ for (const [key, queueName] of Object.entries(QUEUE_NAMES)) {
 
 logger.info({ count: workers.length }, "All workers started");
 
+// Idempotent — re-running upsert with the same id replaces the schedule.
+await mediaCleanupQueue.upsertJobScheduler(
+  MEDIA_CLEANUP_SCHEDULE_ID,
+  { pattern: MEDIA_CLEANUP_SCHEDULE_PATTERN },
+  {
+    name: "tick",
+    data: {},
+    opts: {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 30_000 },
+      removeOnComplete: { count: 30 },
+      removeOnFail: { count: 100 },
+    },
+  },
+);
+logger.info(
+  { id: MEDIA_CLEANUP_SCHEDULE_ID, pattern: MEDIA_CLEANUP_SCHEDULE_PATTERN },
+  "Media-cleanup scheduler upserted",
+);
+
 // Graceful shutdown — drain in-flight jobs (PLAN §11.7)
 const shutdown = async (signal: string): Promise<void> => {
   logger.info({ signal }, "Shutting down workers gracefully");
   await Promise.all(workers.map((w) => w.close()));
+  await mediaCleanupQueue.close();
   await connection.quit();
   process.exit(0);
 };
