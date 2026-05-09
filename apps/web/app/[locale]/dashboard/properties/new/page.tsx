@@ -4,7 +4,7 @@ import type { taxonomySchemas } from "@inmolink/shared";
 import { setRequestLocale } from "next-intl/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PropertyCreateForm } from "./property-form";
+import { PropertyForm } from "../_components/property-form";
 
 type Props = {
   params: Promise<{ locale: string }>;
@@ -49,7 +49,12 @@ export default async function NewPropertyPage({ params }: Props) {
         </Link>
       </header>
 
-      <PropertyCreateForm locale={locale} propertyTypes={types.items} locations={locations.items} />
+      <PropertyForm
+        mode="create"
+        locale={locale}
+        propertyTypes={types.items}
+        locations={locations.items}
+      />
     </main>
   );
 }

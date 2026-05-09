@@ -10,6 +10,16 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Added (Sprint 1 — slice F.3.b, edit form + image management)
+
+- **`/[locale]/dashboard/properties/[id]/edit`** — Server Component shell prefetches detail + types + locations in parallel, renders the unified `PropertyForm` in `mode="edit"` with `initial` prefill. Non-owners are redirected back to the detail page (defense-in-depth — the api enforces the same check). New `updatePropertyAction` (PATCH) lives in `[id]/edit/actions.ts`; redirects to detail on success, returns typed error on failure.
+- **`PropertyForm` consolidated** — moved from `new/property-form.tsx` to `_components/property-form.tsx` with a discriminated `mode: "create" | "edit"` prop. Edit mode pre-fills from `PropertyDetail` (price major-units derived from cents, all 4 locale tabs prefilled from `translations[]`, falls back to first picker option for missing IDs). On submit, edit mode validates against `propertyUpdateSchema` (partial-friendly) and POSTs to `updatePropertyAction`; create mode keeps validating against `propertyCreateSchema`.
+- **`ImageManager` Client Component** on the detail page (owner-only) — replaces the read-only gallery for owners with a per-image card: alt-text input (saves on blur), Set-as-cover button (api unsets old cover in same tx), up/down reorder arrows, Delete (with confirm). Non-owners still see the read-only gallery thumbnail grid.
+- **Reorder semantics** — `swapImagePositionsAction` issues two parallel PATCHes that swap positions with the neighbor. Temporary collision is harmless because the api orders by `(position ASC, createdAt ASC)`. Single `revalidatePath` at the end batches the refresh.
+- **3 new Server Actions** in detail page `actions.ts` — `patchImageAction`, `deleteImageAction`, `swapImagePositionsAction`. Internal `call()` helper now accepts a `RequestInit` so non-POST verbs work.
+- **Detail page header** gets an "Edit" CTA visible only to owners — links to the new edit page.
+- **`edit` i18n key** added in all 4 locales.
+
 ### Added (Sprint 1 — slice F.3.a, image upload widget)
 
 - **`ImageUploader` Client Component** (`apps/web/app/[locale]/dashboard/properties/[id]/image-uploader.tsx`) — drag-and-drop / file-picker upload widget that drives the full pipeline:

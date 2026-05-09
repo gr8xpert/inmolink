@@ -144,12 +144,18 @@
 - [x] UI caps: 25 MB per file, 20 files per batch (api caps stay 500 MB / 50)
 - [x] `uploadImages` i18n key in all 4 locales
 
-### F.3.b — Edit form + image management (next)
+### F.3.b — Edit form + image management ✅
 
-- [ ] `/[locale]/dashboard/properties/[id]/edit` — edit form (same component as create, prefilled, calls PATCH)
-- [ ] Image management: reorder (drag or up/down), set cover, edit alt text, delete (per-image actions calling `/images/:imageId`)
-- [ ] Surface variant URLs from the lazy resolver on the detail page (new `/variants/resolve` endpoint or batch field)
-- [ ] PropertyFloorPlan + PropertyVideo attach endpoints + UI — deferred (same shape as PropertyImage; build alongside their sections in the edit form)
+- [x] `/[locale]/dashboard/properties/[id]/edit` — Server Component shell + `PropertyForm` in edit mode (prefilled from detail, validated against `propertyUpdateSchema`)
+- [x] `PropertyForm` consolidated into `_components/` with `mode: "create" | "edit"` discriminated union; both pages share it
+- [x] `updatePropertyAction` server action — PATCH to api, redirect on success, typed error on failure
+- [x] Non-owners redirected from edit page (defense-in-depth; api enforces too)
+- [x] `ImageManager` Client Component (owner-only): alt-text on blur, Set-as-cover, up/down reorder, Delete (confirm)
+- [x] Reorder via `swapImagePositionsAction` (parallel PATCHes with temporary position collision tolerated by the api's ordering)
+- [x] "Edit" CTA on detail page header (owner-only)
+- [x] `edit` i18n key in all 4 locales
+- [ ] *(deferred to slice G)* Surface variant URLs from the lazy resolver on the detail page
+- [ ] *(deferred)* PropertyFloorPlan + PropertyVideo attach endpoints + UI — same shape as PropertyImage
 
 ### G — Public marketplace property pages (basic)
 

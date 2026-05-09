@@ -5,6 +5,7 @@ import type { propertyImageSchemas, propertySchemas } from "@inmolink/shared";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { ImageManager } from "./image-manager";
 import { ImageUploader } from "./image-uploader";
 
 type Props = {
@@ -45,9 +46,6 @@ export default async function PropertyDetailPage({ params }: Props) {
     property.translations[0] ??
     null;
 
-  const cover = images.images.find((i) => i.isCover) ?? images.images[0] ?? null;
-  const gallery = images.images.filter((i) => i.id !== cover?.id);
-
   // Same matrix as apps/api/src/modules/properties/service.ts ownershipMatches —
   // SUPER_ADMIN, AGENCY_ADMIN of owning agency, AGENT owner.
   const role = session.user.role;
@@ -56,6 +54,9 @@ export default async function PropertyDetailPage({ params }: Props) {
     (role === "AGENCY_ADMIN" && session.user.agencyId === property.ownerAgencyId) ||
     (role === "AGENT" && session.user.id === property.ownerUserId);
 
+  const cover = images.images.find((i) => i.isCover) ?? images.images[0] ?? null;
+  const gallery = images.images.filter((i) => i.id !== cover?.id);
+
   return (
     <main className="container mx-auto max-w-4xl space-y-8 p-8">
       <header className="flex items-baseline justify-between gap-3 border-b pb-4">
@@ -63,12 +64,22 @@ export default async function PropertyDetailPage({ params }: Props) {
           <p className="font-mono text-xs text-muted-foreground">#{property.id}</p>
           <h1 className="text-2xl font-bold">{tr?.title ?? t("untitled")}</h1>
         </div>
-        <Link
-          href={`/${locale}/dashboard/properties`}
-          className="shrink-0 rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          {t("backToList")}
-        </Link>
+        <div className="flex shrink-0 gap-2">
+          {isOwner && (
+            <Link
+              href={`/${locale}/dashboard/properties/${property.id}/edit`}
+              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90"
+            >
+              {t("edit")}
+            </Link>
+          )}
+          <Link
+            href={`/${locale}/dashboard/properties`}
+            className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            {t("backToList")}
+          </Link>
+        </div>
       </header>
 
       {cover ? (
@@ -125,21 +136,27 @@ export default async function PropertyDetailPage({ params }: Props) {
         </section>
       )}
 
-      {gallery.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold">{t("gallery")}</h2>
-          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-            {gallery.map((img) => (
-              <li key={img.id} className="overflow-hidden rounded-md border">
-                <img
-                  src={img.publicUrl}
-                  alt={img.altText ?? ""}
-                  className="block aspect-square w-full object-cover"
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
+      {/* Owners get the full management UI — gallery is replaced by an
+          editable list. Non-owners see a read-only thumbnail grid. */}
+      {isOwner ? (
+        <ImageManager locale={locale} propertyId={property.id} images={images.images} />
+      ) : (
+        gallery.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold">{t("gallery")}</h2>
+            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+              {gallery.map((img) => (
+                <li key={img.id} className="overflow-hidden rounded-md border">
+                  <img
+                    src={img.publicUrl}
+                    alt={img.altText ?? ""}
+                    className="block aspect-square w-full object-cover"
+                  />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )
       )}
 
       {isOwner && (

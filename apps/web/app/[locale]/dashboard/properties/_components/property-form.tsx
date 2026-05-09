@@ -5,24 +5,26 @@ import { propertySchemas, type taxonomySchemas } from "@inmolink/shared";
 import { useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
-import { type CreatePropertyResult, createPropertyAction } from "./actions";
+import { updatePropertyAction } from "../[id]/edit/actions";
+import { createPropertyAction } from "../new/actions";
 
 /**
- * Property create form. RHF + Zod resolver. Locale tabs (en required;
- * es/de/fr optional, dropped on submit if title+description empty).
+ * Property create / edit form. RHF + Zod resolver. Locale tabs: en
+ * required; es/de/fr optional and dropped on submit when title +
+ * description are blank.
  *
  * - Price input is in major-units (e.g. EUR 250000); converted to cents
  *   on submit. The api takes BigInt cents per PLAN §10.
- * - Slug is auto-filled from title via the slugify helper as the user
- *   types — they can override.
+ * - Slug auto-fills from title via slugify; user can override.
+ * - mode="create" calls createPropertyAction (validated against
+ *   propertyCreateSchema, redirects on success).
+ * - mode="edit" calls updatePropertyAction (validated against
+ *   propertyUpdateSchema, also redirects).
  */
 
 const LOCALES = ["en", "es", "de", "fr"] as const;
 type Locale = (typeof LOCALES)[number];
 
-// Form-shape Zod: prices/coords as strings the user types; we map to numbers
-// + cents on submit. RHF doesn't play well with z.coerce when fields can be
-// blank, so we keep the form schema permissive and validate at submit time.
 const formSchema = z.object({
   status: propertySchemas.propertyStatusSchema.default("DRAFT"),
   visibility: propertySchemas.propertyVisibilitySchema.default("SHARED"),
@@ -39,7 +41,6 @@ const formSchema = z.object({
   locationId: z.string().min(1, "Required"),
   addressLine: z.string().optional(),
   postcode: z.string().optional(),
-  // One block per locale; en title/description required, others optional.
   translations: z.object({
     en: z.object({
       title: z.string().min(1, "Required"),
@@ -85,13 +86,62 @@ function slugify(s: string): string {
     .slice(0, 200);
 }
 
+const EMPTY_TRANSLATION = { title: "", description: "", slug: "" };
+
+function makeDefaults(
+  initial: Partial<propertySchemas.PropertyDetail> | null,
+  fallbackTypeId: string,
+  fallbackLocationId: string,
+): FormValues {
+  const tByLocale = new Map<Locale, { title: string; description: string; slug: string }>();
+  for (const tr of initial?.translations ?? []) {
+    if ((LOCALES as readonly string[]).includes(tr.locale)) {
+      tByLocale.set(tr.locale as Locale, {
+        title: tr.title,
+        description: tr.description,
+        slug: tr.slug,
+      });
+    }
+  }
+  const optStr = (n: number | null | undefined) => (n === null || n === undefined ? "" : String(n));
+  return {
+    status: initial?.status ?? "DRAFT",
+    visibility: initial?.visibility ?? "SHARED",
+    transactionType: initial?.transactionType ?? "SALE",
+    priceMajor: initial?.priceCents !== undefined ? String(initial.priceCents / 100) : "",
+    currency: initial?.currency ?? "EUR",
+    priceType: initial?.priceType ?? "fixed",
+    bedrooms: optStr(initial?.bedrooms),
+    bathrooms: optStr(initial?.bathrooms),
+    areaM2: optStr(initial?.areaM2),
+    plotM2: optStr(initial?.plotM2),
+    yearBuilt: optStr(initial?.yearBuilt),
+    propertyTypeId: initial?.propertyTypeId ?? fallbackTypeId,
+    locationId: initial?.locationId ?? fallbackLocationId,
+    addressLine: initial?.addressLine ?? "",
+    postcode: initial?.postcode ?? "",
+    translations: {
+      en: tByLocale.get("en") ?? EMPTY_TRANSLATION,
+      es: tByLocale.get("es") ?? EMPTY_TRANSLATION,
+      de: tByLocale.get("de") ?? EMPTY_TRANSLATION,
+      fr: tByLocale.get("fr") ?? EMPTY_TRANSLATION,
+    },
+  };
+}
+
 type Props = {
   locale: string;
   propertyTypes: taxonomySchemas.PropertyTypeListItem[];
   locations: taxonomySchemas.LocationListItem[];
-};
+} & (
+  | { mode: "create" }
+  | { mode: "edit"; propertyId: string; initial: propertySchemas.PropertyDetail }
+);
 
-export function PropertyCreateForm({ locale, propertyTypes, locations }: Props) {
+export function PropertyForm(props: Props) {
+  const { locale, propertyTypes, locations } = props;
+  const isEdit = props.mode === "edit";
+
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Locale>("en");
@@ -99,22 +149,11 @@ export function PropertyCreateForm({ locale, propertyTypes, locations }: Props) 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     mode: "onBlur",
-    defaultValues: {
-      status: "DRAFT",
-      visibility: "SHARED",
-      transactionType: "SALE",
-      priceMajor: "",
-      currency: "EUR",
-      priceType: "fixed",
-      propertyTypeId: propertyTypes[0]?.id ?? "",
-      locationId: locations[0]?.id ?? "",
-      translations: {
-        en: { title: "", description: "", slug: "" },
-        es: { title: "", description: "", slug: "" },
-        de: { title: "", description: "", slug: "" },
-        fr: { title: "", description: "", slug: "" },
-      },
-    },
+    defaultValues: makeDefaults(
+      isEdit ? props.initial : null,
+      propertyTypes[0]?.id ?? "",
+      locations[0]?.id ?? "",
+    ),
   });
 
   function onSubmit(values: FormValues) {
@@ -169,22 +208,30 @@ export function PropertyCreateForm({ locale, propertyTypes, locations }: Props) 
       translations,
     };
 
-    // Final shape validation against the canonical create schema. Catches
-    // anything the form-level schema let through (e.g. cents overflow).
-    const parsed = propertySchemas.propertyCreateSchema.safeParse(payload);
+    // Validate against the appropriate canonical schema. Update is
+    // partial-friendly so any subset is OK; create requires the full set
+    // (same as the api would enforce).
+    const schema = isEdit
+      ? propertySchemas.propertyUpdateSchema
+      : propertySchemas.propertyCreateSchema;
+    const parsed = schema.safeParse(payload);
     if (!parsed.success) {
       setError(parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "));
       return;
     }
 
     startTransition(async () => {
-      const res: CreatePropertyResult = await createPropertyAction(locale, parsed.data);
-      // Success path redirects server-side. Error path returns here.
+      const res = isEdit
+        ? await updatePropertyAction(
+            locale,
+            props.propertyId,
+            parsed.data as propertySchemas.PropertyUpdateInput,
+          )
+        : await createPropertyAction(locale, parsed.data as propertySchemas.PropertyCreateInput);
       if (!res.ok) setError(res.error);
     });
   }
 
-  // Auto-slug whenever the user types a title (only if slug is empty).
   function onTitleChange(loc: Locale, value: string) {
     form.setValue(`translations.${loc}.title`, value);
     const slug = form.getValues(`translations.${loc}.slug`);
@@ -391,7 +438,13 @@ export function PropertyCreateForm({ locale, propertyTypes, locations }: Props) 
           disabled={pending}
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90 disabled:opacity-50"
         >
-          {pending ? "Creating…" : "Create property"}
+          {pending
+            ? isEdit
+              ? "Saving…"
+              : "Creating…"
+            : isEdit
+              ? "Save changes"
+              : "Create property"}
         </button>
       </div>
     </form>
