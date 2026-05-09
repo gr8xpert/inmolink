@@ -14,8 +14,11 @@ import {
 import { Redis } from "ioredis";
 import type { Env } from "./config";
 import { propertyRoutes } from "./modules/properties/routes";
+import { uploadRoutes } from "./modules/uploads/routes";
 import { installAuth } from "./plugins/auth";
 import { healthRoutes } from "./routes/health";
+import { localStorageRoutes } from "./routes/local-storage";
+import { createStorage } from "./storage";
 
 export async function buildApp(env: Env): Promise<FastifyInstance> {
   const app = Fastify({
@@ -116,9 +119,15 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   // so subsequently-registered route plugins inherit them.
   installAuth(app, { secret: env.AUTH_SECRET });
 
+  // Storage backend (R2 in prod, LocalFsStorage in dev when R2 vars empty)
+  const storage = createStorage(env);
+  app.log.info({ kind: storage.kind }, "Storage backend selected");
+
   // Routes
   await app.register(healthRoutes, { prefix: "/api/health" });
   await app.register(propertyRoutes, { prefix: "/api/dashboard/properties" });
+  await app.register(uploadRoutes, { prefix: "/api/uploads", storage });
+  await app.register(localStorageRoutes, { prefix: "/api/_local-storage", storage });
 
   // Graceful shutdown — drain in-flight requests + close Redis (PLAN §11.7)
   app.addHook("onClose", async () => {

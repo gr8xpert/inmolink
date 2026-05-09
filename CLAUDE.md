@@ -30,6 +30,11 @@ Inspired by SPW (E:\Repos\SPW-AI\spw\PROJECT_OVERVIEW.md) but fundamentally diff
 
 **Real-time**: Socket.io (Redis adapter from day 1). **Storage**: Cloudflare R2. **Payments**: Stripe subscriptions only (no Connect). **Email**: per-agency SMTP + Resend platform. **Image**: sharp (WebP variants only + 1 JPEG fallback for og:image). **Process manager**: PM2 cluster. **Reverse proxy**: Nginx. **CI**: GitHub Actions → SFTP/rsync.
 
+## Tooling rules
+
+- Always invoke Context7 before writing code against any external library. Resolve the library ID and fetch current documentation rather than relying on training-data knowledge.
+- If a specific version is pinned in `package.json`, fetch docs for that version.
+
 ## Code conventions
 
 - TypeScript strict mode, **no `any`** in new code

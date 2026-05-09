@@ -6,6 +6,7 @@
 export * from "./locales";
 export * from "./permissions";
 export * as propertySchemas from "./schemas/property";
+export * as uploadSchemas from "./schemas/upload";
 
 // Re-export Zod for callers
 export { z } from "zod";

@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+/** Empty-string env values are treated as unset. */
+const optionalString = z.preprocess((v) => (v === "" ? undefined : v), z.string().optional());
+const optionalUrl = z.preprocess((v) => (v === "" ? undefined : v), z.string().url().optional());
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3001),
@@ -19,7 +23,12 @@ const envSchema = z.object({
   CORS_ORIGINS: z
     .string()
     .default("http://localhost:3000,http://localhost:3002")
-    .transform((s) => s.split(",").map((o) => o.trim()).filter(Boolean)),
+    .transform((s) =>
+      s
+        .split(",")
+        .map((o) => o.trim())
+        .filter(Boolean),
+    ),
 
   // Auth.js v5
   AUTH_SECRET: z.string().min(32),
@@ -33,6 +42,18 @@ const envSchema = z.object({
   // Rate limit defaults (overridable per route)
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+
+  // Storage — R2 (production) when R2_ENDPOINT is set; LocalFsStorage
+  // (dev fallback) otherwise. PLAN §5 / ADR 0002.
+  R2_ENDPOINT: optionalUrl,
+  R2_ACCESS_KEY_ID: optionalString,
+  R2_SECRET_ACCESS_KEY: optionalString,
+  R2_BUCKET: z.string().default("inmolink-media"),
+  R2_PUBLIC_BASE_URL: optionalString,
+  // Local-fs only — used as the dev "presigned URL" host (must match where
+  // apps/api is reachable from the browser).
+  LOCAL_STORAGE_PUBLIC_BASE_URL: z.string().default("http://localhost:3001"),
+  LOCAL_STORAGE_ROOT_DIR: z.string().default("./tmp/r2-local"),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -41,9 +62,7 @@ export function loadConfig(): Env {
   const parsed = envSchema.safeParse(process.env);
   if (!parsed.success) {
     // Don't log secrets — surface field names + Zod issues only
-    const issues = parsed.error.issues
-      .map((i) => `  ${i.path.join(".")}: ${i.message}`)
-      .join("\n");
+    const issues = parsed.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`).join("\n");
     throw new Error(`Invalid environment configuration:\n${issues}`);
   }
   return parsed.data;

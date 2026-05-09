@@ -68,10 +68,10 @@ desktop.ini
 ehthumbs.db
 $RECYCLE.BIN/
 
-# Uploads / temp
-tmp/
-temp/
-uploads/
+# Uploads / temp (anchored to repo root — don't shadow apps/api/src/modules/uploads/)
+/tmp/
+/temp/
+/uploads/
 .cache/
 
 # PM2
