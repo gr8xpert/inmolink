@@ -1,0 +1,24 @@
+{
+  "site": {
+    "name": "Inmolink",
+    "tagline": "Encuentra tu próximo hogar"
+  },
+  "search": {
+    "placeholder": "Buscar por ciudad, zona o referencia",
+    "filters": "Filtros",
+    "results": "{count} propiedades encontradas"
+  },
+  "property": {
+    "bedrooms": "Dormitorios",
+    "bathrooms": "Baños",
+    "area": "Superficie",
+    "type": "Tipo",
+    "listedBy": "Publicado por"
+  },
+  "footer": {
+    "about": "Sobre nosotros",
+    "agencies": "Para agencias",
+    "privacy": "Privacidad",
+    "terms": "Términos"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "app": {
+    "name": "Inmolink",
+    "tagline": "Real estate, multiplied"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "email": "Email",
+    "password": "Password"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "properties": "Properties",
+    "leads": "Leads",
+    "viewings": "Viewings",
+    "chat": "Chat",
+    "marketing": "Marketing",
+    "settings": "Settings"
+  }
+}

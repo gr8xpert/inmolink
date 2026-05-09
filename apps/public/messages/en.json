@@ -1,0 +1,24 @@
+{
+  "site": {
+    "name": "Inmolink",
+    "tagline": "Find your next home"
+  },
+  "search": {
+    "placeholder": "Search by city, area, or reference",
+    "filters": "Filters",
+    "results": "{count} properties found"
+  },
+  "property": {
+    "bedrooms": "Bedrooms",
+    "bathrooms": "Bathrooms",
+    "area": "Area",
+    "type": "Type",
+    "listedBy": "Listed by"
+  },
+  "footer": {
+    "about": "About",
+    "agencies": "For agencies",
+    "privacy": "Privacy",
+    "terms": "Terms"
+  }
+}

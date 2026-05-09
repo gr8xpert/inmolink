@@ -1,0 +1,24 @@
+{
+  "site": {
+    "name": "Inmolink",
+    "tagline": "Finde dein nächstes Zuhause"
+  },
+  "search": {
+    "placeholder": "Suche nach Stadt, Gegend oder Referenz",
+    "filters": "Filter",
+    "results": "{count} Immobilien gefunden"
+  },
+  "property": {
+    "bedrooms": "Schlafzimmer",
+    "bathrooms": "Badezimmer",
+    "area": "Fläche",
+    "type": "Typ",
+    "listedBy": "Angeboten von"
+  },
+  "footer": {
+    "about": "Über uns",
+    "agencies": "Für Maklerbüros",
+    "privacy": "Datenschutz",
+    "terms": "AGB"
+  }
+}

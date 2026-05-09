@@ -1,0 +1,24 @@
+{
+  "site": {
+    "name": "Inmolink",
+    "tagline": "Trouvez votre prochain foyer"
+  },
+  "search": {
+    "placeholder": "Rechercher par ville, quartier ou référence",
+    "filters": "Filtres",
+    "results": "{count} biens trouvés"
+  },
+  "property": {
+    "bedrooms": "Chambres",
+    "bathrooms": "Salles de bain",
+    "area": "Surface",
+    "type": "Type",
+    "listedBy": "Proposé par"
+  },
+  "footer": {
+    "about": "À propos",
+    "agencies": "Pour les agences",
+    "privacy": "Confidentialité",
+    "terms": "Conditions"
+  }
+}
