@@ -28,3 +28,11 @@ body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
 }
+
+@layer components {
+  /* Shared filter input look — keeps the search form readable without
+     pulling in shadcn primitives this sprint. */
+  .search-input {
+    @apply w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary;
+  }
+}

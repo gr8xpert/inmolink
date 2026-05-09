@@ -77,3 +77,54 @@ export const publicPropertyImagesResponseSchema = z.object({
 export type PublicPropertyDetail = z.infer<typeof publicPropertyDetailSchema>;
 export type PublicPropertyImage = z.infer<typeof publicPropertyImageSchema>;
 export type PublicAgencyBadge = z.infer<typeof publicAgencyBadgeSchema>;
+
+/**
+ * Public list ("search") endpoint. Postgres-backed in v1; Sprint 3 swaps
+ * to Meilisearch for the same shape. Cursor pagination per PLAN §11.2 —
+ * never OFFSET on hot lists.
+ */
+export const publicPropertyListQuerySchema = z.object({
+  transactionType: z.enum(["SALE", "RENT", "SHORT_TERM"]).optional(),
+  propertyTypeId: cuid.optional(),
+  locationId: cuid.optional(),
+  // Inclusive bounds in BigInt cents (over the wire as JSON number; the
+  // api re-validates upper bound below MAX_SAFE_INTEGER).
+  minPriceCents: z.coerce.number().int().nonnegative().optional(),
+  maxPriceCents: z.coerce.number().int().nonnegative().optional(),
+  bedrooms: z.coerce.number().int().nonnegative().optional(),
+  // Free-text query — ILIKE on title in v1; tsvector + Meilisearch later.
+  q: z.string().max(200).optional(),
+  cursor: z.string().optional(),
+  locale: z.enum(["en", "es", "de", "fr"]).default("en"),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+export const publicPropertyListItemSchema = z.object({
+  id: cuid,
+  transactionType: z.enum(["SALE", "RENT", "SHORT_TERM"]),
+  priceCents: z.number(),
+  currency: z.string(),
+  priceType: z.enum(["fixed", "poa", "from"]),
+  bedrooms: z.number().nullable(),
+  bathrooms: z.number().nullable(),
+  areaM2: z.number().nullable(),
+  propertyTypeId: cuid,
+  locationId: cuid,
+  publishedAt: z.string().datetime().nullable(),
+  // Slug for canonical URL construction. Comes from the requested-locale
+  // translation, falling back to en, then first available.
+  slug: z.string(),
+  title: z.string(),
+  // Cover image — null when the property has no images attached yet.
+  coverUrl: z.string().nullable(),
+  coverAlt: z.string().nullable(),
+  agency: publicAgencyBadgeSchema,
+});
+
+export const publicPropertyListResponseSchema = z.object({
+  items: z.array(publicPropertyListItemSchema),
+  nextCursor: z.string().nullable(),
+});
+
+export type PublicPropertyListQuery = z.infer<typeof publicPropertyListQuerySchema>;
+export type PublicPropertyListItem = z.infer<typeof publicPropertyListItemSchema>;

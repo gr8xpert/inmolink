@@ -10,6 +10,16 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Added (Sprint 1 — slice G.2, public marketplace search/list)
+
+- **`GET /api/public/properties`** — Postgres-backed list endpoint with cursor pagination over `(createdAt DESC, id DESC)` (mirrors the dashboard's cursor shape; no OFFSET on hot lists per PLAN §11.2). Same hard visibility filter as the detail endpoint (`PUBLIC + ACTIVE + deletedAt:null`). Filters: `transactionType`, `propertyTypeId`, `locationId`, `minPriceCents` / `maxPriceCents` (BigInt range), `bedrooms` (≥), free-text `q` (Prisma `contains` insensitive on title + description across any locale's translation — Sprint 3 swaps for Meilisearch with proper tokenisation/faceting). Each item includes the cover image (cover-first with position fallback via multi-key orderBy + take:1) and denormalised agency badge.
+- **`/[locale]/search` Server Component** in `apps/public` — filters live in URL searchParams (shareable + back-button-friendly). `SearchFilters` Client Component drives the form; submit pushes a new path. Cursor next-page link carries forward all current filters minus `cursor`. ISR `revalidate: 60` for filtered queries.
+- **Result cards** show cover (with `aspect-[4/3]`, lazy loaded, "No image" fallback), `<AgencyBadge>` from `@inmolink/ui`, title, price + price-type, transaction / beds / baths / m² metadata. Each card links to `/[locale]/property/<slug>-<id>`.
+- **`publicPropertyListItemSchema` + `publicPropertyListQuerySchema` + response** in `@inmolink/shared`.
+- **Taxonomy endpoints made anonymous** — `GET /api/dashboard/property-types` + `GET /api/dashboard/locations` no longer call `requireUser()` so the public search page can populate its pickers without signing in. Sprint 2's super-admin write side will gate by role.
+- **`.search-input` Tailwind component class** in `apps/public/app/globals.css` — neutral input styling for the filter bar (mirror of `apps/web`'s `.input`).
+- **Home page** now CTAs into `/[locale]/search`.
+
 ### Fixed
 
 - **PropertyStatus UI ↔ Prisma drift** — UI surfaces (form options, list status chip, i18n status namespace in all 4 locales, one stale comment) referenced `RESERVED` and were missing `UNDER_OFFER` + `RENTED`. The Prisma enum + Zod schema were already correct; consumers had drifted. The form would have let a user pick `RESERVED` and only failed at submit-time Zod validation. Now: STATUSES + STATUS_CHIP + i18n status namespace match `["DRAFT", "ACTIVE", "UNDER_OFFER", "SOLD", "RENTED", "WITHDRAWN"]` end-to-end.

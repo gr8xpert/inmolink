@@ -5,9 +5,10 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 
 /**
- * Read-only taxonomy endpoints — the dashboard create/edit forms call
- * these to populate type + location pickers. Sprint 2 ships full CRUD
- * under super-admin; these stay public to authenticated dashboard users.
+ * Read-only taxonomy endpoints. Anonymous (no `requireUser()`) so the
+ * public marketplace search page can populate its filter pickers
+ * without signing in. Sprint 2 ships full CRUD under super-admin (write
+ * side will require auth + role check).
  *
  * Localized name selection: requested locale → en → first available.
  * Done in JS rather than SQL so we don't need a function or distinct CTE.
@@ -43,7 +44,6 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       },
     },
     async (request) => {
-      request.requireUser();
       const { locale } = request.query;
       const rows = await prisma.propertyType.findMany({
         where: { isActive: true },
@@ -79,7 +79,6 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       },
     },
     async (request) => {
-      request.requireUser();
       const { locale } = request.query;
       const rows = await prisma.location.findMany({
         where: { isActive: true },

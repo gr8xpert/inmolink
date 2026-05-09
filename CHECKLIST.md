@@ -170,12 +170,18 @@
 - [x] `publicPropertySchemas` in `@inmolink/shared`
 - [x] `apps/public/src/lib/api.ts` (anonymous, ISR-friendly) + format helpers
 
-### G.2 — Public search / list (next)
+### G.2 — Public search / list ✅
 
-- [ ] `/[locale]/search` — basic Postgres-backed faceted search (Meilisearch lands in Sprint 3)
-- [ ] `/api/public/properties` list endpoint with cursor + filters (transaction, price range, beds, location)
-- [ ] Per-locale ISR + pagination via cursor
-- [ ] Variant URLs surfaced via the lazy resolver (or hydrated into the detail/list responses)
+- [x] `/[locale]/search` — Server Component with URL-driven filters (shareable + back-button-friendly)
+- [x] `SearchFilters` Client Component — q / transactionType / propertyTypeId / locationId / minPriceCents / maxPriceCents / bedrooms
+- [x] `GET /api/public/properties` — cursor pagination, filter set above, free-text via Prisma `contains` insensitive on title + description (Meilisearch lands Sprint 3)
+- [x] Result cards: cover thumbnail, AgencyBadge, title, price, beds/baths/m². Link to canonical `/[locale]/property/<slug>-<id>`.
+- [x] Cursor next-page link carries forward filters
+- [x] ISR `revalidate: 60` for filtered queries
+- [x] Taxonomy `GET /property-types` + `/locations` made anonymous
+- [x] Home page CTA → `/search`
+- [ ] *(deferred Sprint 3)* Variant URLs in detail/list responses (lazy resolver hydration)
+- [ ] *(deferred Sprint 3)* Meilisearch swap (per-locale indices, faceting)
 
 ### H — Tests
 

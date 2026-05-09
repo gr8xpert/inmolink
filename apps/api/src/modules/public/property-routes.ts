@@ -1,9 +1,30 @@
 import { prisma } from "@inmolink/db";
 import { publicPropertySchemas } from "@inmolink/shared";
 import type { Storage } from "@inmolink/storage";
+import type { Prisma } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
+
+/** Opaque cursor over (createdAt, id). Mirrors apps/api dashboard list. */
+function encodeCursor(c: { createdAt: Date; id: string }): string {
+  return Buffer.from(`${c.createdAt.toISOString()}|${c.id}`, "utf8").toString("base64url");
+}
+
+function decodeCursor(raw: string): { createdAt: Date; id: string } | null {
+  try {
+    const decoded = Buffer.from(raw, "base64url").toString("utf8");
+    const sep = decoded.lastIndexOf("|");
+    if (sep <= 0) return null;
+    const ts = decoded.slice(0, sep);
+    const id = decoded.slice(sep + 1);
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime()) || !id) return null;
+    return { createdAt: d, id };
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Public marketplace property routes. Anonymous (no `requireUser()`).
@@ -34,6 +55,143 @@ export async function publicPropertyRoutes(
 ): Promise<void> {
   const { storage } = opts;
   const fastify = app.withTypeProvider<ZodTypeProvider>();
+
+  fastify.get(
+    "/properties",
+    {
+      schema: {
+        tags: ["public", "properties"],
+        summary: "Public property search/list (Postgres-backed; Meilisearch in Sprint 3)",
+        querystring: publicPropertySchemas.publicPropertyListQuerySchema,
+        response: { 200: publicPropertySchemas.publicPropertyListResponseSchema },
+      },
+      // Public surface — keep tight even though there's no auth penalty.
+      config: { rateLimit: { max: 120, timeWindow: "1 minute" } },
+    },
+    async (request) => {
+      const q = request.query;
+
+      const where: Prisma.PropertyWhereInput = {
+        visibility: "PUBLIC",
+        status: "ACTIVE",
+        deletedAt: null,
+        ...(q.transactionType ? { transactionType: q.transactionType } : {}),
+        ...(q.propertyTypeId ? { propertyTypeId: q.propertyTypeId } : {}),
+        ...(q.locationId ? { locationId: q.locationId } : {}),
+        ...(q.bedrooms !== undefined ? { bedrooms: { gte: q.bedrooms } } : {}),
+        ...(q.minPriceCents !== undefined || q.maxPriceCents !== undefined
+          ? {
+              priceCents: {
+                ...(q.minPriceCents !== undefined ? { gte: BigInt(q.minPriceCents) } : {}),
+                ...(q.maxPriceCents !== undefined ? { lte: BigInt(q.maxPriceCents) } : {}),
+              },
+            }
+          : {}),
+        // Free-text — ILIKE on title + description across any locale's
+        // translation. Sprint 3 swaps this for Meilisearch with proper
+        // tokenisation, language analyzers, and faceting.
+        ...(q.q
+          ? {
+              translations: {
+                some: {
+                  OR: [
+                    { title: { contains: q.q, mode: "insensitive" } },
+                    { description: { contains: q.q, mode: "insensitive" } },
+                  ],
+                },
+              },
+            }
+          : {}),
+      };
+
+      // Cursor: rows with (createdAt, id) strictly less than the cursor
+      // — same shape as the dashboard list. Avoids OFFSET on hot lists.
+      const cursor = q.cursor ? decodeCursor(q.cursor) : null;
+      if (cursor) {
+        where.OR = [
+          { createdAt: { lt: cursor.createdAt } },
+          { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+        ];
+      }
+
+      const rows = await prisma.property.findMany({
+        where,
+        select: {
+          id: true,
+          createdAt: true,
+          transactionType: true,
+          priceCents: true,
+          currency: true,
+          priceType: true,
+          bedrooms: true,
+          bathrooms: true,
+          areaM2: true,
+          propertyTypeId: true,
+          locationId: true,
+          publishedAt: true,
+          translations: {
+            select: { locale: true, title: true, slug: true },
+          },
+          agency: { select: { id: true, slug: true, name: true, logoR2Key: true } },
+          // Cover first, then earliest-position; the OR-ish logic is
+          // expressed as a multi-key orderBy so Prisma can satisfy it
+          // with a single query.
+          images: {
+            select: {
+              altText: true,
+              isCover: true,
+              mediaObject: { select: { r2Key: true } },
+            },
+            orderBy: [{ isCover: "desc" }, { position: "asc" }, { createdAt: "asc" }],
+            take: 1,
+          },
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: q.limit + 1,
+      });
+
+      const hasMore = rows.length > q.limit;
+      const items = rows.slice(0, q.limit).map((r) => {
+        const tr =
+          r.translations.find((t) => t.locale === q.locale) ??
+          r.translations.find((t) => t.locale === "en") ??
+          r.translations[0];
+        const cover = r.images[0];
+        return {
+          id: r.id,
+          transactionType: r.transactionType,
+          priceCents: Number(r.priceCents),
+          currency: r.currency,
+          priceType: r.priceType as "fixed" | "poa" | "from",
+          bedrooms: r.bedrooms,
+          bathrooms: r.bathrooms,
+          areaM2: r.areaM2,
+          propertyTypeId: r.propertyTypeId,
+          locationId: r.locationId,
+          publishedAt: r.publishedAt ? r.publishedAt.toISOString() : null,
+          slug: tr?.slug ?? r.id,
+          title: tr?.title ?? "(untitled)",
+          coverUrl: cover ? storage.publicUrl(cover.mediaObject.r2Key) : null,
+          coverAlt: cover?.altText ?? null,
+          agency: {
+            id: r.agency.id,
+            slug: r.agency.slug,
+            name: r.agency.name,
+            logoUrl: r.agency.logoR2Key ? storage.publicUrl(r.agency.logoR2Key) : null,
+          },
+        };
+      });
+
+      const last = items[items.length - 1];
+      const lastRow = rows[items.length - 1];
+      const nextCursor =
+        hasMore && last && lastRow
+          ? encodeCursor({ createdAt: lastRow.createdAt, id: last.id })
+          : null;
+
+      return { items, nextCursor };
+    },
+  );
 
   fastify.get(
     "/properties/:id",
