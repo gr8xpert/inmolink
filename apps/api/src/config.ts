@@ -66,6 +66,12 @@ const envSchema = z.object({
   // Resend — optional in dev (we log invite links instead). PLAN §1 row 33.
   RESEND_API_KEY: optionalString,
   EMAIL_FROM: z.string().default("Inmolink <onboarding@inmolink.local>"),
+
+  // Cloudflare Turnstile — optional. When unset, lead submits skip
+  // verification (turnstileVerified=false, lead still saved). When set,
+  // a missing or failed token returns the same fake-success as honeypot
+  // hits so bots can't tell verified from unverified.
+  TURNSTILE_SECRET: optionalString,
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -2,6 +2,7 @@ import { auth } from "@inmolink/auth";
 import { setRequestLocale } from "next-intl/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { SitemapRegenerateButton } from "./sitemap-button";
 
 type Props = {
   params: Promise<{ locale: string }>;
@@ -79,6 +80,17 @@ export default async function AdminLandingPage({ params }: Props) {
             per-member reorder.
           </p>
         </Link>
+      </section>
+
+      <section className="space-y-3 rounded-md border bg-muted/30 p-4">
+        <div>
+          <h2 className="font-semibold">Sitemap</h2>
+          <p className="text-sm text-muted-foreground">
+            The worker regenerates daily at 02:00 UTC. Trigger manually if a publishing burst needs
+            to land in search results faster.
+          </p>
+        </div>
+        <SitemapRegenerateButton locale={locale} />
       </section>
     </main>
   );

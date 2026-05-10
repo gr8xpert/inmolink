@@ -10,9 +10,11 @@ import type { Redis } from "ioredis";
 
 export const QUEUE_NAMES = {
   IMAGE_VARIANT: "image-variant",
+  SITEMAP_GENERATE: "sitemap-generate",
 } as const;
 
 let imageVariantQueueSingleton: Queue | null = null;
+let sitemapQueueSingleton: Queue | null = null;
 
 /**
  * Lazy singleton — first call wires the queue against the shared Redis
@@ -35,10 +37,44 @@ export function getImageVariantQueue(connection: Redis): Queue {
   return imageVariantQueueSingleton;
 }
 
+/**
+ * Producer for ad-hoc sitemap regenerations. The worker also runs a daily
+ * cron-driven generation; this surface is for the super-admin "regenerate
+ * now" button (PLAN §11.13).
+ */
+export function getSitemapQueue(connection: Redis): Queue {
+  if (!sitemapQueueSingleton) {
+    sitemapQueueSingleton = new Queue(QUEUE_NAMES.SITEMAP_GENERATE, {
+      connection,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: "exponential", delay: 30_000 },
+        removeOnComplete: { age: 24 * 3600 },
+        removeOnFail: { count: 50 },
+      },
+    });
+  }
+  return sitemapQueueSingleton;
+}
+
+export async function enqueueSitemapNow(queue: Queue, requestedBy: string): Promise<string> {
+  const job = await queue.add(
+    "manual",
+    { trigger: "manual", requestedBy, requestedAt: new Date().toISOString() },
+    // Coalesce concurrent manual triggers — same key → one job.
+    { jobId: `sitemap:manual:${Math.floor(Date.now() / 60_000)}` },
+  );
+  return job.id ?? "";
+}
+
 export async function closeQueues(): Promise<void> {
   if (imageVariantQueueSingleton) {
     await imageVariantQueueSingleton.close();
     imageVariantQueueSingleton = null;
+  }
+  if (sitemapQueueSingleton) {
+    await sitemapQueueSingleton.close();
+    sitemapQueueSingleton = null;
   }
 }
 

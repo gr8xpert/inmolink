@@ -19,6 +19,7 @@ import { adminFeatureRoutes } from "./modules/admin/features/routes";
 import { adminLocationGroupRoutes } from "./modules/admin/location-groups/routes";
 import { adminLocationRoutes } from "./modules/admin/locations/routes";
 import { adminPropertyTypeRoutes } from "./modules/admin/property-types/routes";
+import { adminSitemapRoutes } from "./modules/admin/sitemap-routes";
 import { agencyRoutes } from "./modules/agency/routes";
 import { dashboardInviteRoutes, publicInviteRoutes } from "./modules/invites/routes";
 import { meRoutes } from "./modules/me/routes";
@@ -164,13 +165,18 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   await app.register(adminFeatureRoutes, { prefix: "/api/dashboard/admin" });
   await app.register(adminLocationRoutes, { prefix: "/api/dashboard/admin" });
   await app.register(adminLocationGroupRoutes, { prefix: "/api/dashboard/admin" });
+  await app.register(adminSitemapRoutes, { prefix: "/api/dashboard/admin" });
   await app.register(uploadRoutes, { prefix: "/api/uploads", storage, imageVariantQueue });
   await app.register(publicPropertyRoutes, { prefix: "/api/public", storage, search });
   await app.register(publicLocationRoutes, { prefix: "/api/public" });
   await app.register(publicProfileRoutes, { prefix: "/api/public", storage });
   await app.register(publicSitemapRoutes, { prefix: "/api/public", storage });
   // ENCRYPTION_KEY doubles as the IP-hash salt — never write raw IPs to DB.
-  await app.register(publicLeadRoutes, { prefix: "/api/public", ipSalt: env.ENCRYPTION_KEY });
+  await app.register(publicLeadRoutes, {
+    prefix: "/api/public",
+    ipSalt: env.ENCRYPTION_KEY,
+    turnstileSecret: env.TURNSTILE_SECRET,
+  });
   await app.register(localStorageRoutes, { prefix: "/api/_local-storage", storage });
 
   // Graceful shutdown — drain in-flight requests + close queues + Redis (PLAN §11.7)

@@ -43,11 +43,26 @@ function hashIp(ip: string, salt: string): string {
   return createHash("sha256").update(`${salt}:${ip}`).digest("hex");
 }
 
+async function verifyTurnstile(secret: string, token: string, remoteip: string): Promise<boolean> {
+  try {
+    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ secret, response: token, remoteip }).toString(),
+    });
+    if (!res.ok) return false;
+    const body = (await res.json()) as { success: boolean };
+    return body.success === true;
+  } catch {
+    return false;
+  }
+}
+
 export async function publicLeadRoutes(
   app: FastifyInstance,
-  opts: { ipSalt: string },
+  opts: { ipSalt: string; turnstileSecret?: string | undefined },
 ): Promise<void> {
-  const { ipSalt } = opts;
+  const { ipSalt, turnstileSecret } = opts;
   const fastify = app.withTypeProvider<ZodTypeProvider>();
 
   fastify.post(
@@ -70,6 +85,21 @@ export async function publicLeadRoutes(
       if (body.companyName && body.companyName.length > 0) {
         request.log.warn({ ip: request.ip }, "lead honeypot triggered");
         return reply.code(201).send({ ok: true as const, ref: "------" });
+      }
+
+      // Turnstile — only enforced when TURNSTILE_SECRET is configured.
+      // Failed verification returns the same fake-success as honeypot hits.
+      let turnstileVerified = false;
+      if (turnstileSecret) {
+        if (!body.turnstileToken) {
+          request.log.warn({ ip: request.ip }, "lead missing Turnstile token");
+          return reply.code(201).send({ ok: true as const, ref: "------" });
+        }
+        turnstileVerified = await verifyTurnstile(turnstileSecret, body.turnstileToken, request.ip);
+        if (!turnstileVerified) {
+          request.log.warn({ ip: request.ip }, "lead Turnstile verification failed");
+          return reply.code(201).send({ ok: true as const, ref: "------" });
+        }
       }
 
       // Resolve agencyId from the property if this is a property lead. We
@@ -119,8 +149,7 @@ export async function publicLeadRoutes(
           locale: body.locale,
           ipHash,
           userAgent,
-          // Turnstile verification deferred to Sprint 4 — PLAN §9.3.
-          turnstileVerified: false,
+          turnstileVerified,
           status: "NEW",
         },
         select: { id: true },
