@@ -172,6 +172,19 @@ export default async function DashboardHome({ params }: Props) {
           </p>
         </Link>
 
+        {session.user.agencyId && (
+          <Link
+            href={`/${locale}/dashboard/exports`}
+            className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+          >
+            <h2 className="font-semibold">Exports</h2>
+            <p className="text-sm text-muted-foreground">
+              CSV inventory + PDF brochures / portfolio. Files expire 7 days after generation. PRO
+              plan required.
+            </p>
+          </Link>
+        )}
+
         {session.user.role === "SUPER_ADMIN" && (
           <Link
             href={`/${locale}/dashboard/admin`}

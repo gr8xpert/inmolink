@@ -452,6 +452,24 @@
       "PAUSED": "Paused"
     }
   },
+  "exports": {
+    "title": "Exports",
+    "subtitle": "Download CSV or PDF. Files expire after 7 days.",
+    "newExport": "New export",
+    "kind": "Kind",
+    "locale": "Locale",
+    "propertyIds": "Property IDs",
+    "status": "Status",
+    "visibility": "Visibility",
+    "queue": "Queue export",
+    "queued": "Queued",
+    "running": "Running",
+    "success": "Success",
+    "failed": "Failed",
+    "download": "Download",
+    "delete": "Delete",
+    "noExports": "No exports yet."
+  },
   "webhooks": {
     "title": "Outbound webhooks",
     "subtitle": "Receive a signed POST every time something happens in your agency.",

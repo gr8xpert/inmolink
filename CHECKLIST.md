@@ -846,12 +846,47 @@
 - [ ] Webhook signature spec doc page on the dashboard (HMAC verification example in 3 languages)
 - [ ] Super-admin delivery list ordering by event.createdAt instead of delivery PK (current uses `id desc` — ID is cuid so it's monotonic-ish but not strictly chronological under high concurrency)
 
-## Sprint 11 — Export
+## Sprint 11 — Export ✅ COMPLETE
 
-- [ ] Export queue + worker
-- [ ] CSV generator
-- [ ] PDF brochure / portfolio templates (Puppeteer + Handlebars)
-- [ ] R2 + signed download links + 7-day expiry
+### 11.A — Export schemas + plan-gated CRUD ✅
+
+- [x] `exportSchemas` namespace (kind/status/filters + refinements)
+- [x] `/api/dashboard/exports` list/detail/create/delete
+- [x] Plan-gating: CSV → `feature:export.csv`; PDF kinds → `feature:export.pdf`
+- [x] Create writes Export(QUEUED) + 7-day `expiresAt` + enqueues `EXPORT_GENERATE`
+
+### 11.B — Worker EXPORT_GENERATE + CSV + PDF templates ✅
+
+- [x] `makeExportGenerateProcessor` resolves filters → properties (agency-scoped)
+- [x] CSV renderer (RFC 4180, 16 columns, locale-aware)
+- [x] PDF templates: brochure (single property) + portfolio (cover + per-page)
+- [x] Uploads to `exports/<agencyId>/<exportId>.<ext>`
+- [x] Marks SUCCESS / FAILED with errorMessage
+
+### 11.C — Authenticated download proxy + 7-day expiry cleanup ✅
+
+- [x] `/api/dashboard/exports/:id/download` streams after auth + status + expiry checks (410 on stale)
+- [x] `EXPORT_CLEANUP` daily scheduler (03:30 UTC) deletes expired rows + R2 blobs
+
+### 11.D — Web /exports list + create + download ✅
+
+- [x] List page with status badges + size + expiry countdown + Download / Delete
+- [x] Create form (kind selector + propertyIds OR filters; PDF_PROPERTY requires one ID)
+- [x] Dashboard home tile (any role with an agency)
+
+### 11.E — i18n + docs ✅
+
+- [x] 4-locale `exports` namespace (en/es/de/fr)
+- [x] CHANGELOG entry, CHECKLIST sync, memory state
+
+### Deferred to a follow-up
+
+- [ ] Native R2-presigned download URLs (current: api-proxied stream — works for all backends but doubles bandwidth on R2)
+- [ ] Per-language PDF templates (current: locale variable threads through; the body strings are EN — switch to next-intl messages in templates)
+- [ ] PDF style tweaks (logo embed, agency colors from `Agency.brandingPrimaryColor`, footer with agency contact)
+- [ ] Streaming CSV for very large exports (current: builds full string in memory; cap is 500 properties)
+- [ ] Async-status polling on the dashboard (current: page refresh; could subscribe to a Notification on SUCCESS / FAILED)
+- [ ] Export from filter URL — open the property list `/dashboard/properties?status=ACTIVE&q=…` and click "Export this view" to pre-fill the create form
 
 ## Sprint 12 — Pressure test + launch prep
 

@@ -456,6 +456,24 @@
       "PAUSED": "Pausado"
     }
   },
+  "exports": {
+    "title": "Exportaciones",
+    "subtitle": "Descarga CSV o PDF. Los archivos expiran a los 7 días.",
+    "newExport": "Nueva exportación",
+    "kind": "Tipo",
+    "locale": "Idioma",
+    "propertyIds": "IDs de propiedad",
+    "status": "Estado",
+    "visibility": "Visibilidad",
+    "queue": "Crear exportación",
+    "queued": "En cola",
+    "running": "Generando",
+    "success": "Lista",
+    "failed": "Falló",
+    "download": "Descargar",
+    "delete": "Eliminar",
+    "noExports": "Aún no hay exportaciones."
+  },
   "webhooks": {
     "title": "Webhooks salientes",
     "subtitle": "Recibe un POST firmado cada vez que algo ocurre en tu agencia.",

@@ -456,6 +456,24 @@
       "PAUSED": "Pausiert"
     }
   },
+  "exports": {
+    "title": "Exporte",
+    "subtitle": "CSV oder PDF herunterladen. Dateien laufen nach 7 Tagen ab.",
+    "newExport": "Neuer Export",
+    "kind": "Typ",
+    "locale": "Sprache",
+    "propertyIds": "Objekt-IDs",
+    "status": "Status",
+    "visibility": "Sichtbarkeit",
+    "queue": "Export erstellen",
+    "queued": "In Warteschlange",
+    "running": "Läuft",
+    "success": "Fertig",
+    "failed": "Fehlgeschlagen",
+    "download": "Herunterladen",
+    "delete": "Löschen",
+    "noExports": "Noch keine Exporte."
+  },
   "webhooks": {
     "title": "Ausgehende Webhooks",
     "subtitle": "Erhalte signierte POST-Aufrufe für jedes Ereignis in deiner Agentur.",

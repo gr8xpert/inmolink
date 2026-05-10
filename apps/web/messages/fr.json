@@ -456,6 +456,24 @@
       "PAUSED": "En pause"
     }
   },
+  "exports": {
+    "title": "Exports",
+    "subtitle": "Téléchargez CSV ou PDF. Les fichiers expirent après 7 jours.",
+    "newExport": "Nouvel export",
+    "kind": "Type",
+    "locale": "Langue",
+    "propertyIds": "IDs de bien",
+    "status": "Statut",
+    "visibility": "Visibilité",
+    "queue": "Lancer l'export",
+    "queued": "En attente",
+    "running": "En cours",
+    "success": "Prêt",
+    "failed": "Échoué",
+    "download": "Télécharger",
+    "delete": "Supprimer",
+    "noExports": "Pas encore d'exports."
+  },
   "webhooks": {
     "title": "Webhooks sortants",
     "subtitle": "Recevez un POST signé chaque fois qu'un événement se produit dans votre agence.",
