@@ -39,5 +39,16 @@
     "noProperties": "Pas encore d'annonces publiques.",
     "contact": "Contact",
     "website": "Site web"
+  },
+  "legal": {
+    "privacy": "Confidentialité",
+    "terms": "Conditions",
+    "cookies": "Cookies"
+  },
+  "consent": {
+    "message": "Nous utilisons uniquement des cookies strictement nécessaires (session + CSRF + langue).",
+    "accept": "Accepter",
+    "reject": "Refuser",
+    "policyLink": "Lire la politique de cookies"
   }
 }

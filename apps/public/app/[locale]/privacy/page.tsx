@@ -1,0 +1,137 @@
+import { localeAlternates } from "@/lib/seo";
+import type { Metadata } from "next";
+import { setRequestLocale } from "next-intl/server";
+
+type Props = { params: Promise<{ locale: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale } = await params;
+  return {
+    title: "Privacy policy · Inmolink",
+    description: "How Inmolink collects, uses, and stores your data.",
+    alternates: localeAlternates({ currentLocale: locale, path: "/privacy" }),
+    robots: { index: true, follow: true },
+  };
+}
+
+export default async function PrivacyPage({ params }: Props) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+
+  return (
+    <main className="container mx-auto max-w-3xl space-y-6 px-6 py-16 text-sm leading-relaxed">
+      <header className="space-y-2 border-b pb-4">
+        <h1 className="text-3xl font-bold">Privacy policy</h1>
+        <p className="text-muted-foreground">
+          Last updated: 2026-05-10. <strong>Placeholder copy — pending legal review.</strong>
+        </p>
+      </header>
+
+      <section className="space-y-4">
+        <h2 className="text-xl font-semibold">Who we are</h2>
+        <p>
+          Inmolink (operated by Realty Soft) provides a multi-agent property marketplace and
+          collaboration platform for real-estate agencies in the European Union. The data controller
+          is Realty Soft S.L., contactable at{" "}
+          <a href="mailto:privacy@inmolink.eu" className="text-blue-700 hover:underline">
+            privacy@inmolink.eu
+          </a>
+          .
+        </p>
+
+        <h2 className="text-xl font-semibold">What we collect</h2>
+        <ul className="list-disc space-y-2 pl-6">
+          <li>
+            <strong>Account data</strong> — email, password (hashed with Argon2id), name, phone,
+            preferred locale, optional photo. Provided by you when you sign up or accept an agency
+            invitation.
+          </li>
+          <li>
+            <strong>Property data</strong> — listing details that agency members publish to the
+            platform; includes location, photos, price, and translatable text.
+          </li>
+          <li>
+            <strong>Lead data</strong> — name, email, phone (optional), and message you submit via
+            the contact form on a property page. We salt and hash your IP address; the raw IP is
+            never persisted.
+          </li>
+          <li>
+            <strong>Cookies</strong> — strictly necessary cookies (session, CSRF) and an opt-in
+            cookie consent record. We do not use marketing cookies. See the{" "}
+            <a href={`/${locale}/cookies`} className="text-blue-700 hover:underline">
+              cookie policy
+            </a>{" "}
+            for details.
+          </li>
+          <li>
+            <strong>Usage logs</strong> — request method/path, status code, response time,
+            anonymised IP. Used for monitoring and abuse prevention; PII is redacted at the log
+            layer.
+          </li>
+        </ul>
+
+        <h2 className="text-xl font-semibold">Why we process it</h2>
+        <ul className="list-disc space-y-2 pl-6">
+          <li>
+            To provide the service (legal basis: performance of contract — Art. 6(1)(b) GDPR).
+          </li>
+          <li>
+            To send transactional emails — viewing requests, deal confirmations, ticket replies,
+            password resets — using your agency&apos;s SMTP server when configured (legal basis:
+            performance of contract).
+          </li>
+          <li>
+            To send marketing emails on behalf of an agency, only when the recipient has given
+            explicit consent (legal basis: consent — Art. 6(1)(a)).
+          </li>
+          <li>
+            For platform safety, abuse prevention, and audit trails (legal basis: legitimate
+            interests — Art. 6(1)(f)).
+          </li>
+        </ul>
+
+        <h2 className="text-xl font-semibold">Where data lives</h2>
+        <p>
+          Application data resides in EU-hosted PostgreSQL. Object storage (property images, export
+          files, ticket attachments) lives in Cloudflare R2 (EU jurisdiction). Search indexes live
+          in Meilisearch on the same VPS. Backups are encrypted and stored in R2 with 30-day
+          versioning.
+        </p>
+
+        <h2 className="text-xl font-semibold">Sub-processors</h2>
+        <ul className="list-disc space-y-2 pl-6">
+          <li>Cloudflare (CDN, R2 object storage)</li>
+          <li>Stripe (payment processing — when you upgrade to PRO)</li>
+          <li>Resend (transactional email — when no per-agency SMTP configured)</li>
+          <li>Better Stack (uptime monitoring + log retention)</li>
+        </ul>
+
+        <h2 className="text-xl font-semibold">Your rights (GDPR Articles 15–22)</h2>
+        <p>
+          You may request access, rectification, erasure, portability, or restriction at{" "}
+          <a href="mailto:privacy@inmolink.eu" className="text-blue-700 hover:underline">
+            privacy@inmolink.eu
+          </a>
+          . We respond within 30 days. You may also lodge a complaint with your local data
+          protection authority.
+        </p>
+
+        <h2 className="text-xl font-semibold">Retention</h2>
+        <ul className="list-disc space-y-2 pl-6">
+          <li>Account data: while your account is active, then 90 days post-closure.</li>
+          <li>
+            Property data: until you delete it (soft-delete with 30-day grace, then permanent).
+          </li>
+          <li>Audit log: 24 months for security-sensitive events.</li>
+          <li>Backups: 30 days.</li>
+        </ul>
+
+        <h2 className="text-xl font-semibold">Changes to this policy</h2>
+        <p>
+          We&apos;ll publish material changes here at least 30 days before they take effect and
+          notify active accounts by email.
+        </p>
+      </section>
+    </main>
+  );
+}

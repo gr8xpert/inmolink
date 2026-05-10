@@ -1,3 +1,4 @@
+import { prisma } from "@inmolink/db";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
@@ -8,8 +9,7 @@ const HealthResponse = z.object({
   checks: z
     .object({
       redis: z.enum(["ok", "down"]).optional(),
-      // db: z.enum(["ok", "down"]).optional(),       // wired in Sprint 1
-      // meilisearch: z.enum(["ok", "down"]).optional(),  // wired in Sprint 3
+      db: z.enum(["ok", "down"]).optional(),
     })
     .optional(),
 });
@@ -43,19 +43,34 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
       config: { rateLimit: { max: 600, timeWindow: "1 minute" } },
     },
     async (_req, reply) => {
-      let redisStatus: "ok" | "down" = "down";
-      try {
-        const pong = await app.redis.ping();
-        redisStatus = pong === "PONG" ? "ok" : "down";
-      } catch {
-        redisStatus = "down";
-      }
+      // Run dependency probes in parallel; each is wrapped so a single
+      // failure can't take down the whole readiness check before the
+      // others report.
+      const [redisStatus, dbStatus] = await Promise.all([
+        (async (): Promise<"ok" | "down"> => {
+          try {
+            return (await app.redis.ping()) === "PONG" ? "ok" : "down";
+          } catch {
+            return "down";
+          }
+        })(),
+        (async (): Promise<"ok" | "down"> => {
+          try {
+            // Cheap round-trip; no table access so this stays fast even
+            // when the DB is under load.
+            await prisma.$queryRaw`SELECT 1`;
+            return "ok";
+          } catch {
+            return "down";
+          }
+        })(),
+      ]);
 
-      const allOk = redisStatus === "ok";
+      const allOk = redisStatus === "ok" && dbStatus === "ok";
       const body = {
         status: allOk ? ("ok" as const) : ("degraded" as const),
         uptime: process.uptime(),
-        checks: { redis: redisStatus },
+        checks: { redis: redisStatus, db: dbStatus },
       };
 
       if (!allOk) {

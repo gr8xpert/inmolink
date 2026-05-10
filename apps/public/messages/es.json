@@ -39,5 +39,16 @@
     "noProperties": "Aún no hay listados públicos.",
     "contact": "Contacto",
     "website": "Sitio web"
+  },
+  "legal": {
+    "privacy": "Privacidad",
+    "terms": "Términos",
+    "cookies": "Cookies"
+  },
+  "consent": {
+    "message": "Usamos solo cookies estrictamente necesarias (sesión + CSRF + idioma).",
+    "accept": "Aceptar",
+    "reject": "Rechazar",
+    "policyLink": "Lee la política de cookies"
   }
 }

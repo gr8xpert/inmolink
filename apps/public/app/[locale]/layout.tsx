@@ -1,3 +1,5 @@
+import { CookieConsentBanner } from "@/components/cookie-consent-banner";
+import { PublicFooter } from "@/components/public-footer";
 import { type Locale, routing } from "@/i18n/routing";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
@@ -31,7 +33,11 @@ export default async function LocaleLayout({ children, params }: Props) {
         <link rel="preconnect" href="https://images.inmolink.local" />
       </head>
       <body className="antialiased">
-        <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider messages={messages}>
+          {children}
+          <PublicFooter locale={locale} />
+          <CookieConsentBanner locale={locale} />
+        </NextIntlClientProvider>
       </body>
     </html>
   );
