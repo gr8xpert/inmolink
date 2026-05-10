@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@inmolink/ai": "workspace:*",
+    "@inmolink/auth": "workspace:*",
     "@inmolink/db": "workspace:*",
     "@inmolink/imports": "workspace:*",
     "@inmolink/pdf": "workspace:*",

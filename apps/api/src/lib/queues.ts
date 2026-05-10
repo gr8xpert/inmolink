@@ -11,10 +11,12 @@ import type { Redis } from "ioredis";
 export const QUEUE_NAMES = {
   IMAGE_VARIANT: "image-variant",
   SITEMAP_GENERATE: "sitemap-generate",
+  FEED_IMPORT: "feed-import",
 } as const;
 
 let imageVariantQueueSingleton: Queue | null = null;
 let sitemapQueueSingleton: Queue | null = null;
+let feedImportQueueSingleton: Queue | null = null;
 
 /**
  * Lazy singleton — first call wires the queue against the shared Redis
@@ -67,6 +69,81 @@ export async function enqueueSitemapNow(queue: Queue, requestedBy: string): Prom
   return job.id ?? "";
 }
 
+/**
+ * Producer for feed-import jobs. Schedules sit on this queue too —
+ * `feed-import:scheduler:<connectionId>` ids point at recurring jobs whose
+ * cron pattern matches FeedConnection.cronSchedule. The api keeps that
+ * scheduler in sync as connections are created / updated / disabled; the
+ * worker also reconciles at boot as a safety net.
+ */
+export function getFeedImportQueue(connection: Redis): Queue {
+  if (!feedImportQueueSingleton) {
+    feedImportQueueSingleton = new Queue(QUEUE_NAMES.FEED_IMPORT, {
+      connection,
+      defaultJobOptions: {
+        attempts: 1, // The processor surfaces failure on FeedRun; BullMQ retry would skew counts.
+        removeOnComplete: { age: 7 * 24 * 3600 },
+        removeOnFail: { count: 200 },
+      },
+    });
+  }
+  return feedImportQueueSingleton;
+}
+
+export function feedImportSchedulerId(connectionId: string): string {
+  return `feed-import:scheduler:${connectionId}`;
+}
+
+export async function upsertFeedImportSchedule(
+  queue: Queue,
+  args: { connectionId: string; cronPattern: string },
+): Promise<void> {
+  await queue.upsertJobScheduler(
+    feedImportSchedulerId(args.connectionId),
+    { pattern: args.cronPattern },
+    {
+      name: "tick",
+      data: { feedConnectionId: args.connectionId, triggeredBy: "CRON" },
+      opts: {
+        // Same as defaultJobOptions; BullMQ overrides at scheduler level.
+        attempts: 1,
+        removeOnComplete: { age: 7 * 24 * 3600 },
+        removeOnFail: { count: 200 },
+      },
+    },
+  );
+}
+
+export async function removeFeedImportSchedule(
+  queue: Queue,
+  args: { connectionId: string },
+): Promise<void> {
+  await queue.removeJobScheduler(feedImportSchedulerId(args.connectionId));
+}
+
+/**
+ * Enqueue a one-off import (super-admin "Run now" + ON/OFF toggle re-run).
+ * The api creates the FeedRun(QUEUED) row first so the dashboard sees the
+ * pending run immediately; the worker takes ownership of state transitions
+ * from there.
+ */
+export async function enqueueFeedImportNow(
+  queue: Queue,
+  args: { connectionId: string; runId: string; triggeredBy: "MANUAL" | "RETRY" },
+): Promise<string> {
+  const job = await queue.add(
+    "manual",
+    {
+      feedConnectionId: args.connectionId,
+      runId: args.runId,
+      triggeredBy: args.triggeredBy,
+    },
+    // Coalesce duplicate clicks within the same minute.
+    { jobId: `feed-import:manual:${args.connectionId}:${Math.floor(Date.now() / 60_000)}` },
+  );
+  return job.id ?? "";
+}
+
 export async function closeQueues(): Promise<void> {
   if (imageVariantQueueSingleton) {
     await imageVariantQueueSingleton.close();
@@ -75,6 +152,10 @@ export async function closeQueues(): Promise<void> {
   if (sitemapQueueSingleton) {
     await sitemapQueueSingleton.close();
     sitemapQueueSingleton = null;
+  }
+  if (feedImportQueueSingleton) {
+    await feedImportQueueSingleton.close();
+    feedImportQueueSingleton = null;
   }
 }
 

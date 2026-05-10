@@ -369,6 +369,15 @@ model Property {
   postcode    String?
 
   virtualTourUrl String?
+  /// External video URL (YouTube/Vimeo) — populated by feed import connectors.
+  /// First-class video objects on PropertyVideo cover uploaded MP4s; this
+  /// field carries the cheap external embed used by Kyero `<video_url>`.
+  videoUrl       String?
+
+  /// Snapshot of the source feed's `<date>` / equivalent — surfaced in the
+  /// dashboard so agents see when the upstream record last changed even if
+  /// our import was idempotent.
+  sourceUpdatedAt DateTime?
 
   // Field-level locks (PLAN §1 row 16): array of field names the agent locked,
   // skipped during feed re-import. Stored as JSON for flexibility.

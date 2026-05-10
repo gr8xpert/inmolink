@@ -1,8 +1,10 @@
+import { prisma } from "@inmolink/db";
 import { MeilisearchAdapter } from "@inmolink/search";
 import { type Job, type Processor, Queue, Worker } from "bullmq";
 import { Redis } from "ioredis";
 import pino from "pino";
 import { loadConfig } from "./config.js";
+import { makeFeedImportProcessor } from "./processors/feed-import/processor.js";
 import { makeImageVariantProcessor } from "./processors/image-variant/processor.js";
 import { makeMediaCleanupProcessor } from "./processors/media-cleanup/processor.js";
 import { makeOutboxDrainProcessor } from "./processors/outbox-drain/processor.js";
@@ -62,11 +64,23 @@ const sitemapGenerateProcessor = makeSitemapGenerateProcessor({
   publicBaseUrl: env.PUBLIC_BASE_URL,
 });
 
+// FEED_IMPORT shares Redis with the IMAGE_VARIANT queue — we hand the
+// processor a ref to the same Queue so freshly imported MediaObjects
+// trigger eager variant generation through the existing pipeline.
+const imageVariantQueueForImport = new Queue(QUEUE_NAMES.IMAGE_VARIANT, { connection });
+const feedImportProcessor = makeFeedImportProcessor({
+  storage,
+  imageVariantQueue: imageVariantQueueForImport,
+  logger,
+  encryptionKey: env.ENCRYPTION_KEY,
+});
+
 function processorFor(queueName: QueueName): Processor {
   if (queueName === QUEUE_NAMES.IMAGE_VARIANT) return imageVariantProcessor;
   if (queueName === QUEUE_NAMES.MEDIA_CLEANUP) return mediaCleanupProcessor;
   if (queueName === QUEUE_NAMES.SEARCH_REINDEX) return outboxDrainProcessor;
   if (queueName === QUEUE_NAMES.SITEMAP_GENERATE) return sitemapGenerateProcessor;
+  if (queueName === QUEUE_NAMES.FEED_IMPORT) return feedImportProcessor;
   return placeholderProcessor;
 }
 
@@ -185,6 +199,48 @@ logger.info(
   "Sitemap-generate scheduler upserted",
 );
 
+/**
+ * Feed-import scheduler reconciliation (PLAN §11.5).
+ *
+ * The api keeps schedulers in sync with FeedConnection state on every CRUD
+ * write. We reconcile at worker boot too as a drift safety net — adds
+ * schedulers for any active connection missing one, removes orphaned ones.
+ */
+const feedImportQueue = new Queue(QUEUE_NAMES.FEED_IMPORT, { connection });
+
+async function reconcileFeedImportSchedulers(): Promise<void> {
+  const active = await prisma.feedConnection.findMany({
+    where: { syncEnabled: true },
+    select: { id: true, cronSchedule: true },
+  });
+  const wantIds = new Set(active.map((c) => `feed-import:scheduler:${c.id}`));
+
+  for (const c of active) {
+    await feedImportQueue.upsertJobScheduler(
+      `feed-import:scheduler:${c.id}`,
+      { pattern: c.cronSchedule },
+      {
+        name: "tick",
+        data: { feedConnectionId: c.id, triggeredBy: "CRON" },
+        opts: { attempts: 1, removeOnComplete: { count: 30 }, removeOnFail: { count: 50 } },
+      },
+    );
+  }
+
+  const existing = await feedImportQueue.getJobSchedulers(0, 1000);
+  for (const scheduler of existing) {
+    if (scheduler.id?.startsWith("feed-import:scheduler:") && !wantIds.has(scheduler.id)) {
+      await feedImportQueue.removeJobScheduler(scheduler.id);
+      logger.info({ id: scheduler.id }, "Feed-import scheduler removed (orphan)");
+    }
+  }
+  logger.info({ active: active.length }, "Feed-import schedulers reconciled");
+}
+
+await reconcileFeedImportSchedulers().catch((err) => {
+  logger.error({ err }, "Feed-import scheduler reconciliation failed");
+});
+
 // Graceful shutdown — drain in-flight jobs (PLAN §11.7)
 const shutdown = async (signal: string): Promise<void> => {
   logger.info({ signal }, "Shutting down workers gracefully");
@@ -192,6 +248,8 @@ const shutdown = async (signal: string): Promise<void> => {
   await mediaCleanupQueue.close();
   await searchReindexQueue.close();
   await sitemapQueue.close();
+  await feedImportQueue.close();
+  await imageVariantQueueForImport.close();
   await connection.quit();
   process.exit(0);
 };

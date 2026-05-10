@@ -245,6 +245,9 @@ importers:
       '@inmolink/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@inmolink/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@inmolink/db':
         specifier: workspace:*
         version: link:../../packages/db
