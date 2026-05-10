@@ -10,6 +10,7 @@ export * as adminLocationGroupSchemas from "./schemas/admin-location-groups";
 export * as adminLocationSchemas from "./schemas/admin-locations";
 export * as adminPropertyTypeSchemas from "./schemas/admin-property-types";
 export * as leadSchemas from "./schemas/lead";
+export * as meSchemas from "./schemas/me";
 export * as mediaSchemas from "./schemas/media";
 export * as outboxSchemas from "./schemas/outbox";
 export * as propertyImageSchemas from "./schemas/property-images";

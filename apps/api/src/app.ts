@@ -19,6 +19,7 @@ import { adminFeatureRoutes } from "./modules/admin/features/routes";
 import { adminLocationGroupRoutes } from "./modules/admin/location-groups/routes";
 import { adminLocationRoutes } from "./modules/admin/locations/routes";
 import { adminPropertyTypeRoutes } from "./modules/admin/property-types/routes";
+import { meRoutes } from "./modules/me/routes";
 import { propertyImageRoutes } from "./modules/properties/images/routes";
 import { propertyRoutes } from "./modules/properties/routes";
 import { publicLeadRoutes } from "./modules/public/lead-routes";
@@ -147,6 +148,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
 
   // Routes
   await app.register(healthRoutes, { prefix: "/api/health" });
+  await app.register(meRoutes, { prefix: "/api/dashboard/me", storage });
   await app.register(propertyRoutes, { prefix: "/api/dashboard/properties" });
   await app.register(propertyImageRoutes, { prefix: "/api/dashboard/properties", storage });
   await app.register(taxonomyRoutes, { prefix: "/api/dashboard" });

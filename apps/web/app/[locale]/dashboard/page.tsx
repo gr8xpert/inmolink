@@ -48,6 +48,28 @@ export default async function DashboardHome({ params }: Props) {
           </p>
         </Link>
 
+        <Link
+          href={`/${locale}/dashboard/settings`}
+          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+        >
+          <h2 className="font-semibold">Settings</h2>
+          <p className="text-sm text-muted-foreground">
+            Profile, password, notification preferences, two-factor auth.
+          </p>
+        </Link>
+
+        {session.user.agencyId && session.user.role !== "AGENT" && (
+          <Link
+            href={`/${locale}/dashboard/agency`}
+            className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+          >
+            <h2 className="font-semibold">Agency</h2>
+            <p className="text-sm text-muted-foreground">
+              Branding, contact, public profile, team invites.
+            </p>
+          </Link>
+        )}
+
         {session.user.role === "SUPER_ADMIN" && (
           <Link
             href={`/${locale}/dashboard/admin`}
