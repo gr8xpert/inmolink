@@ -245,5 +245,55 @@
     "noProperties": "Pas encore d'annonces publiques.",
     "contact": "Contact",
     "website": "Site web"
+  },
+  "imports": {
+    "title": "Imports",
+    "subtitle": "Connectez un flux de propriétés (Kyero, Resale Online ou XML générique) — le worker synchronise selon le planning.",
+    "back": "Tableau de bord",
+    "addNew": "Ajouter un flux",
+    "emptyState": "Aucun flux pour l'instant. Ajoutez-en un pour commencer à importer des propriétés.",
+    "cron": "Cron",
+    "lastRun": "Dernière exécution",
+    "hasError": "la dernière exécution a échoué",
+    "lastErrorPrefix": "Dernière erreur",
+    "on": "actif",
+    "off": "inactif",
+    "delete": "Supprimer",
+    "deleteConfirm": "Supprimer cette connexion de flux ? Les propriétés déjà importées sont conservées.",
+    "saving": "Enregistrement…",
+    "queuingRun": "Mise en file…",
+    "queuedRun": "Exécution mise en file",
+    "runNow": "Exécuter maintenant",
+    "create": {
+      "title": "Nouveau flux",
+      "kind": "Connecteur",
+      "feedUrl": "URL du flux",
+      "feedUrlRequired": "Une URL de flux est requise.",
+      "cron": "Planification cron",
+      "cronHint": "Cron à 5 champs, ex. \"0 */6 * * *\" s'exécute toutes les 6 heures.",
+      "syncEnabled": "Synchronisation activée",
+      "fieldMappings": "Mappages de champs (XML générique)",
+      "fieldMappingsHint": "Configuration JSON — voir la doc pour le schéma.",
+      "fieldMappingsRequired": "Les mappages sont requis pour les flux XML génériques.",
+      "invalidJson": "Le JSON des mappages est invalide.",
+      "invalidMappings": "Les mappages ne correspondent pas au schéma attendu.",
+      "submit": "Créer"
+    },
+    "edit": {
+      "kindLocked": "Le type de connecteur est verrouillé après création.",
+      "submit": "Enregistrer"
+    },
+    "runHistory": {
+      "title": "Exécutions récentes",
+      "empty": "Aucune exécution.",
+      "counts": "total : {total} · créées : {created} · mises à jour : {updated} · ignorées : {skipped} · échouées : {failed}"
+    },
+    "locks": {
+      "title": "Verrouillage de champs",
+      "subtitle": "Les champs verrouillés sont ignorés à chaque import {source} — utile lorsque l'agent a corrigé une valeur que le flux fournit incorrectement.",
+      "save": "Enregistrer les verrous",
+      "saving": "Enregistrement…",
+      "saved": "Verrous enregistrés."
+    }
   }
 }

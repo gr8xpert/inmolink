@@ -245,5 +245,55 @@
     "noProperties": "Noch keine öffentlichen Angebote.",
     "contact": "Kontakt",
     "website": "Webseite"
+  },
+  "imports": {
+    "title": "Importe",
+    "subtitle": "Verbinde einen Property-Feed (Kyero, Resale Online oder generisches XML) — der Worker synchronisiert nach Plan.",
+    "back": "Dashboard",
+    "addNew": "Feed hinzufügen",
+    "emptyState": "Noch keine Feeds. Füge den ersten hinzu, um Immobilien zu importieren.",
+    "cron": "Cron",
+    "lastRun": "Letzter Lauf",
+    "hasError": "letzter Lauf fehlgeschlagen",
+    "lastErrorPrefix": "Letzter Fehler",
+    "on": "aktiv",
+    "off": "inaktiv",
+    "delete": "Löschen",
+    "deleteConfirm": "Diese Feed-Verbindung löschen? Bereits importierte Objekte bleiben erhalten.",
+    "saving": "Speichere…",
+    "queuingRun": "In Warteschlange…",
+    "queuedRun": "Lauf in Warteschlange",
+    "runNow": "Jetzt ausführen",
+    "create": {
+      "title": "Neuer Feed",
+      "kind": "Connector",
+      "feedUrl": "Feed-URL",
+      "feedUrlRequired": "Eine Feed-URL ist erforderlich.",
+      "cron": "Cron-Plan",
+      "cronHint": "5-Feld-Cron, z. B. \"0 */6 * * *\" läuft alle 6 Stunden.",
+      "syncEnabled": "Synchronisation aktiv",
+      "fieldMappings": "Feld-Mappings (Generisches XML)",
+      "fieldMappingsHint": "JSON-Konfiguration — siehe Dokumentation für das Schema.",
+      "fieldMappingsRequired": "Feld-Mappings sind für generische XML-Feeds erforderlich.",
+      "invalidJson": "Das Mapping-JSON ist ungültig.",
+      "invalidMappings": "Die Feld-Mappings passen nicht zum erwarteten Schema.",
+      "submit": "Erstellen"
+    },
+    "edit": {
+      "kindLocked": "Der Connector-Typ ist nach Erstellung gesperrt.",
+      "submit": "Änderungen speichern"
+    },
+    "runHistory": {
+      "title": "Letzte Läufe",
+      "empty": "Noch keine Läufe.",
+      "counts": "gesamt: {total} · erstellt: {created} · aktualisiert: {updated} · übersprungen: {skipped} · fehlgeschlagen: {failed}"
+    },
+    "locks": {
+      "title": "Feld-Sperren",
+      "subtitle": "Gesperrte Felder werden bei jedem {source}-Import ausgelassen — nützlich, wenn der Agent einen Wert korrigiert hat, den der Feed falsch liefert.",
+      "save": "Sperren speichern",
+      "saving": "Speichere…",
+      "saved": "Sperren gespeichert."
+    }
   }
 }

@@ -49,6 +49,16 @@ export default async function DashboardHome({ params }: Props) {
         </Link>
 
         <Link
+          href={`/${locale}/dashboard/imports`}
+          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+        >
+          <h2 className="font-semibold">Imports</h2>
+          <p className="text-sm text-muted-foreground">
+            Connect a Kyero, Resale Online, or generic XML feed; the worker syncs on schedule.
+          </p>
+        </Link>
+
+        <Link
           href={`/${locale}/dashboard/settings`}
           className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
         >

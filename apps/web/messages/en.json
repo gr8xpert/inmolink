@@ -241,5 +241,55 @@
     "noProperties": "No public listings yet.",
     "contact": "Contact",
     "website": "Website"
+  },
+  "imports": {
+    "title": "Imports",
+    "subtitle": "Connect a property feed (Kyero, Resale Online, or generic XML) and the worker syncs on schedule.",
+    "back": "Dashboard",
+    "addNew": "Add a feed",
+    "emptyState": "No feeds yet. Add your first one to start importing properties.",
+    "cron": "Cron",
+    "lastRun": "Last run",
+    "hasError": "last run failed",
+    "lastErrorPrefix": "Last error",
+    "on": "on",
+    "off": "off",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this feed connection? This won't remove already-imported properties.",
+    "saving": "Saving…",
+    "queuingRun": "Queuing…",
+    "queuedRun": "Run queued",
+    "runNow": "Run now",
+    "create": {
+      "title": "New feed",
+      "kind": "Connector",
+      "feedUrl": "Feed URL",
+      "feedUrlRequired": "A feed URL is required.",
+      "cron": "Cron schedule",
+      "cronHint": "5-field cron, e.g. \"0 */6 * * *\" runs every 6 hours.",
+      "syncEnabled": "Sync enabled",
+      "fieldMappings": "Field mappings (Generic XML)",
+      "fieldMappingsHint": "JSON config — see docs for the schema.",
+      "fieldMappingsRequired": "Field mappings are required for Generic XML feeds.",
+      "invalidJson": "Field mappings JSON is invalid.",
+      "invalidMappings": "Field mappings don't match the expected shape.",
+      "submit": "Create"
+    },
+    "edit": {
+      "kindLocked": "Connector type is locked after creation.",
+      "submit": "Save changes"
+    },
+    "runHistory": {
+      "title": "Recent runs",
+      "empty": "No runs yet.",
+      "counts": "total: {total} · created: {created} · updated: {updated} · skipped: {skipped} · failed: {failed}"
+    },
+    "locks": {
+      "title": "Field locks",
+      "subtitle": "Locked fields are skipped on every {source} import — useful when the agent has corrected a value the feed gets wrong.",
+      "save": "Save locks",
+      "saving": "Saving…",
+      "saved": "Locks saved."
+    }
   }
 }

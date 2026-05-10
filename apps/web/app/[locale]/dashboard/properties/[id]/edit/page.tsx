@@ -5,6 +5,7 @@ import { setRequestLocale } from "next-intl/server";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { PropertyForm } from "../../_components/property-form";
+import { FieldLocksManager } from "./field-locks-manager";
 
 type Props = {
   params: Promise<{ locale: string; id: string }>;
@@ -71,6 +72,13 @@ export default async function EditPropertyPage({ params }: Props) {
         initial={property}
         propertyTypes={types.items}
         locations={locations.items}
+      />
+
+      <FieldLocksManager
+        locale={locale}
+        propertyId={id}
+        source={property.source}
+        initialLocked={property.lockedFields}
       />
     </main>
   );

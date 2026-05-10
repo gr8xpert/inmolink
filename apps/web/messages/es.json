@@ -245,5 +245,55 @@
     "noProperties": "Aún no hay listados públicos.",
     "contact": "Contacto",
     "website": "Sitio web"
+  },
+  "imports": {
+    "title": "Importaciones",
+    "subtitle": "Conecta un feed de propiedades (Kyero, Resale Online o XML genérico) y el worker sincroniza según el calendario.",
+    "back": "Panel",
+    "addNew": "Añadir un feed",
+    "emptyState": "Aún no hay feeds. Añade el primero para empezar a importar propiedades.",
+    "cron": "Cron",
+    "lastRun": "Última ejecución",
+    "hasError": "la última ejecución falló",
+    "lastErrorPrefix": "Último error",
+    "on": "activo",
+    "off": "inactivo",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar esta conexión de feed? Las propiedades ya importadas se conservan.",
+    "saving": "Guardando…",
+    "queuingRun": "Encolando…",
+    "queuedRun": "Ejecución encolada",
+    "runNow": "Ejecutar ahora",
+    "create": {
+      "title": "Nuevo feed",
+      "kind": "Conector",
+      "feedUrl": "URL del feed",
+      "feedUrlRequired": "La URL del feed es obligatoria.",
+      "cron": "Programación cron",
+      "cronHint": "Cron de 5 campos, p. ej. \"0 */6 * * *\" se ejecuta cada 6 horas.",
+      "syncEnabled": "Sincronización activada",
+      "fieldMappings": "Mapeos de campos (XML genérico)",
+      "fieldMappingsHint": "Configuración JSON — consulta la documentación para el esquema.",
+      "fieldMappingsRequired": "Los mapeos son obligatorios para feeds XML genéricos.",
+      "invalidJson": "El JSON de mapeos no es válido.",
+      "invalidMappings": "Los mapeos no coinciden con el formato esperado.",
+      "submit": "Crear"
+    },
+    "edit": {
+      "kindLocked": "El tipo de conector se bloquea tras la creación.",
+      "submit": "Guardar cambios"
+    },
+    "runHistory": {
+      "title": "Ejecuciones recientes",
+      "empty": "Aún no hay ejecuciones.",
+      "counts": "total: {total} · creadas: {created} · actualizadas: {updated} · omitidas: {skipped} · fallidas: {failed}"
+    },
+    "locks": {
+      "title": "Bloqueo de campos",
+      "subtitle": "Los campos bloqueados se omiten en cada importación de {source} — útil cuando el agente ha corregido un valor que el feed devuelve mal.",
+      "save": "Guardar bloqueos",
+      "saving": "Guardando…",
+      "saved": "Bloqueos guardados."
+    }
   }
 }
