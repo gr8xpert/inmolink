@@ -88,6 +88,11 @@ dumps/
 *.sql
 *.dump
 
+# Prisma migrations DO ship with the repo — re-include them after the broad
+# `*.sql` exclusion above. Without this, deploys can't run `prisma migrate
+# deploy` because the SQL files never reach prod.
+!packages/db/prisma/migrations/**/*.sql
+
 # Generated client code
 **/generated/
 **/.gen/

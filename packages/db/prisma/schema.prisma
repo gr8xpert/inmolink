@@ -127,6 +127,7 @@ model Agency {
   emailSuppressions EmailSuppression[]
   featuredListings  FeaturedListing[]
   webhookEndpoints  WebhookEndpoint[]
+  leads             Lead[]
 
   @@index([countryCode])
   @@index([isActive])
@@ -390,6 +391,7 @@ model Property {
   viewingRequests  ViewingRequest[]
   deals            Deal[]
   featuredListings FeaturedListing[]
+  leads            Lead[]
 
   @@unique([source, externalRef]) // dedup on re-import
   @@index([ownerUserId])
@@ -511,6 +513,7 @@ model Location {
   translations LocationTranslation[]
   groups       LocationGroupMember[]
   properties   Property[]
+  faqs         LocationFAQ[]
 
   @@index([parentId, position])
   @@index([level, countryCode])
@@ -1529,4 +1532,90 @@ model OutboxEvent {
 
   @@index([status, createdAt])
   @@index([topic])
+}
+
+// ============================================================================
+// SECTION 16 — PUBLIC LEADS (anonymous lead form on /property/<slug>; PLAN §11.4)
+// ============================================================================
+
+enum LeadSource {
+  PROPERTY_DETAIL
+  AGENCY_PAGE
+  AGENT_PAGE
+  LOCATION_LANDING
+  OTHER
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  DISQUALIFIED
+  CLOSED
+}
+
+model Lead {
+  id String @id @default(cuid())
+
+  // Origin context. propertyId is set for PROPERTY_DETAIL leads; agencyId
+  // is denormalised for routing/notification + tenancy queries even if the
+  // origin was a location landing page (in which case we route to the
+  // featured-listing agency or null and super-admin triages).
+  source     LeadSource @default(PROPERTY_DETAIL)
+  propertyId String?
+  agencyId   String?
+
+  // Anonymous submission fields. `name` is the only required identity
+  // field; one of email/phone is required by api-side validation since
+  // some agents prefer phone-only outreach.
+  name    String
+  email   String? @db.Citext
+  phone   String?
+  message String  @db.Text
+
+  // Locale the visitor was browsing in — drives the language of the
+  // notification email and any auto-reply template.
+  locale String @default("en")
+
+  // Anti-abuse / audit. ipHash is salted SHA-256 (we never store raw IP);
+  // turnstileVerified flips after the worker validates the challenge.
+  ipHash            String?
+  userAgent         String?
+  turnstileVerified Boolean @default(false)
+
+  status      LeadStatus @default(NEW)
+  contactedAt DateTime?
+  closedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  property Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  agency   Agency?   @relation(fields: [agencyId], references: [id], onDelete: SetNull)
+
+  @@index([propertyId, createdAt(sort: Desc)])
+  @@index([agencyId, status, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+}
+
+// ============================================================================
+// SECTION 17 — LOCATION FAQ (FAQ structured data on landing pages; PLAN §11.13)
+// ============================================================================
+
+model LocationFAQ {
+  id         String @id @default(cuid())
+  locationId String
+  locale     String
+  position   Int    @default(0)
+  question   String
+  answer     String @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([locationId, locale, position])
+  @@index([locationId, locale, position])
 }
