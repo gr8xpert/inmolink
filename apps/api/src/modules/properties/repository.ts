@@ -1,6 +1,7 @@
 import { prisma } from "@inmolink/db";
 import type { propertySchemas } from "@inmolink/shared";
 import type { Prisma } from "@prisma/client";
+import { emitSearchPropertyDelete, emitSearchPropertyUpsert } from "../outbox/service";
 
 type ListItemRow = {
   id: string;
@@ -153,48 +154,59 @@ type CreateArgs = {
 };
 
 export async function createProperty({ input, ownerUserId, ownerAgencyId }: CreateArgs) {
-  return prisma.property.create({
-    data: {
-      ownerUserId,
-      ownerAgencyId,
-      source: "MANUAL",
-      status: input.status,
-      visibility: input.visibility,
-      publishedAt: input.status === "ACTIVE" ? new Date() : null,
-      transactionType: input.transactionType,
-      priceCents: BigInt(input.priceCents),
-      currency: input.currency,
-      priceType: input.priceType,
-      bedrooms: input.bedrooms ?? null,
-      bathrooms: input.bathrooms ?? null,
-      areaM2: input.areaM2 ?? null,
-      plotM2: input.plotM2 ?? null,
-      yearBuilt: input.yearBuilt ?? null,
-      propertyTypeId: input.propertyTypeId,
-      locationId: input.locationId,
-      latitude: input.latitude ?? null,
-      longitude: input.longitude ?? null,
-      addressLine: input.addressLine ?? null,
-      postcode: input.postcode ?? null,
-      virtualTourUrl: input.virtualTourUrl ?? null,
-      translations: {
-        create: input.translations.map((t) => ({
-          locale: t.locale,
-          title: t.title,
-          description: t.description,
-          slug: t.slug,
-          metaTitle: t.metaTitle ?? null,
-          metaDescription: t.metaDescription ?? null,
-        })),
+  // Wrapped in a transaction so the OutboxEvent row commits atomically with
+  // the property write — if either fails, search index never drifts (PLAN §11.5).
+  return prisma.$transaction(async (tx) => {
+    const created = await tx.property.create({
+      data: {
+        ownerUserId,
+        ownerAgencyId,
+        source: "MANUAL",
+        status: input.status,
+        visibility: input.visibility,
+        publishedAt: input.status === "ACTIVE" ? new Date() : null,
+        transactionType: input.transactionType,
+        priceCents: BigInt(input.priceCents),
+        currency: input.currency,
+        priceType: input.priceType,
+        bedrooms: input.bedrooms ?? null,
+        bathrooms: input.bathrooms ?? null,
+        areaM2: input.areaM2 ?? null,
+        plotM2: input.plotM2 ?? null,
+        yearBuilt: input.yearBuilt ?? null,
+        propertyTypeId: input.propertyTypeId,
+        locationId: input.locationId,
+        latitude: input.latitude ?? null,
+        longitude: input.longitude ?? null,
+        addressLine: input.addressLine ?? null,
+        postcode: input.postcode ?? null,
+        virtualTourUrl: input.virtualTourUrl ?? null,
+        translations: {
+          create: input.translations.map((t) => ({
+            locale: t.locale,
+            title: t.title,
+            description: t.description,
+            slug: t.slug,
+            metaTitle: t.metaTitle ?? null,
+            metaDescription: t.metaDescription ?? null,
+          })),
+        },
+        features:
+          input.featureIds.length > 0
+            ? {
+                create: input.featureIds.map((featureId) => ({ featureId })),
+              }
+            : undefined,
       },
-      features:
-        input.featureIds.length > 0
-          ? {
-              create: input.featureIds.map((featureId) => ({ featureId })),
-            }
-          : undefined,
-    },
-    include: DETAIL_INCLUDE,
+      include: DETAIL_INCLUDE,
+    });
+
+    // Indexable iff publicly visible + active + has a published date. We
+    // still emit on private/draft so the worker can decide to remove from
+    // index — keeps the visibility transition obvious in the event log.
+    await emitSearchPropertyUpsert(tx, { propertyId: created.id, reason: "create" });
+
+    return created;
   });
 }
 
@@ -272,6 +284,13 @@ export async function updateProperty({ id, input }: UpdateArgs) {
       }
     }
 
+    // If this update flipped visibility to non-public, the worker reads the
+    // current row when applying — it'll naturally remove from the index. We
+    // still emit `update` because reason is informational, not load-bearing.
+    const reason: "update" | "feature_change" =
+      input.featureIds !== undefined ? "feature_change" : "update";
+    await emitSearchPropertyUpsert(tx, { propertyId: id, reason });
+
     return tx.property.findUniqueOrThrow({ where: { id }, include: DETAIL_INCLUDE });
   });
 }
@@ -281,9 +300,17 @@ const SOFT_DELETE_RETENTION_DAYS = 30;
 export async function softDeleteProperty(id: string) {
   const now = new Date();
   const hardDeleteAt = new Date(now.getTime() + SOFT_DELETE_RETENTION_DAYS * 86_400_000);
-  return prisma.property.update({
-    where: { id },
-    data: { deletedAt: now, hardDeleteAt },
-    select: { id: true, deletedAt: true, hardDeleteAt: true },
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.property.update({
+      where: { id },
+      data: { deletedAt: now, hardDeleteAt },
+      select: { id: true, deletedAt: true, hardDeleteAt: true },
+    });
+    // Pull from search across every locale right away so a public
+    // visitor can't keep finding a soft-deleted listing for the 30-day
+    // hard-delete grace window. Hard-delete worker emits no second event
+    // — the index entry is already gone.
+    await emitSearchPropertyDelete(tx, { propertyId: id, reason: "soft_delete" });
+    return updated;
   });
 }
