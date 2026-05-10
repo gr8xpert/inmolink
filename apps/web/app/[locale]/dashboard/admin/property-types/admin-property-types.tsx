@@ -1,5 +1,6 @@
 "use client";
 
+import { SortableList } from "@/components/sortable-list";
 import type { adminPropertyTypeSchemas } from "@inmolink/shared";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -9,8 +10,8 @@ import {
   createTypeAction,
   deleteGroupAction,
   deleteTypeAction,
-  reorderGroupAction,
-  reorderTypeAction,
+  reorderAllGroupsAction,
+  reorderAllTypesAction,
   suggestIconAction,
   updateGroupAction,
   updateTypeAction,
@@ -179,14 +180,17 @@ export function AdminPropertyTypes({ locale, groups, types }: Props) {
         />
       )}
 
-      <ul className="space-y-3">
-        {sortedGroups.map((g, idx) => {
+      <SortableList
+        items={sortedGroups}
+        onReorder={withRefresh((ids: string[]) => reorderAllGroupsAction(locale, ids))}
+        className="space-y-3"
+        renderItem={(g, groupDragHandle) => {
           const enName = g.translations.find((t) => t.locale === "en")?.name ?? "(no en)";
           const isEditing = editingGroup === g.id;
           const groupTypes = typesByGroup.get(g.id) ?? [];
 
           return (
-            <li key={g.id} className="rounded-md border bg-background">
+            <div className="rounded-md border bg-background">
               {isEditing ? (
                 <div className="p-4">
                   <GroupForm
@@ -202,6 +206,7 @@ export function AdminPropertyTypes({ locale, groups, types }: Props) {
               ) : (
                 <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
                   <div className="flex items-center gap-3">
+                    {groupDragHandle}
                     <span className="font-mono text-xs text-muted-foreground">
                       pos {g.position}
                     </span>
@@ -211,24 +216,6 @@ export function AdminPropertyTypes({ locale, groups, types }: Props) {
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={pending || idx === 0}
-                      onClick={withRefresh(() => reorderGroupAction(locale, g.id, g.position - 1))}
-                      aria-label="Move up"
-                      className="rounded-md border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      disabled={pending || idx === sortedGroups.length - 1}
-                      onClick={withRefresh(() => reorderGroupAction(locale, g.id, g.position + 1))}
-                      aria-label="Move down"
-                      className="rounded-md border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
-                    >
-                      ↓
-                    </button>
                     <button
                       type="button"
                       disabled={pending}
@@ -287,13 +274,16 @@ export function AdminPropertyTypes({ locale, groups, types }: Props) {
                   />
                 )}
 
-                <ul className="space-y-2">
-                  {groupTypes.map((t, ti) => (
+                <SortableList
+                  items={groupTypes}
+                  onReorder={withRefresh((ids: string[]) =>
+                    reorderAllTypesAction(locale, g.id, ids),
+                  )}
+                  className="space-y-2"
+                  renderItem={(t, typeDragHandle) => (
                     <TypeRow
-                      key={t.id}
                       type={t}
-                      idx={ti}
-                      siblingCount={groupTypes.length}
+                      dragHandle={typeDragHandle}
                       pending={pending}
                       isEditing={editingType === t.id}
                       onEditStart={() => setEditingType(t.id)}
@@ -307,9 +297,6 @@ export function AdminPropertyTypes({ locale, groups, types }: Props) {
                           withRefresh(() => deleteTypeAction(locale, t.id))();
                         }
                       }}
-                      onMove={(dir) =>
-                        withRefresh(() => reorderTypeAction(locale, t.id, t.position + dir))()
-                      }
                       onSuggestIcon={async (name) => {
                         const r = await suggestIconAction(name, "PropertyType");
                         return r.ok ? r.data.iconName : null;
@@ -318,13 +305,13 @@ export function AdminPropertyTypes({ locale, groups, types }: Props) {
                         withRefresh(() => acceptAiIconAction(locale, t.id, iconName))()
                       }
                     />
-                  ))}
-                </ul>
+                  )}
+                />
               </div>
-            </li>
+            </div>
           );
-        })}
-      </ul>
+        }}
+      />
     </div>
   );
 }
@@ -427,36 +414,32 @@ function GroupForm({
 
 function TypeRow({
   type,
-  idx,
-  siblingCount,
   pending,
   isEditing,
   onEditStart,
   onEditCancel,
   onUpdate,
   onDelete,
-  onMove,
   onSuggestIcon,
   onAcceptAiIcon,
+  dragHandle,
 }: {
   type: Type;
-  idx: number;
-  siblingCount: number;
   pending: boolean;
   isEditing: boolean;
   onEditStart: () => void;
   onEditCancel: () => void;
   onUpdate: (body: TypeSubmit) => void;
   onDelete: () => void;
-  onMove: (dir: -1 | 1) => void;
   onSuggestIcon: (name: string) => Promise<string | null>;
   onAcceptAiIcon: (iconName: string) => void;
+  dragHandle: React.ReactNode;
 }) {
   const en = type.translations.find((t) => t.locale === "en")?.name ?? type.id.slice(0, 8);
 
   if (isEditing) {
     return (
-      <li className="rounded-md border bg-muted/10 p-3">
+      <div className="rounded-md border bg-muted/10 p-3">
         <TypeForm
           groupId={type.groupId}
           initial={type}
@@ -466,13 +449,14 @@ function TypeRow({
           onSubmit={(body) => onUpdate(body)}
           onSuggestIcon={onSuggestIcon}
         />
-      </li>
+      </div>
     );
   }
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background p-3">
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background p-3">
       <div className="flex min-w-0 items-center gap-3">
+        {dragHandle}
         <span className="font-mono text-xs text-muted-foreground">pos {type.position}</span>
         <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs">
           {type.iconName ?? "(no icon)"}
@@ -507,24 +491,6 @@ function TypeRow({
         </button>
         <button
           type="button"
-          disabled={pending || idx === 0}
-          onClick={() => onMove(-1)}
-          aria-label="Move up"
-          className="rounded-md border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
-        >
-          ↑
-        </button>
-        <button
-          type="button"
-          disabled={pending || idx === siblingCount - 1}
-          onClick={() => onMove(1)}
-          aria-label="Move down"
-          className="rounded-md border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
-        >
-          ↓
-        </button>
-        <button
-          type="button"
           disabled={pending}
           onClick={onEditStart}
           className="rounded-md border px-2 py-1 text-xs hover:bg-muted"
@@ -540,7 +506,7 @@ function TypeRow({
           Delete
         </button>
       </div>
-    </li>
+    </div>
   );
 }
 

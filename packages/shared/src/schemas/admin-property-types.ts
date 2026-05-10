@@ -122,6 +122,21 @@ export const adminReorderRequestSchema = z.object({
   position: z.number().int().min(0),
 });
 
+/** Reorder-all body — caller sends the new full ordering. The api
+ *  rewrites positions 0..n-1 in a single transaction. Used by the
+ *  drag-and-drop UI where multi-position drops would otherwise need
+ *  N chained single-step swaps. */
+export const adminReorderAllRequestSchema = z.object({
+  ids: z.array(cuid).min(1),
+});
+
+/** Type-list reorder needs the group scope so we can validate the ids
+ *  all belong to the same group (positions are per-group). */
+export const adminReorderAllTypesRequestSchema = z.object({
+  groupId: cuid,
+  ids: z.array(cuid).min(1),
+});
+
 export const suggestIconRequestSchema = z.object({
   /** Entity name in the default (English) locale. */
   name: z.string().min(1).max(120),

@@ -247,7 +247,11 @@
 
 ### 2.D — Drag-n-drop polish + filter UI
 
-- [ ] Replace up/down arrows with `@dnd-kit/core` for groups + types + features + locations + group members
+- [/] Replace up/down arrows with `@dnd-kit/core` for groups + types + features + locations + group members
+  - [x] **2.D.2.a — PropertyType admin** — `SortableList` primitive (generic, vertical-axis, parent-restricted, keyboard sensors). `reorder-all` endpoints replace single-step swaps. Pointer + touch + keyboard drag all work.
+  - [ ] 2.D.2.b — propagate to admin/features
+  - [ ] 2.D.2.c — propagate to admin/locations (tree — sibling reorder only)
+  - [ ] 2.D.2.d — propagate to admin/location-groups (groups + members)
 - [x] **2.D.1 — Filter UI on dashboard property list** — `PropertyFilters` Client Component with q / status / visibility / transactionType / propertyTypeId / locationId pickers. Server Component prefetches taxonomy in parallel; filters survive pagination via carry-forward.
 - [ ] Filter UI on public marketplace search — already has q / transaction / type / location / price / beds; Sprint 2.D adds `featureIds[]` multi-select once the api supports it
 - [ ] Replace `<select>` pickers with typeahead/autocomplete once the catalog grows past ~100 entries (deferred trigger)

@@ -10,6 +10,8 @@ import {
   deleteType,
   listGroups,
   listTypes,
+  reorderAllGroups,
+  reorderAllTypes,
   reorderGroup,
   reorderType,
   suggestTypeIcon,
@@ -116,6 +118,22 @@ export async function adminPropertyTypeRoutes(app: FastifyInstance): Promise<voi
     },
   );
 
+  fastify.post(
+    "/property-type-groups/reorder-all",
+    {
+      schema: {
+        tags: ["admin", "property-types"],
+        summary: "Reorder all PropertyTypeGroups by ordered ids list (drag-drop)",
+        body: adminPropertyTypeSchemas.adminReorderAllRequestSchema,
+        response: { 200: z.object({ ok: z.literal(true) }) },
+      },
+    },
+    async (request) => {
+      request.requireSuperAdmin();
+      return reorderAllGroups(request.body.ids);
+    },
+  );
+
   // ─── Types ───────────────────────────────────────────────────────────
 
   fastify.get(
@@ -197,6 +215,22 @@ export async function adminPropertyTypeRoutes(app: FastifyInstance): Promise<voi
     async (request) => {
       request.requireSuperAdmin();
       return reorderType(request.params.id, request.body.position);
+    },
+  );
+
+  fastify.post(
+    "/property-types/reorder-all",
+    {
+      schema: {
+        tags: ["admin", "property-types"],
+        summary: "Reorder all PropertyTypes within a group by ordered ids list (drag-drop)",
+        body: adminPropertyTypeSchemas.adminReorderAllTypesRequestSchema,
+        response: { 200: z.object({ ok: z.literal(true) }) },
+      },
+    },
+    async (request) => {
+      request.requireSuperAdmin();
+      return reorderAllTypes(request.body.groupId, request.body.ids);
     },
   );
 

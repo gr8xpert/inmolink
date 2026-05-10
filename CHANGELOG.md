@@ -10,6 +10,14 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Added (Sprint 2 — slice 2.D.2.a, drag-and-drop on PropertyType admin)
+
+- **`SortableList` primitive** in `apps/web/src/components/sortable-list.tsx` — generic vertical sortable list backed by `@dnd-kit/core`+`@dnd-kit/sortable`+`@dnd-kit/modifiers`. Drag handle is opt-in (the caller renders it from the `renderItem` callback's `dragHandle` argument). Drags are constrained to vertical axis + parent element. Keyboard support via `KeyboardSensor`. `disabled` prop short-circuits to a no-drag list.
+- **`onReorder(newIds)` callback** fires once per drop with the full new ordering. Each consumer wires this to a `reorder-all` API endpoint that rewrites positions atomically — chained single-step swaps lose transactional safety on multi-position drags.
+- **API `/api/dashboard/admin/property-type-groups/reorder-all`** + **`/property-types/reorder-all`** — body is `{ ids: string[] }` (groups) or `{ groupId, ids }` (types-in-group). Service validates the input id set exactly matches the existing scope (rejects stale clients with 409 `TAXONOMY_CONFLICT`) then rewrites positions 0..n-1 in a single transaction.
+- **Web admin/property-types** — replaced the up/down arrow buttons on groups + types-in-group with drag handles. The handle is a `⋮⋮` button next to the position label; pointer drag, touch drag, and keyboard (space-to-pick / arrows-to-move) all work via dnd-kit.
+- **Existing single-step reorder endpoints kept** — they're still useful for any future programmatic reordering; the UI no longer uses them.
+
 ### Added (Sprint 2 — slice 2.D.1, dashboard property filter UI)
 
 - **`PropertyFilters` Client Component** on `/[locale]/dashboard/properties` — URL-driven filter bar with `q / status / visibility / transactionType / propertyTypeId / locationId`. Status enum is the full Prisma set (DRAFT / ACTIVE / UNDER_OFFER / SOLD / RENTED / WITHDRAWN). Pickers populate from the existing `/api/dashboard/property-types` + `/locations` endpoints (locale-aware).

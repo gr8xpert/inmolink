@@ -167,6 +167,27 @@ export async function reorderGroup(id: string, position: number) {
   return { ok: true as const };
 }
 
+/** Drag-and-drop reorder. Caller sends the full ordered list of group
+ *  ids; we set positions 0..n-1 in a single transaction. Validates that
+ *  the set of ids exactly matches the existing group set so a stale
+ *  client can't drop in a mutated catalog and silently lose rows. */
+export async function reorderAllGroups(ids: string[]) {
+  const existing = await prisma.propertyTypeGroup.findMany({ select: { id: true } });
+  const existingIds = new Set(existing.map((r) => r.id));
+  const inputIds = new Set(ids);
+  if (existingIds.size !== inputIds.size || ![...existingIds].every((id) => inputIds.has(id))) {
+    throw new ConflictError(
+      "Reorder set mismatch — the catalog changed since you loaded it. Refresh and retry.",
+    );
+  }
+  await prisma.$transaction(
+    ids.map((id, position) =>
+      prisma.propertyTypeGroup.update({ where: { id }, data: { position } }),
+    ),
+  );
+  return { ok: true as const };
+}
+
 // ─── PropertyType ────────────────────────────────────────────────────────
 
 const TYPE_SELECT = {
@@ -313,6 +334,27 @@ export async function reorderType(id: string, position: number) {
         ]
       : []),
   ]);
+  return { ok: true as const };
+}
+
+/** Drag-and-drop reorder for types within a single group. Validates
+ *  that every input id belongs to that group so a stale client can't
+ *  reorder rows it doesn't see. */
+export async function reorderAllTypes(groupId: string, ids: string[]) {
+  const existing = await prisma.propertyType.findMany({
+    where: { groupId },
+    select: { id: true },
+  });
+  const existingIds = new Set(existing.map((r) => r.id));
+  const inputIds = new Set(ids);
+  if (existingIds.size !== inputIds.size || ![...existingIds].every((id) => inputIds.has(id))) {
+    throw new ConflictError(
+      "Reorder set mismatch — the group's types changed since you loaded it. Refresh and retry.",
+    );
+  }
+  await prisma.$transaction(
+    ids.map((id, position) => prisma.propertyType.update({ where: { id }, data: { position } })),
+  );
   return { ok: true as const };
 }
 

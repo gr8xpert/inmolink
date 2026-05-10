@@ -76,6 +76,15 @@ export async function reorderGroupAction(locale: string, id: string, position: n
   return r;
 }
 
+export async function reorderAllGroupsAction(locale: string, ids: string[]) {
+  const r = await call<{ ok: true }>(`${BASE}/property-type-groups/reorder-all`, {
+    method: "POST",
+    body: JSON.stringify({ ids }),
+  });
+  if (r.ok) bust(locale);
+  return r;
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────
 
 export async function createTypeAction(
@@ -115,6 +124,15 @@ export async function reorderTypeAction(locale: string, id: string, position: nu
   const r = await call<{ ok: true }>(`${BASE}/property-types/${encodeURIComponent(id)}/reorder`, {
     method: "POST",
     body: JSON.stringify({ position }),
+  });
+  if (r.ok) bust(locale);
+  return r;
+}
+
+export async function reorderAllTypesAction(locale: string, groupId: string, ids: string[]) {
+  const r = await call<{ ok: true }>(`${BASE}/property-types/reorder-all`, {
+    method: "POST",
+    body: JSON.stringify({ groupId, ids }),
   });
   if (r.ok) bust(locale);
   return r;
