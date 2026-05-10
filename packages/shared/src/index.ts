@@ -5,6 +5,7 @@
  */
 export * from "./locales";
 export * from "./permissions";
+export * as adminFeatureSchemas from "./schemas/admin-features";
 export * as adminPropertyTypeSchemas from "./schemas/admin-property-types";
 export * as mediaSchemas from "./schemas/media";
 export * as propertyImageSchemas from "./schemas/property-images";

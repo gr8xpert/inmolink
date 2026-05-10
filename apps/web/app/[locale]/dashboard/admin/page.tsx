@@ -48,10 +48,16 @@ export default async function AdminLandingPage({ params }: Props) {
           </p>
         </Link>
 
-        <div className="rounded-md border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
-          <h2 className="font-semibold text-foreground">Features (next)</h2>
-          <p>FeatureGroup + Feature curation. Sprint 2.B.</p>
-        </div>
+        <Link
+          href={`/${locale}/dashboard/admin/features`}
+          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+        >
+          <h2 className="font-semibold">Features</h2>
+          <p className="text-sm text-muted-foreground">
+            Curate the amenity catalog (pool, parking, sea view, …). Translations + Lucide icons +
+            AI suggester.
+          </p>
+        </Link>
 
         <div className="rounded-md border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
           <h2 className="font-semibold text-foreground">Locations (next)</h2>
