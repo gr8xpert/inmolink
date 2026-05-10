@@ -4,6 +4,8 @@ import { type Job, type Processor, Queue, Worker } from "bullmq";
 import { Redis } from "ioredis";
 import pino from "pino";
 import { loadConfig } from "./config.js";
+import { makeCampaignDispatcherProcessor } from "./processors/campaign-dispatcher/processor.js";
+import { makeEmailSendProcessor } from "./processors/email-send/processor.js";
 import { makeFeedImportProcessor } from "./processors/feed-import/processor.js";
 import { makeImageVariantProcessor } from "./processors/image-variant/processor.js";
 import { makeMediaCleanupProcessor } from "./processors/media-cleanup/processor.js";
@@ -73,6 +75,22 @@ const notificationDigestProcessor = makeNotificationDigestProcessor({
   webBaseUrl: env.WEB_BASE_URL,
 });
 
+// Sprint 8 marketing — email-send processor + campaign dispatcher.
+// We share the same Queue instance between the dispatcher and worker so
+// the dispatcher can enqueue per-recipient sends.
+const emailSendQueueForCampaigns = new Queue(QUEUE_NAMES.EMAIL_SEND, { connection });
+const emailSendProcessor = makeEmailSendProcessor({
+  encryptionKey: env.ENCRYPTION_KEY,
+  trackingSecret: env.ENCRYPTION_KEY, // doubles as HMAC secret (same trust boundary)
+  webBaseUrl: env.WEB_BASE_URL,
+  apiBaseUrl: env.API_BASE_URL,
+  logger,
+});
+const campaignDispatcherProcessor = makeCampaignDispatcherProcessor({
+  emailQueue: emailSendQueueForCampaigns,
+  logger,
+});
+
 // FEED_IMPORT shares Redis with the IMAGE_VARIANT queue — we hand the
 // processor a ref to the same Queue so freshly imported MediaObjects
 // trigger eager variant generation through the existing pipeline.
@@ -92,6 +110,8 @@ function processorFor(queueName: QueueName): Processor {
   if (queueName === QUEUE_NAMES.FEED_IMPORT) return feedImportProcessor;
   if (queueName === QUEUE_NAMES.VIEWING_EXPIRE) return viewingExpireProcessor;
   if (queueName === QUEUE_NAMES.NOTIFICATION_DIGEST) return notificationDigestProcessor;
+  if (queueName === QUEUE_NAMES.EMAIL_SEND) return emailSendProcessor;
+  if (queueName === QUEUE_NAMES.CAMPAIGN_DISPATCHER) return campaignDispatcherProcessor;
   return placeholderProcessor;
 }
 
@@ -137,6 +157,15 @@ const VIEWING_EXPIRE_SCHEDULE_ID = "viewing-expire-hourly";
 const notificationDigestQueue = new Queue(QUEUE_NAMES.NOTIFICATION_DIGEST, { connection });
 const NOTIFICATION_DIGEST_SCHEDULE_PATTERN = "0 5 * * * *"; // hh:05 every hour (offset from viewing-expire)
 const NOTIFICATION_DIGEST_SCHEDULE_ID = "notification-digest-hourly";
+
+/**
+ * CAMPAIGN_DISPATCHER Queue + scheduler. Tick every 5 min — finds
+ * SCHEDULED campaigns past `scheduledFor`, materializes recipients, and
+ * enqueues per-recipient EMAIL_SEND jobs. PLAN §11.8.
+ */
+const campaignDispatcherQueue = new Queue(QUEUE_NAMES.CAMPAIGN_DISPATCHER, { connection });
+const CAMPAIGN_DISPATCHER_SCHEDULE_EVERY_MS = 5 * 60_000;
+const CAMPAIGN_DISPATCHER_SCHEDULE_ID = "campaign-dispatcher-tick";
 
 const workers: Worker[] = [];
 
@@ -264,6 +293,24 @@ logger.info(
   "Notification-digest scheduler upserted",
 );
 
+await campaignDispatcherQueue.upsertJobScheduler(
+  CAMPAIGN_DISPATCHER_SCHEDULE_ID,
+  { every: CAMPAIGN_DISPATCHER_SCHEDULE_EVERY_MS },
+  {
+    name: "tick",
+    data: {},
+    opts: {
+      attempts: 1,
+      removeOnComplete: { count: 50 },
+      removeOnFail: { count: 50 },
+    },
+  },
+);
+logger.info(
+  { id: CAMPAIGN_DISPATCHER_SCHEDULE_ID, everyMs: CAMPAIGN_DISPATCHER_SCHEDULE_EVERY_MS },
+  "Campaign-dispatcher scheduler upserted",
+);
+
 /**
  * Feed-import scheduler reconciliation (PLAN §11.5).
  *
@@ -317,6 +364,8 @@ const shutdown = async (signal: string): Promise<void> => {
   await imageVariantQueueForImport.close();
   await viewingExpireQueue.close();
   await notificationDigestQueue.close();
+  await campaignDispatcherQueue.close();
+  await emailSendQueueForCampaigns.close();
   await connection.quit();
   process.exit(0);
 };

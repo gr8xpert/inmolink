@@ -14,7 +14,12 @@ import {
 } from "fastify-type-provider-zod";
 import { Redis } from "ioredis";
 import type { Env } from "./config";
-import { closeQueues, getFeedImportQueue, getImageVariantQueue } from "./lib/queues";
+import {
+  closeQueues,
+  getEmailSendQueue,
+  getFeedImportQueue,
+  getImageVariantQueue,
+} from "./lib/queues";
 import { adminFeatureRoutes } from "./modules/admin/features/routes";
 import { adminFeedTypeMapRoutes } from "./modules/admin/feed-type-maps/routes";
 import { adminLocationGroupRoutes } from "./modules/admin/location-groups/routes";
@@ -28,6 +33,10 @@ import { chatRoutes } from "./modules/chat/routes";
 import { dealRoutes } from "./modules/deals/routes";
 import { importRoutes } from "./modules/imports/routes";
 import { dashboardInviteRoutes, publicInviteRoutes } from "./modules/invites/routes";
+import { publicFeaturedRoutes } from "./modules/marketing/public-featured-routes";
+import { adminFeaturedListingRoutes, marketingRoutes } from "./modules/marketing/routes";
+import { emailConfigTestSendRoute } from "./modules/marketing/test-send-route";
+import { emailTrackingRoutes } from "./modules/marketing/tracking-routes";
 import { meRoutes } from "./modules/me/routes";
 import { notificationRoutes } from "./modules/notifications/routes";
 import { propertyImageRoutes } from "./modules/properties/images/routes";
@@ -154,6 +163,8 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   const imageVariantQueue = getImageVariantQueue(redis);
   // BullMQ producer for feed-import jobs + scheduled runs (PLAN §11.5).
   const feedImportQueue = getFeedImportQueue(redis);
+  // BullMQ producer for marketing campaign sends (PLAN §11.8).
+  const emailSendQueue = getEmailSendQueue(redis);
 
   // Search adapter — Meilisearch v1.12 (PLAN §11.5). Wired into the public
   // search endpoint; gracefully degrades to Postgres ILIKE when Meili is
@@ -214,6 +225,28 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
     prefix: "/api/billing/webhooks",
     stripeSecretKey: env.STRIPE_SECRET_KEY,
     stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET,
+  });
+
+  // Marketing — Sprint 8. PRO-gated; the route plugin enforces feature
+  // checks per endpoint via `requireFeature`.
+  await app.register(marketingRoutes, {
+    prefix: "/api/dashboard/marketing",
+    encryptionKeyHex: env.ENCRYPTION_KEY,
+    emailQueue: emailSendQueue,
+    publicBaseUrl: env.PUBLIC_BASE_URL,
+  });
+  await app.register(emailConfigTestSendRoute, {
+    prefix: "/api/dashboard/marketing",
+    encryptionKeyHex: env.ENCRYPTION_KEY,
+  });
+  await app.register(adminFeaturedListingRoutes, {
+    prefix: "/api/dashboard/admin/featured-listings",
+  });
+  await app.register(publicFeaturedRoutes, { prefix: "/api/public" });
+  await app.register(emailTrackingRoutes, {
+    prefix: "/api/email",
+    hmacSecretHex: env.ENCRYPTION_KEY,
+    publicBaseUrl: env.PUBLIC_BASE_URL,
   });
   await app.register(publicPropertyRoutes, { prefix: "/api/public", storage, search });
   await app.register(publicLocationRoutes, { prefix: "/api/public" });

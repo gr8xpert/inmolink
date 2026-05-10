@@ -46,6 +46,10 @@ const envSchema = z.object({
   // Public-app base URL — embedded in sitemap <loc> elements + alternate
   // hreflang links. Defaults to the dev port; prod overrides via env.
   PUBLIC_BASE_URL: z.string().url().default("http://localhost:3002"),
+
+  // API base URL embedded in marketing-email tracking links (open / click /
+  // unsubscribe). Defaults to the dev api port. PLAN §11.8.
+  API_BASE_URL: z.string().url().default("http://localhost:3001"),
 });
 
 export type Env = z.infer<typeof envSchema>;

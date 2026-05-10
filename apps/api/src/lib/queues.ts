@@ -12,11 +12,13 @@ export const QUEUE_NAMES = {
   IMAGE_VARIANT: "image-variant",
   SITEMAP_GENERATE: "sitemap-generate",
   FEED_IMPORT: "feed-import",
+  EMAIL_SEND: "email-send",
 } as const;
 
 let imageVariantQueueSingleton: Queue | null = null;
 let sitemapQueueSingleton: Queue | null = null;
 let feedImportQueueSingleton: Queue | null = null;
+let emailSendQueueSingleton: Queue | null = null;
 
 /**
  * Lazy singleton — first call wires the queue against the shared Redis
@@ -144,6 +146,28 @@ export async function enqueueFeedImportNow(
   return job.id ?? "";
 }
 
+/**
+ * Producer for marketing-campaign per-recipient sends (Sprint 8). Each
+ * job carries a single `recipientId`; the worker decrypts the agency's
+ * SMTP creds, opens (or reuses pooled) transport, applies suppression
+ * check, rewrites links via tracking redirect, injects the open-pixel +
+ * List-Unsubscribe header, and writes per-recipient timestamps.
+ */
+export function getEmailSendQueue(connection: Redis): Queue {
+  if (!emailSendQueueSingleton) {
+    emailSendQueueSingleton = new Queue(QUEUE_NAMES.EMAIL_SEND, {
+      connection,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: "exponential", delay: 30_000 },
+        removeOnComplete: { count: 200 },
+        removeOnFail: { count: 500 },
+      },
+    });
+  }
+  return emailSendQueueSingleton;
+}
+
 export async function closeQueues(): Promise<void> {
   if (imageVariantQueueSingleton) {
     await imageVariantQueueSingleton.close();
@@ -156,6 +180,10 @@ export async function closeQueues(): Promise<void> {
   if (feedImportQueueSingleton) {
     await feedImportQueueSingleton.close();
     feedImportQueueSingleton = null;
+  }
+  if (emailSendQueueSingleton) {
+    await emailSendQueueSingleton.close();
+    emailSendQueueSingleton = null;
   }
 }
 

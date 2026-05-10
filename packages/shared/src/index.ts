@@ -18,6 +18,7 @@ export * as chatSchemas from "./schemas/chat";
 export * as dealSchemas from "./schemas/deal";
 export * as inviteSchemas from "./schemas/invite";
 export * as leadSchemas from "./schemas/lead";
+export * as marketingSchemas from "./schemas/marketing";
 export * as meSchemas from "./schemas/me";
 export * as mediaSchemas from "./schemas/media";
 export * as notificationSchemas from "./schemas/notification";

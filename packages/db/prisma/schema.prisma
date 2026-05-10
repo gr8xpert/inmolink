@@ -135,6 +135,7 @@ model Agency {
   emailTemplates    EmailTemplate[]
   emailCampaigns    EmailCampaign[]
   emailSuppressions EmailSuppression[]
+  contacts          Contact[]
   featuredListings  FeaturedListing[]
   webhookEndpoints  WebhookEndpoint[]
   leads             Lead[]
@@ -1182,6 +1183,11 @@ model EmailCampaignRecipient {
   contactId  String?
   leadId     String?
 
+  // Per-recipient render context used at send time (merge-tag inputs).
+  // Snapshotted at materialize so subsequent edits to Contact / Lead
+  // don't change what already-sent recipients receive.
+  context Json?
+
   status         String // QUEUED | SENT | DELIVERED | OPENED | CLICKED | BOUNCED | UNSUBSCRIBED | FAILED
   sentAt         DateTime?
   deliveredAt    DateTime?
@@ -1190,12 +1196,43 @@ model EmailCampaignRecipient {
   bouncedAt      DateTime?
   unsubscribedAt DateTime?
 
+  // Stripe-style idempotency: prevents the dispatcher from materializing
+  // duplicates if the user clicks send-now twice.
   errorMessage String?
 
   campaign EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
+  @@unique([campaignId, email])
   @@index([campaignId, status])
   @@index([email])
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  agencyId  String
+  email     String   @db.Citext
+  firstName String?
+  lastName  String?
+  phone     String?
+  tags      String[] // free-form labels for recipientFilter
+
+  // Where this contact entered the system — leads inflow, manual add,
+  // CSV import. Helps with future opt-in audits.
+  source String? // 'LEAD' | 'MANUAL' | 'CSV'
+  notes  String? @db.Text
+
+  // GDPR — explicit marketing consent. Suppressions are a hard block;
+  // consent is a softer "did this contact agree to marketing emails".
+  consentGivenAt DateTime?
+  unsubscribedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@unique([agencyId, email])
+  @@index([agencyId, createdAt(sort: Desc), id(sort: Desc)])
 }
 
 model EmailSuppression {

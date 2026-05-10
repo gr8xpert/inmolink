@@ -91,7 +91,10 @@ importers:
         version: 5.10.1
       next-auth:
         specifier: 5.0.0-beta.25
-        version: 5.0.0-beta.25(next@15.5.18(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)
+        version: 5.0.0-beta.25(next@15.5.18(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(nodemailer@6.10.1)(react@19.2.6)
+      nodemailer:
+        specifier: ^6.10.1
+        version: 6.10.1
       pino:
         specifier: ^9.5.0
         version: 9.14.0
@@ -111,6 +114,9 @@ importers:
       '@types/node':
         specifier: ^22.10.0
         version: 22.19.18
+      '@types/nodemailer':
+        specifier: ^8.0.0
+        version: 8.0.0
       tsx:
         specifier: ^4.19.2
         version: 4.21.0
@@ -281,6 +287,9 @@ importers:
       ioredis:
         specifier: ^5.4.1
         version: 5.10.1
+      nodemailer:
+        specifier: ^6.10.1
+        version: 6.10.1
       pino:
         specifier: ^9.5.0
         version: 9.14.0
@@ -297,6 +306,9 @@ importers:
       '@types/node':
         specifier: ^22.10.0
         version: 22.19.18
+      '@types/nodemailer':
+        specifier: ^8.0.0
+        version: 8.0.0
       tsx:
         specifier: ^4.19.2
         version: 4.21.0
@@ -339,7 +351,7 @@ importers:
         version: 2.0.2
       next-auth:
         specifier: 5.0.0-beta.25
-        version: 5.0.0-beta.25(next@15.5.18(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)
+        version: 5.0.0-beta.25(next@15.5.18(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(nodemailer@6.10.1)(react@19.2.6)
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -2127,6 +2139,9 @@ packages:
   '@types/node@22.19.18':
     resolution: {integrity: sha512-9v00a+dn2yWVsYDEunWC4g/TcRKVq3r8N5FuZp7u0SGrPvdN9c2yXI9bBuf5Fl0hNCb+QTIePTn5pJs2pwBOQQ==}
 
+  '@types/nodemailer@8.0.0':
+    resolution: {integrity: sha512-fyf8jWULsCo0d0BuoQ75i6IeoHs47qcqxWc7yUdUcV0pOZGjUTTOvwdG1PRXUDqN/8A64yQdQdnA2pZgcdi+cA==}
+
   '@types/react-dom@19.2.3':
     resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
     peerDependencies:
@@ -3273,6 +3288,10 @@ packages:
   node-releases@2.0.38:
     resolution: {integrity: sha512-3qT/88Y3FbH/Kx4szpQQ4HzUbVrHPKTLVpVocKiLfoYvw9XSGOX2FmD2d6DrXbVYyAQTF2HeF6My8jmzx7/CRw==}
 
+  nodemailer@6.10.1:
+    resolution: {integrity: sha512-Z+iLaBGVaSjbIzQ4pX6XV41HrooLsQ10ZWPUehGmuantvzWoDVBnmsdUcOIDM1t+yPor5pDhVlDESgOMEGxhHA==}
+    engines: {node: '>=6.0.0'}
+
   normalize-path@3.0.0:
     resolution: {integrity: sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA==}
     engines: {node: '>=0.10.0'}
@@ -4135,7 +4154,7 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  '@auth/core@0.37.2':
+  '@auth/core@0.37.2(nodemailer@6.10.1)':
     dependencies:
       '@panva/hkdf': 1.2.1
       '@types/cookie': 0.6.0
@@ -4144,6 +4163,8 @@ snapshots:
       oauth4webapi: 3.8.6
       preact: 10.11.3
       preact-render-to-string: 5.2.3(preact@10.11.3)
+    optionalDependencies:
+      nodemailer: 6.10.1
 
   '@auth/core@0.37.4':
     dependencies:
@@ -5849,6 +5870,10 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  '@types/nodemailer@8.0.0':
+    dependencies:
+      '@types/node': 22.19.18
+
   '@types/react-dom@19.2.3(@types/react@19.2.14)':
     dependencies:
       '@types/react': 19.2.14
@@ -6956,11 +6981,13 @@ snapshots:
 
   netmask@2.1.1: {}
 
-  next-auth@5.0.0-beta.25(next@15.5.18(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6):
+  next-auth@5.0.0-beta.25(next@15.5.18(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(nodemailer@6.10.1)(react@19.2.6):
     dependencies:
-      '@auth/core': 0.37.2
+      '@auth/core': 0.37.2(nodemailer@6.10.1)
       next: 15.5.18(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       react: 19.2.6
+    optionalDependencies:
+      nodemailer: 6.10.1
 
   next-intl@3.26.5(next@15.5.18(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6):
     dependencies:
@@ -7009,6 +7036,8 @@ snapshots:
     optional: true
 
   node-releases@2.0.38: {}
+
+  nodemailer@6.10.1: {}
 
   normalize-path@3.0.0: {}
 
