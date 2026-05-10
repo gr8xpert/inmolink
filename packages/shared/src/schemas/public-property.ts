@@ -129,10 +129,22 @@ export const publicPropertyListItemSchema = z.object({
   agency: publicAgencyBadgeSchema,
 });
 
+/**
+ * Optional facet counts — only emitted when the api answers a search-mode
+ * query through Meilisearch. Browse-mode (Postgres cursor) returns null.
+ *
+ * Shape mirrors Meili's facetDistribution: { fieldName: { value: count } }.
+ */
+export const publicPropertyFacetsSchema = z
+  .record(z.string(), z.record(z.string(), z.number()))
+  .nullable();
+
 export const publicPropertyListResponseSchema = z.object({
   items: z.array(publicPropertyListItemSchema),
   nextCursor: z.string().nullable(),
+  facets: publicPropertyFacetsSchema.optional(),
 });
 
 export type PublicPropertyListQuery = z.infer<typeof publicPropertyListQuerySchema>;
 export type PublicPropertyListItem = z.infer<typeof publicPropertyListItemSchema>;
+export type PublicPropertyFacets = z.infer<typeof publicPropertyFacetsSchema>;

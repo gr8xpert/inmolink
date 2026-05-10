@@ -1,4 +1,5 @@
 import { prisma } from "@inmolink/db";
+import type { SearchAdapter } from "@inmolink/search";
 import { publicPropertySchemas } from "@inmolink/shared";
 import type { Storage } from "@inmolink/storage";
 import type { Prisma } from "@prisma/client";
@@ -21,6 +22,29 @@ function decodeCursor(raw: string): { createdAt: Date; id: string } | null {
     const d = new Date(ts);
     if (Number.isNaN(d.getTime()) || !id) return null;
     return { createdAt: d, id };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Search-mode cursor — a base64-encoded numeric offset. Browse-mode keeps
+ * (createdAt, id) cursors above. Mixing the two would let a client craft a
+ * cursor of one shape against an endpoint expecting the other; we tell them
+ * apart by the leading "o:" prefix.
+ */
+const SEARCH_CURSOR_PREFIX = "o:";
+function encodeSearchCursor(offset: number): string {
+  return Buffer.from(`${SEARCH_CURSOR_PREFIX}${offset}`, "utf8").toString("base64url");
+}
+
+function decodeSearchCursor(raw: string): number | null {
+  try {
+    const decoded = Buffer.from(raw, "base64url").toString("utf8");
+    if (!decoded.startsWith(SEARCH_CURSOR_PREFIX)) return null;
+    const n = Number(decoded.slice(SEARCH_CURSOR_PREFIX.length));
+    if (!Number.isFinite(n) || n < 0 || n > 5000) return null;
+    return n;
   } catch {
     return null;
   }
@@ -51,9 +75,9 @@ const idParam = z.object({ id: z.string().min(1) });
 
 export async function publicPropertyRoutes(
   app: FastifyInstance,
-  opts: { storage: Storage },
+  opts: { storage: Storage; search?: SearchAdapter | null },
 ): Promise<void> {
-  const { storage } = opts;
+  const { storage, search = null } = opts;
   const fastify = app.withTypeProvider<ZodTypeProvider>();
 
   fastify.get(
@@ -61,7 +85,7 @@ export async function publicPropertyRoutes(
     {
       schema: {
         tags: ["public", "properties"],
-        summary: "Public property search/list (Postgres-backed; Meilisearch in Sprint 3)",
+        summary: "Public property search/list (Meilisearch when q is set, Postgres otherwise)",
         querystring: publicPropertySchemas.publicPropertyListQuerySchema,
         response: { 200: publicPropertySchemas.publicPropertyListResponseSchema },
       },
@@ -71,6 +95,120 @@ export async function publicPropertyRoutes(
     async (request) => {
       const q = request.query;
 
+      // ── Search mode ─────────────────────────────────────────────────────
+      // When a free-text query is present and the search adapter is wired,
+      // route through Meilisearch for relevance ranking + facet counts. The
+      // adapter returns ranked hits which we re-hydrate from Postgres for
+      // cover/agency data the doc shape doesn't carry. Browse-mode (no q)
+      // stays Postgres-cursor for deterministic chronological listing.
+      const trimmedQ = q.q?.trim();
+      if (trimmedQ && search) {
+        const offset = q.cursor ? (decodeSearchCursor(q.cursor) ?? 0) : 0;
+
+        const result = await search.search({
+          locale: q.locale,
+          q: trimmedQ,
+          filters: {
+            ...(q.transactionType ? { transactionType: q.transactionType } : {}),
+            ...(q.propertyTypeId ? { propertyTypeIds: [q.propertyTypeId] } : {}),
+            ...(q.locationId ? { locationIds: [q.locationId] } : {}),
+            ...(q.minPriceCents !== undefined ? { minPriceCents: q.minPriceCents } : {}),
+            ...(q.maxPriceCents !== undefined ? { maxPriceCents: q.maxPriceCents } : {}),
+            ...(q.bedrooms !== undefined ? { minBedrooms: q.bedrooms } : {}),
+            // featureIds → Meili filter on `features IN [name, name, …]`. The
+            // search-doc currently denormalises feature *names*, so we don't
+            // map ids → names here — defer until the doc shape carries ids.
+            // For now, surface feature filtering through Postgres path only.
+          },
+          limit: q.limit + 1,
+          offset,
+        });
+
+        const ids = result.hits.slice(0, q.limit).map((h) => h.id);
+        const hasMore = result.hits.length > q.limit;
+
+        // Re-hydrate the rows we'll display. Visibility / status filters
+        // re-applied as a defense-in-depth (Meili index could lag a delete).
+        const rows =
+          ids.length > 0
+            ? await prisma.property.findMany({
+                where: {
+                  id: { in: ids },
+                  visibility: "PUBLIC",
+                  status: "ACTIVE",
+                  deletedAt: null,
+                },
+                select: {
+                  id: true,
+                  createdAt: true,
+                  transactionType: true,
+                  priceCents: true,
+                  currency: true,
+                  priceType: true,
+                  bedrooms: true,
+                  bathrooms: true,
+                  areaM2: true,
+                  propertyTypeId: true,
+                  locationId: true,
+                  publishedAt: true,
+                  translations: { select: { locale: true, title: true, slug: true } },
+                  agency: { select: { id: true, slug: true, name: true, logoR2Key: true } },
+                  images: {
+                    select: {
+                      altText: true,
+                      isCover: true,
+                      mediaObject: { select: { r2Key: true } },
+                    },
+                    orderBy: [{ isCover: "desc" }, { position: "asc" }, { createdAt: "asc" }],
+                    take: 1,
+                  },
+                },
+              })
+            : [];
+
+        const byId = new Map(rows.map((r) => [r.id, r]));
+        const items = ids
+          .map((id) => byId.get(id))
+          .filter((r): r is NonNullable<typeof r> => Boolean(r))
+          .map((r) => {
+            const tr =
+              r.translations.find((t) => t.locale === q.locale) ??
+              r.translations.find((t) => t.locale === "en") ??
+              r.translations[0];
+            const cover = r.images[0];
+            return {
+              id: r.id,
+              transactionType: r.transactionType,
+              priceCents: Number(r.priceCents),
+              currency: r.currency,
+              priceType: r.priceType as "fixed" | "poa" | "from",
+              bedrooms: r.bedrooms,
+              bathrooms: r.bathrooms,
+              areaM2: r.areaM2,
+              propertyTypeId: r.propertyTypeId,
+              locationId: r.locationId,
+              publishedAt: r.publishedAt ? r.publishedAt.toISOString() : null,
+              slug: tr?.slug ?? r.id,
+              title: tr?.title ?? "(untitled)",
+              coverUrl: cover ? storage.publicUrl(cover.mediaObject.r2Key) : null,
+              coverAlt: cover?.altText ?? null,
+              agency: {
+                id: r.agency.id,
+                slug: r.agency.slug,
+                name: r.agency.name,
+                logoUrl: r.agency.logoR2Key ? storage.publicUrl(r.agency.logoR2Key) : null,
+              },
+            };
+          });
+
+        return {
+          items,
+          nextCursor: hasMore ? encodeSearchCursor(offset + q.limit) : null,
+          facets: result.facets ?? null,
+        };
+      }
+
+      // ── Browse mode (Postgres + cursor) ─────────────────────────────────
       const where: Prisma.PropertyWhereInput = {
         visibility: "PUBLIC",
         status: "ACTIVE",

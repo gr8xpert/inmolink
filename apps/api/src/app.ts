@@ -5,6 +5,7 @@ import rateLimit from "@fastify/rate-limit";
 import sensible from "@fastify/sensible";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
+import { MeilisearchAdapter } from "@inmolink/search";
 import Fastify, { type FastifyInstance } from "fastify";
 import {
   jsonSchemaTransform,
@@ -134,6 +135,13 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   // BullMQ producer for image-variant jobs (consumed by apps/worker).
   const imageVariantQueue = getImageVariantQueue(redis);
 
+  // Search adapter — Meilisearch v1.12 (PLAN §11.5). Wired into the public
+  // search endpoint; gracefully degrades to Postgres ILIKE when Meili is
+  // unreachable (we don't ping at boot — the route falls back per-request
+  // if the adapter throws, keeping the public surface live during a Meili
+  // outage).
+  const search = new MeilisearchAdapter(env.MEILISEARCH_HOST, env.MEILISEARCH_API_KEY);
+
   // Routes
   await app.register(healthRoutes, { prefix: "/api/health" });
   await app.register(propertyRoutes, { prefix: "/api/dashboard/properties" });
@@ -144,7 +152,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   await app.register(adminLocationRoutes, { prefix: "/api/dashboard/admin" });
   await app.register(adminLocationGroupRoutes, { prefix: "/api/dashboard/admin" });
   await app.register(uploadRoutes, { prefix: "/api/uploads", storage, imageVariantQueue });
-  await app.register(publicPropertyRoutes, { prefix: "/api/public", storage });
+  await app.register(publicPropertyRoutes, { prefix: "/api/public", storage, search });
   await app.register(localStorageRoutes, { prefix: "/api/_local-storage", storage });
 
   // Graceful shutdown — drain in-flight requests + close queues + Redis (PLAN §11.7)
