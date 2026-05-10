@@ -471,16 +471,94 @@
 - [ ] Floor plan attach pipeline (image-attach equivalent, uses existing `PropertyFloorPlan` schema)
 - [ ] Per-locale feature names propagated through to `Feature` lookup (matcher currently only consults the `en` canonical)
 
-## Sprint 6 — Viewing Requests + Deals + Chat
+## Sprint 6 — Viewing Requests + Deals + Chat ✅ COMPLETE
 
-- [ ] ViewingRequest workflow (request / accept / decline / reschedule / outcome)
-- [ ] AES-encrypted client info on ViewingRequest
-- [ ] Deal handshake confirmation (both agents)
-- [ ] Dispute → super-admin
-- [ ] Socket.io chat (Redis adapter)
-- [ ] ChatThread (VIEWING + DIRECT) + ChatMessage + ChatThreadRead
-- [ ] WhatsApp + email handoff buttons (deep links)
-- [ ] Notifications (in-app + email digest via Resend)
+### 6.A — Notification schema + migration ✅
+
+- [x] `Notification` model (userId, kind, targetKind/Id, payload, readAt, emailedAt) + indexes
+- [x] `NotificationKind` enum (14 kinds spanning viewings, deals, chat, leads, imports)
+- [x] Migration `20260510135140_sprint_6_notifications`
+
+### 6.B — ViewingRequest API + workflow ✅
+
+- [x] `viewingRequestSchemas` namespace in `@inmolink/shared`
+- [x] AES-256-GCM encrypt/decrypt of clientName/Email/Phone/Notes via `@inmolink/auth`
+- [x] State machine: PENDING → ACCEPTED/DECLINED/RESCHEDULED → COMPLETED; CANCELLED/EXPIRED
+- [x] expiresAt = now + AgencySettings.viewingResponseDays
+- [x] Auto-create VIEWING ChatThread on first accept (idempotent on retry)
+- [x] System chat messages on accept/reschedule/outcome via `systemKind`
+- [x] Visibility: owner / introducer / SUPER_ADMIN only
+- [x] Worker hourly `VIEWING_EXPIRE` scheduler — promotes stale PENDINGs + emits notifications
+
+### 6.C — Deal API (handshake + dispute) ✅
+
+- [x] `dealSchemas` namespace with DealCreate / Confirm / Dispute / Resolve schemas
+- [x] BigInt money math (cents) with half-up rounding to avoid float drift
+- [x] Snapshot commission% + introducerShare% from AgencySettings on submit (per-deal override allowed)
+- [x] Submit auto-confirms submitter side; status flips to PENDING_<otherSide>
+- [x] Confirm by other side → CONFIRMED; both notified
+- [x] Dispute → DISPUTED + reason; notifies counterparty + all super-admins; AuditLog DEAL_DISPUTED
+- [x] Cancel allowed while PENDING_*
+- [x] SUPER_ADMIN `/disputes` queue + resolveDispute (CONFIRMED | CANCELLED outcome) with AuditLog
+
+### 6.D — Socket.io on Fastify + Redis adapter ✅
+
+- [x] `socket.io` + `@socket.io/redis-adapter` mounted on `app.server` in onReady hook
+- [x] Auth.js v5 cookie-based handshake (mirrors REST `installAuth`)
+- [x] `AppIOServer` typed wrapper exposing `SocketData = { user }`
+- [x] Per-user room (`user:<id>`) auto-joined on connection — backbone for fanout
+- [x] Graceful shutdown closes io + duplicates pub/sub Redis connections
+
+### 6.E — Chat threads + messages API + fanout ✅
+
+- [x] `chatSchemas` namespace + REST: list threads (cursor+unread count), getOrCreate direct,
+      list messages (cursor), post message (REST canonical), mark-read
+- [x] Socket.io fanout: `chat:message:new` to `thread:<id>` room + `notification:new` to recipient `user:<id>`
+- [x] ChatThreadRead per-user pointer auto-bumped on sender's own message + on mark-read
+
+### 6.F — Notification digest worker ✅
+
+- [x] `NOTIFICATION_DIGEST` BullMQ scheduler — hourly tick
+- [x] Per-user threshold respects `UserSettings.emailDigestFrequency` (INSTANT/DAILY/WEEKLY)
+- [x] Resend send with HTML+text body; soft-fail when RESEND_API_KEY unset (logs body in dev)
+- [x] Marks Notification.emailedAt on Resend ack so retries don't dup
+- [x] `/api/dashboard/notifications` REST surface (list + unread count + read-all + per-id read)
+
+### 6.G — Web ViewingRequest UI ✅
+
+- [x] `/[locale]/dashboard/viewings` list with role filter (all / owner / introducer)
+- [x] `/[locale]/dashboard/viewings/new` form with encrypted client fields + 1-3 preferred dates
+- [x] `/[locale]/dashboard/viewings/[id]` detail with property/parties/client/schedule + action panel
+- [x] Server Actions: create / accept / decline / reschedule / cancel / setOutcome
+- [x] Counterparty info shows WhatsApp link (wa.me) + mailto for client phone/email
+- [x] Server-computed `callerActions` drives button visibility (no client-side state-machine guard)
+
+### 6.H — Web Deal UI + super-admin disputes queue ✅
+
+- [x] `/[locale]/dashboard/deals` list + `/new` (RHF-free) + `/[id]` detail with money breakdown
+- [x] Server Actions: createDeal / confirm / dispute / cancel / resolveDispute
+- [x] `/[locale]/dashboard/admin/disputes` SUPER_ADMIN queue with reason preview + click-through
+- [x] Resolve panel (CONFIRMED | CANCELLED outcome + notes; audit-logged)
+- [x] Dashboard tile + admin landing tile
+
+### 6.I — Web chat UI + notifications + handoff ✅
+
+- [x] `/[locale]/dashboard/chat` thread list (counterparty, last message preview, unread badge)
+- [x] `/[locale]/dashboard/chat/[id]` panel with SSR history + Socket.io live updates +
+      auto mark-read on count change
+- [x] WhatsApp + mailto handoff on viewing detail (client phone/email fields)
+- [x] `/[locale]/dashboard/notifications` inbox with unread filter + mark-all-read
+- [x] Bell badge on dashboard home with unread count (soft-fails on api outage)
+- [x] 4-locale `viewings`, `deals`, `chat`, `notifications` namespaces
+
+### Deferred to a follow-up
+
+- [ ] "Request a viewing" CTA on public marketplace (`apps/public`) detail — needs a small
+      sign-in handoff to `apps/web` since `apps/public` is anonymous
+- [ ] Online presence indicator (Socket.io presence room) on chat list
+- [ ] Per-agency SMTP for digest (Sprint 8 will rebuild around AgencyEmailConfig)
+- [ ] Threads tied to ViewingRequest re-render the request status banner inline (currently links back)
+- [ ] User-photo upload widget on `/dashboard/settings/profile` (Sprint 4 carry-over still open)
 
 ## Sprint 7 — Billing + plan-gating
 
