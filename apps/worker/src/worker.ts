@@ -1,9 +1,11 @@
+import { MeilisearchAdapter } from "@inmolink/search";
 import { type Job, type Processor, Queue, Worker } from "bullmq";
 import { Redis } from "ioredis";
 import pino from "pino";
 import { loadConfig } from "./config.js";
 import { makeImageVariantProcessor } from "./processors/image-variant/processor.js";
 import { makeMediaCleanupProcessor } from "./processors/media-cleanup/processor.js";
+import { makeOutboxDrainProcessor } from "./processors/outbox-drain/processor.js";
 import { QUEUE_NAMES, type QueueName } from "./queues.js";
 import { createStorage } from "./storage.js";
 
@@ -38,7 +40,6 @@ logger.info({ kind: storage.kind }, "Storage backend selected");
  * - FEED_IMPORT: Sprint 5 (Kyero / Resale Online / Generic XML connectors)
  * - EMAIL_SEND: Sprint 6 + Sprint 8 (per-agency SMTP)
  * - WEBHOOK_DELIVER: Sprint 10 (HMAC-signed deliveries with retry + DLQ)
- * - SEARCH_REINDEX: Sprint 3 (outbox pattern → Meilisearch)
  * - EXPORT_GENERATE: Sprint 11 (CSV + PDF via Puppeteer)
  * - CHAT_FANOUT: Sprint 6
  */
@@ -49,12 +50,16 @@ const placeholderProcessor: Processor = async (job: Job) => {
   );
 };
 
+const searchAdapter = new MeilisearchAdapter(env.MEILISEARCH_HOST, env.MEILISEARCH_API_KEY);
+
 const imageVariantProcessor = makeImageVariantProcessor({ storage, logger });
 const mediaCleanupProcessor = makeMediaCleanupProcessor({ storage, logger });
+const outboxDrainProcessor = makeOutboxDrainProcessor({ adapter: searchAdapter, logger });
 
 function processorFor(queueName: QueueName): Processor {
   if (queueName === QUEUE_NAMES.IMAGE_VARIANT) return imageVariantProcessor;
   if (queueName === QUEUE_NAMES.MEDIA_CLEANUP) return mediaCleanupProcessor;
+  if (queueName === QUEUE_NAMES.SEARCH_REINDEX) return outboxDrainProcessor;
   return placeholderProcessor;
 }
 
@@ -67,6 +72,15 @@ function processorFor(queueName: QueueName): Processor {
 const mediaCleanupQueue = new Queue(QUEUE_NAMES.MEDIA_CLEANUP, { connection });
 const MEDIA_CLEANUP_SCHEDULE_PATTERN = "0 0 3 * * *";
 const MEDIA_CLEANUP_SCHEDULE_ID = "media-cleanup-daily";
+
+/**
+ * SEARCH_REINDEX Queue + outbox-drain scheduler. Ticks every 5 seconds —
+ * cheap poll (one indexed query); good enough latency for "search shows
+ * the new property within 5s of the dashboard save". PLAN §11.5.
+ */
+const searchReindexQueue = new Queue(QUEUE_NAMES.SEARCH_REINDEX, { connection });
+const OUTBOX_DRAIN_SCHEDULE_EVERY_MS = 5_000;
+const OUTBOX_DRAIN_SCHEDULE_ID = "outbox-drain-tick";
 
 const workers: Worker[] = [];
 
@@ -117,11 +131,32 @@ logger.info(
   "Media-cleanup scheduler upserted",
 );
 
+await searchReindexQueue.upsertJobScheduler(
+  OUTBOX_DRAIN_SCHEDULE_ID,
+  { every: OUTBOX_DRAIN_SCHEDULE_EVERY_MS },
+  {
+    name: "tick",
+    data: {},
+    opts: {
+      // Each tick is short — a few rows of work or zero. Don't keep failed
+      // ticks around; the outbox row itself carries the failure state.
+      attempts: 1,
+      removeOnComplete: { count: 100 },
+      removeOnFail: { count: 50 },
+    },
+  },
+);
+logger.info(
+  { id: OUTBOX_DRAIN_SCHEDULE_ID, everyMs: OUTBOX_DRAIN_SCHEDULE_EVERY_MS },
+  "Outbox-drain scheduler upserted",
+);
+
 // Graceful shutdown — drain in-flight jobs (PLAN §11.7)
 const shutdown = async (signal: string): Promise<void> => {
   logger.info({ signal }, "Shutting down workers gracefully");
   await Promise.all(workers.map((w) => w.close()));
   await mediaCleanupQueue.close();
+  await searchReindexQueue.close();
   await connection.quit();
   process.exit(0);
 };
