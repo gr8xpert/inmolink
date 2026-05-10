@@ -20,5 +20,17 @@
     "agencies": "For agencies",
     "privacy": "Privacy",
     "terms": "Terms"
+  },
+  "lead": {
+    "contactAgency": "Contact the agency",
+    "name": "Your name",
+    "email": "Email",
+    "phone": "Phone",
+    "eitherEmailOrPhone": "Provide an email or a phone number so the agency can reach you.",
+    "message": "Message",
+    "submit": "Send enquiry",
+    "submitting": "Sending…",
+    "success": "Thanks — your enquiry has been sent. Reference:",
+    "error": "Something went wrong. Please try again."
   }
 }

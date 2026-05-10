@@ -3,8 +3,9 @@ import { formatDate, formatMoney } from "@/lib/format";
 import type { publicPropertySchemas } from "@inmolink/shared";
 import { AgencyBadge } from "@inmolink/ui";
 import type { Metadata } from "next";
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { permanentRedirect } from "next/navigation";
+import { ContactAgencyForm } from "./contact-form";
 
 /**
  * Public property detail page. PLAN §11.4 ISR (5 min stale-while-revalidate).
@@ -100,6 +101,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function PublicPropertyDetailPage({ params }: Props) {
   const { locale, slugId } = await params;
   setRequestLocale(locale);
+  const t = await getTranslations({ locale, namespace: "lead" });
 
   const parsed = parseSlugId(slugId);
   if (!parsed) permanentRedirect(`/${locale}`);
@@ -226,6 +228,23 @@ export default async function PublicPropertyDetailPage({ params }: Props) {
           </ul>
         </section>
       )}
+
+      <ContactAgencyForm
+        propertyId={detail.id}
+        locale={locale}
+        labels={{
+          contactAgency: t("contactAgency"),
+          name: t("name"),
+          email: t("email"),
+          phone: t("phone"),
+          eitherEmailOrPhone: t("eitherEmailOrPhone"),
+          message: t("message"),
+          submit: t("submit"),
+          submitting: t("submitting"),
+          success: t("success"),
+          error: t("error"),
+        }}
+      />
     </main>
   );
 }

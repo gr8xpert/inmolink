@@ -20,5 +20,17 @@
     "agencies": "Pour les agences",
     "privacy": "Confidentialité",
     "terms": "Conditions"
+  },
+  "lead": {
+    "contactAgency": "Contacter l'agence",
+    "name": "Votre nom",
+    "email": "Email",
+    "phone": "Téléphone",
+    "eitherEmailOrPhone": "Indiquez un email ou un téléphone pour que l'agence puisse vous joindre.",
+    "message": "Message",
+    "submit": "Envoyer la demande",
+    "submitting": "Envoi…",
+    "success": "Merci — votre demande a été envoyée. Référence :",
+    "error": "Une erreur s'est produite. Veuillez réessayer."
   }
 }

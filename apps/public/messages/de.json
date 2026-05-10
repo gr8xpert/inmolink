@@ -20,5 +20,17 @@
     "agencies": "Für Maklerbüros",
     "privacy": "Datenschutz",
     "terms": "AGB"
+  },
+  "lead": {
+    "contactAgency": "Maklerbüro kontaktieren",
+    "name": "Dein Name",
+    "email": "E-Mail",
+    "phone": "Telefon",
+    "eitherEmailOrPhone": "Gib eine E-Mail oder Telefonnummer an, damit das Maklerbüro dich erreichen kann.",
+    "message": "Nachricht",
+    "submit": "Anfrage senden",
+    "submitting": "Senden…",
+    "success": "Danke — deine Anfrage wurde gesendet. Referenz:",
+    "error": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
   }
 }

@@ -20,5 +20,17 @@
     "agencies": "Para agencias",
     "privacy": "Privacidad",
     "terms": "Términos"
+  },
+  "lead": {
+    "contactAgency": "Contactar con la agencia",
+    "name": "Tu nombre",
+    "email": "Email",
+    "phone": "Teléfono",
+    "eitherEmailOrPhone": "Indica un email o un teléfono para que la agencia pueda contactarte.",
+    "message": "Mensaje",
+    "submit": "Enviar consulta",
+    "submitting": "Enviando…",
+    "success": "Gracias — tu consulta ha sido enviada. Referencia:",
+    "error": "Algo ha salido mal. Inténtalo de nuevo."
   }
 }
