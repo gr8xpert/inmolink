@@ -9,6 +9,7 @@ import { makeImageVariantProcessor } from "./processors/image-variant/processor.
 import { makeMediaCleanupProcessor } from "./processors/media-cleanup/processor.js";
 import { makeOutboxDrainProcessor } from "./processors/outbox-drain/processor.js";
 import { makeSitemapGenerateProcessor } from "./processors/sitemap-generate/processor.js";
+import { makeViewingExpireProcessor } from "./processors/viewing-expire/processor.js";
 import { QUEUE_NAMES, type QueueName } from "./queues.js";
 import { createStorage } from "./storage.js";
 
@@ -63,6 +64,7 @@ const sitemapGenerateProcessor = makeSitemapGenerateProcessor({
   logger,
   publicBaseUrl: env.PUBLIC_BASE_URL,
 });
+const viewingExpireProcessor = makeViewingExpireProcessor({ logger });
 
 // FEED_IMPORT shares Redis with the IMAGE_VARIANT queue — we hand the
 // processor a ref to the same Queue so freshly imported MediaObjects
@@ -81,6 +83,7 @@ function processorFor(queueName: QueueName): Processor {
   if (queueName === QUEUE_NAMES.SEARCH_REINDEX) return outboxDrainProcessor;
   if (queueName === QUEUE_NAMES.SITEMAP_GENERATE) return sitemapGenerateProcessor;
   if (queueName === QUEUE_NAMES.FEED_IMPORT) return feedImportProcessor;
+  if (queueName === QUEUE_NAMES.VIEWING_EXPIRE) return viewingExpireProcessor;
   return placeholderProcessor;
 }
 
@@ -110,6 +113,14 @@ const OUTBOX_DRAIN_SCHEDULE_ID = "outbox-drain-tick";
 const sitemapQueue = new Queue(QUEUE_NAMES.SITEMAP_GENERATE, { connection });
 const SITEMAP_SCHEDULE_PATTERN = "0 0 2 * * *";
 const SITEMAP_SCHEDULE_ID = "sitemap-generate-daily";
+
+/**
+ * VIEWING_EXPIRE Queue + scheduler. Hourly sweep for PENDING ViewingRequest
+ * rows past their `expiresAt`. PLAN §11.6.
+ */
+const viewingExpireQueue = new Queue(QUEUE_NAMES.VIEWING_EXPIRE, { connection });
+const VIEWING_EXPIRE_SCHEDULE_PATTERN = "0 0 * * * *"; // top of every hour
+const VIEWING_EXPIRE_SCHEDULE_ID = "viewing-expire-hourly";
 
 const workers: Worker[] = [];
 
@@ -199,6 +210,25 @@ logger.info(
   "Sitemap-generate scheduler upserted",
 );
 
+await viewingExpireQueue.upsertJobScheduler(
+  VIEWING_EXPIRE_SCHEDULE_ID,
+  { pattern: VIEWING_EXPIRE_SCHEDULE_PATTERN },
+  {
+    name: "tick",
+    data: {},
+    opts: {
+      attempts: 2,
+      backoff: { type: "exponential", delay: 30_000 },
+      removeOnComplete: { count: 24 },
+      removeOnFail: { count: 50 },
+    },
+  },
+);
+logger.info(
+  { id: VIEWING_EXPIRE_SCHEDULE_ID, pattern: VIEWING_EXPIRE_SCHEDULE_PATTERN },
+  "Viewing-expire scheduler upserted",
+);
+
 /**
  * Feed-import scheduler reconciliation (PLAN §11.5).
  *
@@ -250,6 +280,7 @@ const shutdown = async (signal: string): Promise<void> => {
   await sitemapQueue.close();
   await feedImportQueue.close();
   await imageVariantQueueForImport.close();
+  await viewingExpireQueue.close();
   await connection.quit();
   process.exit(0);
 };

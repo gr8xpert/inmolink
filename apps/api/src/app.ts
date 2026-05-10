@@ -22,6 +22,8 @@ import { adminLocationRoutes } from "./modules/admin/locations/routes";
 import { adminPropertyTypeRoutes } from "./modules/admin/property-types/routes";
 import { adminSitemapRoutes } from "./modules/admin/sitemap-routes";
 import { agencyRoutes } from "./modules/agency/routes";
+import { chatRoutes } from "./modules/chat/routes";
+import { dealRoutes } from "./modules/deals/routes";
 import { importRoutes } from "./modules/imports/routes";
 import { dashboardInviteRoutes, publicInviteRoutes } from "./modules/invites/routes";
 import { meRoutes } from "./modules/me/routes";
@@ -35,7 +37,9 @@ import { publicSitemapRoutes } from "./modules/public/sitemap-routes";
 import { taxonomyRoutes } from "./modules/taxonomy/routes";
 import { twoFactorRoutes } from "./modules/two-factor/routes";
 import { uploadRoutes } from "./modules/uploads/routes";
+import { viewingRequestRoutes } from "./modules/viewings/routes";
 import { installAuth } from "./plugins/auth";
+import { installSocketIO } from "./realtime/io";
 import { healthRoutes } from "./routes/health";
 import { localStorageRoutes } from "./routes/local-storage";
 import { createStorage } from "./storage";
@@ -178,6 +182,13 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
     encryptionKeyHex: env.ENCRYPTION_KEY,
     storage,
   });
+  await app.register(viewingRequestRoutes, {
+    prefix: "/api/dashboard/viewings",
+    encryptionKeyHex: env.ENCRYPTION_KEY,
+    storage,
+  });
+  await app.register(dealRoutes, { prefix: "/api/dashboard/deals" });
+  await app.register(chatRoutes, { prefix: "/api/dashboard/chat" });
   await app.register(publicPropertyRoutes, { prefix: "/api/public", storage, search });
   await app.register(publicLocationRoutes, { prefix: "/api/public" });
   await app.register(publicProfileRoutes, { prefix: "/api/public", storage });
@@ -189,6 +200,16 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
     turnstileSecret: env.TURNSTILE_SECRET,
   });
   await app.register(localStorageRoutes, { prefix: "/api/_local-storage", storage });
+
+  // Socket.io is attached after `ready()` so app.server is bound.
+  app.addHook("onReady", async () => {
+    const io = installSocketIO(app, {
+      redis,
+      authSecret: env.AUTH_SECRET,
+      corsOrigins: env.CORS_ORIGINS,
+    });
+    app.decorate("io", io);
+  });
 
   // Graceful shutdown — drain in-flight requests + close queues + Redis (PLAN §11.7)
   app.addHook("onClose", async () => {
@@ -202,5 +223,6 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
 declare module "fastify" {
   interface FastifyInstance {
     redis: Redis;
+    io: import("./realtime/io").AppIOServer;
   }
 }

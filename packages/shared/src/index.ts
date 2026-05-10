@@ -13,6 +13,8 @@ export * as adminLocationGroupSchemas from "./schemas/admin-location-groups";
 export * as adminLocationSchemas from "./schemas/admin-locations";
 export * as adminPropertyTypeSchemas from "./schemas/admin-property-types";
 export * as agencySchemas from "./schemas/agency";
+export * as chatSchemas from "./schemas/chat";
+export * as dealSchemas from "./schemas/deal";
 export * as inviteSchemas from "./schemas/invite";
 export * as leadSchemas from "./schemas/lead";
 export * as meSchemas from "./schemas/me";
@@ -26,6 +28,7 @@ export * as publicPropertySchemas from "./schemas/public-property";
 export * as taxonomySchemas from "./schemas/taxonomy";
 export * as twoFactorSchemas from "./schemas/two-factor";
 export * as uploadSchemas from "./schemas/upload";
+export * as viewingRequestSchemas from "./schemas/viewing-request";
 
 // Re-export Zod for callers
 export { z } from "zod";

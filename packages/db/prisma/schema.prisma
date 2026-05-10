@@ -74,6 +74,7 @@ model User {
   chatThreadsAsB              ChatThread[]     @relation("ChatB")
   chatMessages                ChatMessage[]
   chatReads                   ChatThreadRead[]
+  notifications               Notification[]
   ticketsOpened               Ticket[]         @relation("TicketOpener")
   ticketsAssigned             Ticket[]         @relation("TicketAssignee")
   ticketMessages              TicketMessage[]
@@ -1005,6 +1006,51 @@ model ChatThreadRead {
 
   @@id([threadId, userId])
   @@index([userId])
+}
+
+// ============================================================================
+// SECTION 8.5 — NOTIFICATIONS (in-app feed + email digest fanout; PLAN §11.6)
+// ============================================================================
+
+enum NotificationKind {
+  VIEWING_REQUESTED
+  VIEWING_ACCEPTED
+  VIEWING_DECLINED
+  VIEWING_RESCHEDULED
+  VIEWING_CANCELLED
+  VIEWING_EXPIRING_SOON
+  VIEWING_OUTCOME_SET
+  DEAL_SUBMITTED
+  DEAL_CONFIRMED
+  DEAL_DISPUTED
+  DEAL_DISPUTE_RESOLVED
+  CHAT_MESSAGE
+  LEAD_RECEIVED
+  IMPORT_FAILED
+}
+
+model Notification {
+  id     String           @id @default(cuid())
+  userId String
+  kind   NotificationKind
+
+  // Stable target pointer (e.g. ViewingRequest id) so links survive even after payload prune
+  targetKind String?
+  targetId   String?
+
+  // Localised render is done at fetch time from kind+payload (avoids stale strings)
+  payload Json?
+
+  readAt    DateTime?
+  emailedAt DateTime? // null when still queued for digest, set when Resend ack received
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)]) // cursor + recent-first feed
+  @@index([userId, readAt]) // unread-count
+  @@index([emailedAt, createdAt]) // digest worker scan
 }
 
 // ============================================================================
