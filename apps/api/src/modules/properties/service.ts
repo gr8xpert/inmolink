@@ -1,5 +1,6 @@
 import type { propertySchemas } from "@inmolink/shared";
 import type { AuthenticatedUser } from "../../plugins/auth";
+import { PlanRequiredError, getCurrentPlanTier, tierHasFeature } from "../billing/plan-tier";
 import {
   createProperty,
   encodeCursor,
@@ -87,6 +88,23 @@ export async function getOneForDashboard(user: AuthenticatedUser, id: string) {
   return toDetail(property);
 }
 
+/**
+ * Plan-tier gate. PLAN §6 / §11.7 — `visibility=PUBLIC` requires PRO. Free
+ * agencies setting PUBLIC must upgrade. SUPER_ADMIN bypasses.
+ */
+async function assertVisibilityAllowed(
+  user: AuthenticatedUser,
+  visibility: string | undefined,
+  ownerAgencyId: string | null,
+): Promise<void> {
+  if (visibility !== "PUBLIC") return;
+  if (user.role === "SUPER_ADMIN") return;
+  const tier = await getCurrentPlanTier(ownerAgencyId);
+  if (!tierHasFeature(tier, "feature:visibility.public")) {
+    throw new PlanRequiredError("PRO");
+  }
+}
+
 export async function createForUser(
   user: AuthenticatedUser,
   input: propertySchemas.PropertyCreateInput,
@@ -94,6 +112,7 @@ export async function createForUser(
   if (!user.agencyId) {
     throw new ForbiddenError("User has no agency — cannot create properties");
   }
+  await assertVisibilityAllowed(user, input.visibility, user.agencyId);
   const created = await createProperty({
     input,
     ownerUserId: user.id,
@@ -111,6 +130,11 @@ export async function updateForUser(
   if (!existing) throw new NotFoundError("Property not found");
   if (!ownershipMatches(user, existing)) {
     throw new ForbiddenError();
+  }
+  // Only run the gate when caller is changing visibility — keeps unrelated
+  // edits on PUBLIC properties unblocked even if a grant lapsed.
+  if (input.visibility && input.visibility !== existing.visibility) {
+    await assertVisibilityAllowed(user, input.visibility, existing.ownerAgencyId);
   }
   const updated = await updateProperty({ id, input });
   return toDetail(updated);

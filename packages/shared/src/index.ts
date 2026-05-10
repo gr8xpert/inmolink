@@ -13,6 +13,7 @@ export * as adminLocationGroupSchemas from "./schemas/admin-location-groups";
 export * as adminLocationSchemas from "./schemas/admin-locations";
 export * as adminPropertyTypeSchemas from "./schemas/admin-property-types";
 export * as agencySchemas from "./schemas/agency";
+export * as billingSchemas from "./schemas/billing";
 export * as chatSchemas from "./schemas/chat";
 export * as dealSchemas from "./schemas/deal";
 export * as inviteSchemas from "./schemas/invite";

@@ -22,6 +22,8 @@ import { adminLocationRoutes } from "./modules/admin/locations/routes";
 import { adminPropertyTypeRoutes } from "./modules/admin/property-types/routes";
 import { adminSitemapRoutes } from "./modules/admin/sitemap-routes";
 import { agencyRoutes } from "./modules/agency/routes";
+import { adminBillingRoutes, billingRoutes } from "./modules/billing/routes";
+import { stripeWebhookRoutes } from "./modules/billing/webhook";
 import { chatRoutes } from "./modules/chat/routes";
 import { dealRoutes } from "./modules/deals/routes";
 import { importRoutes } from "./modules/imports/routes";
@@ -191,6 +193,28 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   await app.register(dealRoutes, { prefix: "/api/dashboard/deals" });
   await app.register(chatRoutes, { prefix: "/api/dashboard/chat" });
   await app.register(notificationRoutes, { prefix: "/api/dashboard/notifications" });
+
+  // Billing — Sprint 7. AGENCY_ADMIN-gated; SUPER_ADMIN-only sub-tree under
+  // /admin/billing. The webhook receiver is under /api/billing/webhooks/stripe
+  // (no auth — Stripe signs requests; we verify HMAC in the handler).
+  const billingCtx = {
+    stripeSecretKey: env.STRIPE_SECRET_KEY,
+    stripeTaxEnabled: env.STRIPE_TAX_ENABLED,
+    publicBaseUrl: env.PUBLIC_BASE_URL,
+    prices: {
+      proMonthlyEur: env.STRIPE_PRICE_PRO_MONTHLY_EUR,
+      proYearlyEur: env.STRIPE_PRICE_PRO_YEARLY_EUR,
+      proMonthlyGbp: env.STRIPE_PRICE_PRO_MONTHLY_GBP,
+      proYearlyGbp: env.STRIPE_PRICE_PRO_YEARLY_GBP,
+    },
+  };
+  await app.register(billingRoutes, { prefix: "/api/dashboard/billing", ...billingCtx });
+  await app.register(adminBillingRoutes, { prefix: "/api/dashboard/admin/billing" });
+  await app.register(stripeWebhookRoutes, {
+    prefix: "/api/billing/webhooks",
+    stripeSecretKey: env.STRIPE_SECRET_KEY,
+    stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET,
+  });
   await app.register(publicPropertyRoutes, { prefix: "/api/public", storage, search });
   await app.register(publicLocationRoutes, { prefix: "/api/public" });
   await app.register(publicProfileRoutes, { prefix: "/api/public", storage });

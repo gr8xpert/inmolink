@@ -109,6 +109,15 @@ model Agency {
 
   countryCode String
 
+  // Billing — Sprint 7
+  // VAT collection drives Stripe Tax reverse-charge on B2B sales inside the
+  // EU. Country code is captured separately (not derived from VAT prefix) so
+  // we can fall back when a customer enters a number without prefix.
+  billingEmail   String?
+  vatNumber      String?
+  vatCountryCode String? // ISO-3166 alpha-2, used by Stripe Tax for reverse-charge
+  taxIdValidated Boolean @default(false) // flipped on first Stripe-validated tax_id
+
   isPublic Boolean @default(true)
   isActive Boolean @default(true)
 

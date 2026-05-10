@@ -72,6 +72,19 @@ const envSchema = z.object({
   // a missing or failed token returns the same fake-success as honeypot
   // hits so bots can't tell verified from unverified.
   TURNSTILE_SECRET: optionalString,
+
+  // Stripe — optional in dev. When STRIPE_SECRET_KEY is unset the billing
+  // endpoints all 503 with `code: BILLING_DISABLED`; webhook receiver 404s
+  // (router not mounted). PLAN §11.7.
+  STRIPE_SECRET_KEY: optionalString,
+  STRIPE_WEBHOOK_SECRET: optionalString,
+  STRIPE_PRICE_PRO_MONTHLY_EUR: optionalString,
+  STRIPE_PRICE_PRO_YEARLY_EUR: optionalString,
+  STRIPE_PRICE_PRO_MONTHLY_GBP: optionalString,
+  STRIPE_PRICE_PRO_YEARLY_GBP: optionalString,
+  STRIPE_TAX_ENABLED: z
+    .preprocess((v) => (v === "" ? undefined : v), z.string().optional())
+    .transform((v) => v === "true" || v === "1"),
 });
 
 export type Env = z.infer<typeof envSchema>;
