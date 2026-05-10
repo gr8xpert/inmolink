@@ -1,0 +1,68 @@
+# Inmolink Postgres tuning — 16GB RAM / 8 vCPU VPS baseline (PLAN §11.2 / §7).
+#
+# Apply by symlinking or copying into `/etc/postgresql/16/main/conf.d/inmolink.conf`,
+# then restarting the server. Reload-only changes are flagged below.
+#
+# Trigger to scale beyond this baseline → ADR (PLAN §7).
+
+# ---- Memory ----
+shared_buffers = 4GB                 # ~25% of RAM
+effective_cache_size = 12GB          # ~75% of RAM (advisory only)
+work_mem = 32MB                      # per-sort/hash; raise carefully (max_connections × work_mem)
+maintenance_work_mem = 1GB           # autovacuum / CREATE INDEX
+huge_pages = try
+
+# ---- Connection caps ----
+max_connections = 200                # Pool through PgBouncer when above this
+superuser_reserved_connections = 5
+
+# ---- WAL / checkpoint ----
+wal_buffers = 16MB                   # auto-tuned with shared_buffers; explicit for clarity
+checkpoint_timeout = 15min
+checkpoint_completion_target = 0.9
+max_wal_size = 4GB
+min_wal_size = 1GB
+wal_compression = on
+
+# ---- Background writer ----
+bgwriter_lru_maxpages = 200
+bgwriter_lru_multiplier = 2.0
+
+# ---- Parallelism ----
+max_worker_processes = 8
+max_parallel_workers_per_gather = 4
+max_parallel_maintenance_workers = 4
+max_parallel_workers = 8
+
+# ---- Query planner ----
+random_page_cost = 1.1               # SSD-friendly (default 4.0 assumes spinning disk)
+effective_io_concurrency = 200       # SSD; bump to 256 on NVMe
+default_statistics_target = 100      # increase to 500 for hot columns if needed
+
+# ---- Autovacuum ----
+autovacuum = on
+autovacuum_max_workers = 4
+autovacuum_naptime = 30s
+autovacuum_vacuum_scale_factor = 0.05    # default 0.2; tighter for write-heavy tables
+autovacuum_analyze_scale_factor = 0.02
+autovacuum_vacuum_cost_limit = 2000      # default 200; allow vacuum to keep up
+
+# ---- Logging / observability ----
+log_min_duration_statement = 200ms       # log slow queries
+log_lock_waits = on
+log_temp_files = 10MB
+log_autovacuum_min_duration = 0
+log_line_prefix = '%t [%p]: db=%d,user=%u,app=%a,client=%h '
+log_checkpoints = on
+log_connections = off                    # noisy; turn on during incident triage only
+log_disconnections = off
+
+# ---- pg_stat_statements ----
+shared_preload_libraries = 'pg_stat_statements'
+pg_stat_statements.track = all
+pg_stat_statements.max = 10000
+
+# ---- Statement timeouts ----
+statement_timeout = 30s              # kill runaway queries; raise per-session for migrations
+idle_in_transaction_session_timeout = 60s
+lock_timeout = 5s

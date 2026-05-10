@@ -93,6 +93,9 @@ dumps/
 # deploy` because the SQL files never reach prod.
 !packages/db/prisma/migrations/**/*.sql
 
+# Health-query helpers ship with the repo too (PLAN §11.12 incident response).
+!tools/sql/**/*.sql
+
 # Generated client code
 **/generated/
 **/.gen/
