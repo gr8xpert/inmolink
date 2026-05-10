@@ -20,6 +20,7 @@ import { adminLocationGroupRoutes } from "./modules/admin/location-groups/routes
 import { adminLocationRoutes } from "./modules/admin/locations/routes";
 import { adminPropertyTypeRoutes } from "./modules/admin/property-types/routes";
 import { agencyRoutes } from "./modules/agency/routes";
+import { dashboardInviteRoutes, publicInviteRoutes } from "./modules/invites/routes";
 import { meRoutes } from "./modules/me/routes";
 import { propertyImageRoutes } from "./modules/properties/images/routes";
 import { propertyRoutes } from "./modules/properties/routes";
@@ -151,6 +152,8 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   await app.register(healthRoutes, { prefix: "/api/health" });
   await app.register(meRoutes, { prefix: "/api/dashboard/me", storage });
   await app.register(agencyRoutes, { prefix: "/api/dashboard/agency", storage });
+  await app.register(dashboardInviteRoutes, { prefix: "/api/dashboard/agency", storage, env });
+  await app.register(publicInviteRoutes, { prefix: "/api/public", storage });
   await app.register(propertyRoutes, { prefix: "/api/dashboard/properties" });
   await app.register(propertyImageRoutes, { prefix: "/api/dashboard/properties", storage });
   await app.register(taxonomyRoutes, { prefix: "/api/dashboard" });

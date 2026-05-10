@@ -81,6 +81,7 @@ export const authConfig = {
         stripped.startsWith("/property/") ||
         stripped.startsWith("/agency/") ||
         stripped.startsWith("/agent/") ||
+        stripped.startsWith("/invite/") ||
         stripped.startsWith("/search");
 
       if (isAuthPage) {

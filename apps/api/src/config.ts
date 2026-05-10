@@ -59,6 +59,13 @@ const envSchema = z.object({
   // apps/api is reachable from the browser).
   LOCAL_STORAGE_PUBLIC_BASE_URL: z.string().default("http://localhost:3001"),
   LOCAL_STORAGE_ROOT_DIR: z.string().default("./tmp/r2-local"),
+
+  // Public marketplace URL used in email links.
+  PUBLIC_BASE_URL: z.string().default("http://localhost:3000"),
+
+  // Resend — optional in dev (we log invite links instead). PLAN §1 row 33.
+  RESEND_API_KEY: optionalString,
+  EMAIL_FROM: z.string().default("Inmolink <onboarding@inmolink.local>"),
 });
 
 export type Env = z.infer<typeof envSchema>;
