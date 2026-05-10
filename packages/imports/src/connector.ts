@@ -2,6 +2,17 @@ import type { Locale } from "@inmolink/shared";
 
 export type FeedConnectorKind = "KYERO" | "RESALE_ONLINE" | "GENERIC_XML";
 
+/**
+ * Per-feature names keyed by source locale. Connector emits whatever locales
+ * the feed carries; matcher in the worker prefers `en` then falls back to
+ * the first available locale when looking up the Feature taxonomy.
+ */
+export type FeatureName = {
+  /** Canonical key — `en` if present, else the first available locale's value. */
+  canonical: string;
+  perLocale: Partial<Record<Locale, string>>;
+};
+
 /** Normalized listing emitted by every connector (one shape, regardless of source). */
 export type NormalizedListing = {
   externalRef: string;
@@ -9,7 +20,7 @@ export type NormalizedListing = {
 
   // Transaction
   transactionType: "SALE" | "RENT" | "SHORT_TERM";
-  priceCents: bigint | number;
+  priceCents: bigint;
   currency: string; // ISO-4217
 
   // Location (plain text — fuzzy-matched to Location table during upsert)
@@ -23,7 +34,7 @@ export type NormalizedListing = {
 
   // Classification (plain text — mapped to PropertyType / Feature taxonomy)
   typeName: string;
-  featureNames: string[];
+  features: FeatureName[];
 
   // Specs
   bedrooms?: number;
