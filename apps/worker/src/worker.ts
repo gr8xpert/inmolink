@@ -6,6 +6,8 @@ import pino from "pino";
 import { loadConfig } from "./config.js";
 import { makeCampaignDispatcherProcessor } from "./processors/campaign-dispatcher/processor.js";
 import { makeEmailSendProcessor } from "./processors/email-send/processor.js";
+import { makeExportCleanupProcessor } from "./processors/export-cleanup/processor.js";
+import { makeExportGenerateProcessor } from "./processors/export-generate/processor.js";
 import { makeFeedImportProcessor } from "./processors/feed-import/processor.js";
 import { makeImageVariantProcessor } from "./processors/image-variant/processor.js";
 import { makeMediaCleanupProcessor } from "./processors/media-cleanup/processor.js";
@@ -93,6 +95,10 @@ const campaignDispatcherProcessor = makeCampaignDispatcherProcessor({
   logger,
 });
 
+// Sprint 11 export. One job per Export row.
+const exportGenerateProcessor = makeExportGenerateProcessor({ storage, logger });
+const exportCleanupProcessor = makeExportCleanupProcessor({ storage, logger });
+
 // Sprint 10 webhooks (out). The dispatcher needs a Queue ref to enqueue
 // deliveries; the deliver processor handles HTTP POST + signing + retry.
 const webhookDeliverQueue = new Queue(QUEUE_NAMES.WEBHOOK_DELIVER, { connection });
@@ -128,6 +134,8 @@ function processorFor(queueName: QueueName): Processor {
   if (queueName === QUEUE_NAMES.CAMPAIGN_DISPATCHER) return campaignDispatcherProcessor;
   if (queueName === QUEUE_NAMES.WEBHOOK_DELIVER) return webhookDeliverProcessor;
   if (queueName === QUEUE_NAMES.WEBHOOK_DISPATCHER) return webhookDispatcherProcessor;
+  if (queueName === QUEUE_NAMES.EXPORT_GENERATE) return exportGenerateProcessor;
+  if (queueName === QUEUE_NAMES.EXPORT_CLEANUP) return exportCleanupProcessor;
   return placeholderProcessor;
 }
 
@@ -191,6 +199,14 @@ const CAMPAIGN_DISPATCHER_SCHEDULE_ID = "campaign-dispatcher-tick";
 const webhookDispatcherQueue = new Queue(QUEUE_NAMES.WEBHOOK_DISPATCHER, { connection });
 const WEBHOOK_DISPATCHER_SCHEDULE_EVERY_MS = 30_000;
 const WEBHOOK_DISPATCHER_SCHEDULE_ID = "webhook-dispatcher-tick";
+
+/**
+ * EXPORT_CLEANUP Queue + scheduler. Daily at 03:30 — sweeps expired
+ * Export rows + R2 blobs (PLAN §11.11).
+ */
+const exportCleanupQueue = new Queue(QUEUE_NAMES.EXPORT_CLEANUP, { connection });
+const EXPORT_CLEANUP_SCHEDULE_PATTERN = "0 30 3 * * *"; // 03:30:00 daily
+const EXPORT_CLEANUP_SCHEDULE_ID = "export-cleanup-daily";
 
 const workers: Worker[] = [];
 
@@ -354,6 +370,25 @@ logger.info(
   "Webhook-dispatcher scheduler upserted",
 );
 
+await exportCleanupQueue.upsertJobScheduler(
+  EXPORT_CLEANUP_SCHEDULE_ID,
+  { pattern: EXPORT_CLEANUP_SCHEDULE_PATTERN },
+  {
+    name: "tick",
+    data: {},
+    opts: {
+      attempts: 2,
+      backoff: { type: "exponential", delay: 60_000 },
+      removeOnComplete: { count: 30 },
+      removeOnFail: { count: 50 },
+    },
+  },
+);
+logger.info(
+  { id: EXPORT_CLEANUP_SCHEDULE_ID, pattern: EXPORT_CLEANUP_SCHEDULE_PATTERN },
+  "Export-cleanup scheduler upserted",
+);
+
 /**
  * Feed-import scheduler reconciliation (PLAN §11.5).
  *
@@ -411,6 +446,7 @@ const shutdown = async (signal: string): Promise<void> => {
   await emailSendQueueForCampaigns.close();
   await webhookDispatcherQueue.close();
   await webhookDeliverQueue.close();
+  await exportCleanupQueue.close();
   await connection.quit();
   process.exit(0);
 };

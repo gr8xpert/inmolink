@@ -13,12 +13,14 @@ export const QUEUE_NAMES = {
   SITEMAP_GENERATE: "sitemap-generate",
   FEED_IMPORT: "feed-import",
   EMAIL_SEND: "email-send",
+  EXPORT_GENERATE: "export-generate",
 } as const;
 
 let imageVariantQueueSingleton: Queue | null = null;
 let sitemapQueueSingleton: Queue | null = null;
 let feedImportQueueSingleton: Queue | null = null;
 let emailSendQueueSingleton: Queue | null = null;
+let exportGenerateQueueSingleton: Queue | null = null;
 
 /**
  * Lazy singleton — first call wires the queue against the shared Redis
@@ -168,6 +170,25 @@ export function getEmailSendQueue(connection: Redis): Queue {
   return emailSendQueueSingleton;
 }
 
+/**
+ * Producer for export-generation jobs (Sprint 11). The api enqueues one
+ * job per Export row; the worker resolves filters → properties, renders
+ * CSV / PDF, uploads to R2, and updates Export.status.
+ */
+export function getExportGenerateQueue(connection: Redis): Queue {
+  if (!exportGenerateQueueSingleton) {
+    exportGenerateQueueSingleton = new Queue(QUEUE_NAMES.EXPORT_GENERATE, {
+      connection,
+      defaultJobOptions: {
+        attempts: 1,
+        removeOnComplete: { count: 100 },
+        removeOnFail: { count: 200 },
+      },
+    });
+  }
+  return exportGenerateQueueSingleton;
+}
+
 export async function closeQueues(): Promise<void> {
   if (imageVariantQueueSingleton) {
     await imageVariantQueueSingleton.close();
@@ -184,6 +205,10 @@ export async function closeQueues(): Promise<void> {
   if (emailSendQueueSingleton) {
     await emailSendQueueSingleton.close();
     emailSendQueueSingleton = null;
+  }
+  if (exportGenerateQueueSingleton) {
+    await exportGenerateQueueSingleton.close();
+    exportGenerateQueueSingleton = null;
   }
 }
 

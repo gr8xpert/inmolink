@@ -17,6 +17,7 @@ export * as auditSchemas from "./schemas/audit";
 export * as billingSchemas from "./schemas/billing";
 export * as chatSchemas from "./schemas/chat";
 export * as dealSchemas from "./schemas/deal";
+export * as exportSchemas from "./schemas/export";
 export * as inviteSchemas from "./schemas/invite";
 export * as leadSchemas from "./schemas/lead";
 export * as marketingSchemas from "./schemas/marketing";

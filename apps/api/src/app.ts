@@ -17,6 +17,7 @@ import type { Env } from "./config";
 import {
   closeQueues,
   getEmailSendQueue,
+  getExportGenerateQueue,
   getFeedImportQueue,
   getImageVariantQueue,
 } from "./lib/queues";
@@ -32,6 +33,7 @@ import { adminBillingRoutes, billingRoutes } from "./modules/billing/routes";
 import { stripeWebhookRoutes } from "./modules/billing/webhook";
 import { chatRoutes } from "./modules/chat/routes";
 import { dealRoutes } from "./modules/deals/routes";
+import { exportRoutes } from "./modules/exports/routes";
 import { importRoutes } from "./modules/imports/routes";
 import { dashboardInviteRoutes, publicInviteRoutes } from "./modules/invites/routes";
 import { publicFeaturedRoutes } from "./modules/marketing/public-featured-routes";
@@ -169,6 +171,8 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   const feedImportQueue = getFeedImportQueue(redis);
   // BullMQ producer for marketing campaign sends (PLAN §11.8).
   const emailSendQueue = getEmailSendQueue(redis);
+  // BullMQ producer for export generation (PLAN §11.11).
+  const exportGenerateQueue = getExportGenerateQueue(redis);
 
   // Search adapter — Meilisearch v1.12 (PLAN §11.5). Wired into the public
   // search endpoint; gracefully degrades to Postgres ILIKE when Meili is
@@ -222,6 +226,14 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   });
   await app.register(adminWebhookDeliveryRoutes, {
     prefix: "/api/dashboard/admin/webhook-deliveries",
+  });
+
+  // Exports — Sprint 11. Plan-gated (CSV/PDF) per kind; downloads stream
+  // back through the api after auth check.
+  await app.register(exportRoutes, {
+    prefix: "/api/dashboard/exports",
+    storage,
+    exportQueue: exportGenerateQueue,
   });
 
   // Billing — Sprint 7. AGENCY_ADMIN-gated; SUPER_ADMIN-only sub-tree under
