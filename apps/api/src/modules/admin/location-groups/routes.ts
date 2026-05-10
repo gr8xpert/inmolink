@@ -8,6 +8,8 @@ import {
   deleteGroup,
   listGroups,
   removeMember,
+  reorderAllGroups,
+  reorderAllMembers,
   reorderGroup,
   reorderMember,
   updateGroup,
@@ -103,6 +105,38 @@ export async function adminLocationGroupRoutes(app: FastifyInstance): Promise<vo
     async (request) => {
       request.requireSuperAdmin();
       return reorderGroup(request.params.id, request.body.position);
+    },
+  );
+
+  fastify.post(
+    "/location-groups/reorder-all",
+    {
+      schema: {
+        tags: ["admin", "locations"],
+        summary: "Reorder all LocationGroups by ordered ids list (drag-drop)",
+        body: adminLocationGroupSchemas.adminReorderAllLocationGroupsRequestSchema,
+        response: { 200: z.object({ ok: z.literal(true) }) },
+      },
+    },
+    async (request) => {
+      request.requireSuperAdmin();
+      return reorderAllGroups(request.body.ids);
+    },
+  );
+
+  fastify.post(
+    "/location-groups/members/reorder-all",
+    {
+      schema: {
+        tags: ["admin", "locations"],
+        summary: "Reorder all members within a group by ordered locationIds (drag-drop)",
+        body: adminLocationGroupSchemas.adminReorderAllMembersRequestSchema,
+        response: { 200: z.object({ ok: z.literal(true) }) },
+      },
+    },
+    async (request) => {
+      request.requireSuperAdmin();
+      return reorderAllMembers(request.body.groupId, request.body.locationIds);
     },
   );
 

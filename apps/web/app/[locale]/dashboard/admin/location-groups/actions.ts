@@ -77,6 +77,15 @@ export async function reorderGroupAction(locale: string, id: string, position: n
   return r;
 }
 
+export async function reorderAllGroupsAction(locale: string, ids: string[]) {
+  const r = await call<{ ok: true }>(`${BASE}/location-groups/reorder-all`, {
+    method: "POST",
+    body: JSON.stringify({ ids }),
+  });
+  if (r.ok) bust(locale);
+  return r;
+}
+
 // ─── Membership ops ─────────────────────────────────────────────────────
 
 export async function addMemberAction(locale: string, groupId: string, locationId: string) {
@@ -107,6 +116,19 @@ export async function reorderMemberAction(
     `${BASE}/location-groups/${encodeURIComponent(groupId)}/members/reorder`,
     { method: "POST", body: JSON.stringify({ locationId, position }) },
   );
+  if (r.ok) bust(locale);
+  return r;
+}
+
+export async function reorderAllMembersAction(
+  locale: string,
+  groupId: string,
+  locationIds: string[],
+) {
+  const r = await call<{ ok: true }>(`${BASE}/location-groups/members/reorder-all`, {
+    method: "POST",
+    body: JSON.stringify({ groupId, locationIds }),
+  });
   if (r.ok) bust(locale);
   return r;
 }

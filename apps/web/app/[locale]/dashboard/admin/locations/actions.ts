@@ -71,3 +71,17 @@ export async function reorderLocationAction(locale: string, id: string, position
   if (r.ok) bust(locale);
   return r;
 }
+
+export async function reorderAllLocationsAction(
+  locale: string,
+  parentId: string | null,
+  level: adminLocationSchemas.LocationLevel,
+  ids: string[],
+) {
+  const r = await call<{ ok: true }>(`${BASE}/locations/reorder-all`, {
+    method: "POST",
+    body: JSON.stringify({ parentId, level, ids }),
+  });
+  if (r.ok) bust(locale);
+  return r;
+}

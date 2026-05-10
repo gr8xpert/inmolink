@@ -85,6 +85,18 @@ export const adminFeatureListResponseSchema = z.object({
   items: z.array(adminFeatureSchema),
 });
 
+/** Drag-and-drop reorder for groups — caller sends the full ordered ids
+ *  list; api rewrites positions 0..n-1 atomically. */
+export const adminReorderAllFeatureGroupsRequestSchema = z.object({
+  ids: z.array(cuid).min(1),
+});
+
+/** Drag-and-drop reorder for features within a group. */
+export const adminReorderAllFeaturesRequestSchema = z.object({
+  groupId: cuid,
+  ids: z.array(cuid).min(1),
+});
+
 export const suggestFeatureIconRequestSchema = z.object({
   name: z.string().min(1).max(120),
   hint: z.string().max(120).optional(),

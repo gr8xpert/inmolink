@@ -84,6 +84,18 @@ export const reorderMemberRequestSchema = z.object({
   position: z.number().int().min(0),
 });
 
+/** Drag-and-drop reorder for groups themselves. */
+export const adminReorderAllLocationGroupsRequestSchema = z.object({
+  ids: z.array(cuid).min(1),
+});
+
+/** Drag-and-drop reorder for members within a group. */
+export const adminReorderAllMembersRequestSchema = z.object({
+  groupId: cuid,
+  /** Ordered locationIds — every member of the group must appear. */
+  locationIds: z.array(cuid).min(1),
+});
+
 export type AdminLocationGroupCreate = z.infer<typeof adminLocationGroupCreateSchema>;
 export type AdminLocationGroupUpdate = z.infer<typeof adminLocationGroupUpdateSchema>;
 export type AdminLocationGroup = z.infer<typeof adminLocationGroupSchema>;

@@ -1,5 +1,6 @@
 "use client";
 
+import { SortableList } from "@/components/sortable-list";
 import type { adminLocationGroupSchemas, adminLocationSchemas } from "@inmolink/shared";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -8,8 +9,8 @@ import {
   createGroupAction,
   deleteGroupAction,
   removeMemberAction,
-  reorderGroupAction,
-  reorderMemberAction,
+  reorderAllGroupsAction,
+  reorderAllMembersAction,
   updateGroupAction,
 } from "./actions";
 
@@ -187,14 +188,20 @@ export function AdminLocationGroups({ locale, groups, allLocations }: Props) {
         />
       )}
 
-      <ul className="space-y-3">
-        {sortedGroups.map((g, idx) => {
+      <SortableList
+        items={sortedGroups}
+        onReorder={withRefresh((ids: string[]) => reorderAllGroupsAction(locale, ids))}
+        className="space-y-3"
+        renderItem={(g, groupDragHandle) => {
           const enName = g.translations.find((t) => t.locale === "en")?.name ?? "(no en)";
           const isEditing = editingGroup === g.id;
           const memberIds = new Set(g.members.map((m) => m.locationId));
+          // SortableList expects each item to have an `id` field; members are
+          // keyed by locationId, so project that for dnd-kit's keyspace.
+          const memberRows = g.members.map((m) => ({ ...m, id: m.locationId }));
 
           return (
-            <li key={g.id} className="rounded-md border bg-background">
+            <div className="rounded-md border bg-background">
               {isEditing ? (
                 <div className="p-4">
                   <GroupForm
@@ -210,6 +217,7 @@ export function AdminLocationGroups({ locale, groups, allLocations }: Props) {
               ) : (
                 <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
                   <div className="flex items-center gap-3">
+                    {groupDragHandle}
                     <span className="font-mono text-xs text-muted-foreground">
                       pos {g.position}
                     </span>
@@ -222,24 +230,6 @@ export function AdminLocationGroups({ locale, groups, allLocations }: Props) {
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={pending || idx === 0}
-                      onClick={withRefresh(() => reorderGroupAction(locale, g.id, g.position - 1))}
-                      aria-label="Move up"
-                      className="rounded-md border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      disabled={pending || idx === sortedGroups.length - 1}
-                      onClick={withRefresh(() => reorderGroupAction(locale, g.id, g.position + 1))}
-                      aria-label="Move down"
-                      className="rounded-md border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
-                    >
-                      ↓
-                    </button>
                     <button
                       type="button"
                       disabled={pending}
@@ -279,13 +269,16 @@ export function AdminLocationGroups({ locale, groups, allLocations }: Props) {
                   </p>
                 )}
 
-                <ul className="space-y-1">
-                  {g.members.map((m, mi) => (
-                    <li
-                      key={m.locationId}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background p-2"
-                    >
+                <SortableList
+                  items={memberRows}
+                  onReorder={withRefresh((locationIds: string[]) =>
+                    reorderAllMembersAction(locale, g.id, locationIds),
+                  )}
+                  className="space-y-1"
+                  renderItem={(m, memberDragHandle) => (
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background p-2">
                       <div className="flex min-w-0 items-center gap-2 text-sm">
+                        {memberDragHandle}
                         <span className="font-mono text-xs text-muted-foreground">
                           pos {m.position}
                         </span>
@@ -300,28 +293,6 @@ export function AdminLocationGroups({ locale, groups, allLocations }: Props) {
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
-                          disabled={pending || mi === 0}
-                          onClick={withRefresh(() =>
-                            reorderMemberAction(locale, g.id, m.locationId, m.position - 1),
-                          )}
-                          aria-label="Move up"
-                          className="rounded-md border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          disabled={pending || mi === g.members.length - 1}
-                          onClick={withRefresh(() =>
-                            reorderMemberAction(locale, g.id, m.locationId, m.position + 1),
-                          )}
-                          aria-label="Move down"
-                          className="rounded-md border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
-                        >
-                          ↓
-                        </button>
-                        <button
-                          type="button"
                           disabled={pending}
                           onClick={() => {
                             if (window.confirm(`Remove "${m.name}" from this group?`)) {
@@ -333,9 +304,9 @@ export function AdminLocationGroups({ locale, groups, allLocations }: Props) {
                           Remove
                         </button>
                       </div>
-                    </li>
-                  ))}
-                </ul>
+                    </div>
+                  )}
+                />
 
                 <AddMemberForm
                   pending={pending}
@@ -345,10 +316,10 @@ export function AdminLocationGroups({ locale, groups, allLocations }: Props) {
                   }
                 />
               </div>
-            </li>
+            </div>
           );
-        })}
-      </ul>
+        }}
+      />
     </div>
   );
 }

@@ -1,12 +1,13 @@
 "use client";
 
+import { SortableList } from "@/components/sortable-list";
 import { adminLocationSchemas } from "@inmolink/shared";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   createLocationAction,
   deleteLocationAction,
-  reorderLocationAction,
+  reorderAllLocationsAction,
   updateLocationAction,
 } from "./actions";
 
@@ -204,13 +205,15 @@ export function AdminLocations({ locale, locations }: Props) {
         />
       )}
 
-      <ul className="space-y-1">
-        {roots.map((node, idx) => (
+      <SortableList
+        items={roots}
+        onReorder={withRefresh((ids: string[]) =>
+          reorderAllLocationsAction(locale, null, "COUNTRY", ids),
+        )}
+        className="space-y-1"
+        renderItem={(node, dragHandle) => (
           <TreeNode
-            key={node.id}
             node={node}
-            siblingsAt={roots.length}
-            idx={idx}
             byParent={byParent}
             depth={0}
             expanded={expanded}
@@ -218,6 +221,7 @@ export function AdminLocations({ locale, locations }: Props) {
             creatingChildOf={creatingChildOf}
             pending={pending}
             locale={locale}
+            dragHandle={dragHandle}
             onToggleExpand={toggleExpand}
             onEditStart={(id) => setEditing(id)}
             onEditCancel={() => setEditing(null)}
@@ -234,24 +238,23 @@ export function AdminLocations({ locale, locations }: Props) {
                 withRefresh(() => deleteLocationAction(locale, node.id))();
               }
             }}
-            onMove={(id, dir, position) =>
-              withRefresh(() => reorderLocationAction(locale, id, position + dir))()
-            }
+            onReorderSiblings={withRefresh(
+              (parentId: string | null, level: adminLocationSchemas.LocationLevel, ids: string[]) =>
+                reorderAllLocationsAction(locale, parentId, level, ids),
+            )}
             onCreateChildToggle={(id) => setCreatingChildOf((v) => (v === id ? null : id))}
             onCreateChild={withRefresh((body: adminLocationSchemas.AdminLocationCreate) =>
               createLocationAction(locale, body),
             )}
           />
-        ))}
-      </ul>
+        )}
+      />
     </div>
   );
 }
 
 function TreeNode({
   node,
-  siblingsAt,
-  idx,
   byParent,
   depth,
   expanded,
@@ -259,18 +262,17 @@ function TreeNode({
   creatingChildOf,
   pending,
   locale,
+  dragHandle,
   onToggleExpand,
   onEditStart,
   onEditCancel,
   onUpdate,
   onDelete,
-  onMove,
+  onReorderSiblings,
   onCreateChildToggle,
   onCreateChild,
 }: {
   node: Loc;
-  siblingsAt: number;
-  idx: number;
   byParent: Map<string | null, Loc[]>;
   depth: number;
   expanded: Set<string>;
@@ -278,12 +280,17 @@ function TreeNode({
   creatingChildOf: string | "root" | null;
   pending: boolean;
   locale: string;
+  dragHandle: React.ReactNode;
   onToggleExpand: (id: string) => void;
   onEditStart: (id: string) => void;
   onEditCancel: () => void;
   onUpdate: (id: string, body: LocSubmit) => void;
   onDelete: (node: Loc) => void;
-  onMove: (id: string, dir: -1 | 1, position: number) => void;
+  onReorderSiblings: (
+    parentId: string | null,
+    level: adminLocationSchemas.LocationLevel,
+    ids: string[],
+  ) => void;
   onCreateChildToggle: (id: string) => void;
   onCreateChild: (body: adminLocationSchemas.AdminLocationCreate) => void;
 }) {
@@ -295,7 +302,7 @@ function TreeNode({
   const children = byParent.get(node.id) ?? [];
 
   return (
-    <li>
+    <div>
       {isEditing ? (
         <div className="rounded-md border bg-muted/10 p-3" style={{ marginLeft: depth * 20 }}>
           <LocationForm
@@ -314,6 +321,7 @@ function TreeNode({
           style={{ marginLeft: depth * 20 }}
         >
           <div className="flex min-w-0 items-center gap-2">
+            {dragHandle}
             {node.childCount > 0 ? (
               <button
                 type="button"
@@ -353,24 +361,6 @@ function TreeNode({
             )}
             <button
               type="button"
-              disabled={pending || idx === 0}
-              onClick={() => onMove(node.id, -1, node.position)}
-              aria-label="Move up"
-              className="rounded-md border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
-            >
-              ↑
-            </button>
-            <button
-              type="button"
-              disabled={pending || idx === siblingsAt - 1}
-              onClick={() => onMove(node.id, 1, node.position)}
-              aria-label="Move down"
-              className="rounded-md border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
-            >
-              ↓
-            </button>
-            <button
-              type="button"
               disabled={pending}
               onClick={() => onEditStart(node.id)}
               className="rounded-md border px-2 py-1 text-xs hover:bg-muted"
@@ -403,14 +393,14 @@ function TreeNode({
         </div>
       )}
 
-      {isOpen && children.length > 0 && (
-        <ul className="space-y-1">
-          {children.map((child, ci) => (
+      {isOpen && children.length > 0 && childLevel && (
+        <SortableList
+          items={children}
+          onReorder={(ids) => onReorderSiblings(node.id, childLevel, ids)}
+          className="space-y-1"
+          renderItem={(child, childDragHandle) => (
             <TreeNode
-              key={child.id}
               node={child}
-              siblingsAt={children.length}
-              idx={ci}
               byParent={byParent}
               depth={depth + 1}
               expanded={expanded}
@@ -418,19 +408,20 @@ function TreeNode({
               creatingChildOf={creatingChildOf}
               pending={pending}
               locale={locale}
+              dragHandle={childDragHandle}
               onToggleExpand={onToggleExpand}
               onEditStart={onEditStart}
               onEditCancel={onEditCancel}
               onUpdate={onUpdate}
               onDelete={onDelete}
-              onMove={onMove}
+              onReorderSiblings={onReorderSiblings}
               onCreateChildToggle={onCreateChildToggle}
               onCreateChild={onCreateChild}
             />
-          ))}
-        </ul>
+          )}
+        />
       )}
-    </li>
+    </div>
   );
 }
 

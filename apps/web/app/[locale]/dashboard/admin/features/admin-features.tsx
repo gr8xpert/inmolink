@@ -1,5 +1,6 @@
 "use client";
 
+import { SortableList } from "@/components/sortable-list";
 import type { adminFeatureSchemas } from "@inmolink/shared";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -9,8 +10,8 @@ import {
   createGroupAction,
   deleteFeatureAction,
   deleteGroupAction,
-  reorderFeatureAction,
-  reorderGroupAction,
+  reorderAllFeaturesAction,
+  reorderAllGroupsAction,
   suggestIconAction,
   updateFeatureAction,
   updateGroupAction,
@@ -141,14 +142,17 @@ export function AdminFeatures({ locale, groups, features }: Props) {
         />
       )}
 
-      <ul className="space-y-3">
-        {sortedGroups.map((g, idx) => {
+      <SortableList
+        items={sortedGroups}
+        onReorder={withRefresh((ids: string[]) => reorderAllGroupsAction(locale, ids))}
+        className="space-y-3"
+        renderItem={(g, groupDragHandle) => {
           const enName = g.translations.find((t) => t.locale === "en")?.name ?? "(no en)";
           const isEditing = editingGroup === g.id;
           const groupFeatures = featuresByGroup.get(g.id) ?? [];
 
           return (
-            <li key={g.id} className="rounded-md border bg-background">
+            <div className="rounded-md border bg-background">
               {isEditing ? (
                 <div className="p-4">
                   <GroupForm
@@ -164,6 +168,7 @@ export function AdminFeatures({ locale, groups, features }: Props) {
               ) : (
                 <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
                   <div className="flex items-center gap-3">
+                    {groupDragHandle}
                     <span className="font-mono text-xs text-muted-foreground">
                       pos {g.position}
                     </span>
@@ -173,24 +178,6 @@ export function AdminFeatures({ locale, groups, features }: Props) {
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={pending || idx === 0}
-                      onClick={withRefresh(() => reorderGroupAction(locale, g.id, g.position - 1))}
-                      aria-label="Move up"
-                      className="rounded-md border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      disabled={pending || idx === sortedGroups.length - 1}
-                      onClick={withRefresh(() => reorderGroupAction(locale, g.id, g.position + 1))}
-                      aria-label="Move down"
-                      className="rounded-md border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
-                    >
-                      ↓
-                    </button>
                     <button
                       type="button"
                       disabled={pending}
@@ -246,13 +233,16 @@ export function AdminFeatures({ locale, groups, features }: Props) {
                   />
                 )}
 
-                <ul className="space-y-2">
-                  {groupFeatures.map((f, fi) => (
+                <SortableList
+                  items={groupFeatures}
+                  onReorder={withRefresh((ids: string[]) =>
+                    reorderAllFeaturesAction(locale, g.id, ids),
+                  )}
+                  className="space-y-2"
+                  renderItem={(f, featureDragHandle) => (
                     <FeatureRow
-                      key={f.id}
                       feature={f}
-                      idx={fi}
-                      siblingCount={groupFeatures.length}
+                      dragHandle={featureDragHandle}
                       pending={pending}
                       isEditing={editingFeature === f.id}
                       onEditStart={() => setEditingFeature(f.id)}
@@ -266,9 +256,6 @@ export function AdminFeatures({ locale, groups, features }: Props) {
                           withRefresh(() => deleteFeatureAction(locale, f.id))();
                         }
                       }}
-                      onMove={(dir) =>
-                        withRefresh(() => reorderFeatureAction(locale, f.id, f.position + dir))()
-                      }
                       onSuggestIcon={async (name) => {
                         const r = await suggestIconAction(name, "Feature (amenity)");
                         return r.ok ? r.data.iconName : null;
@@ -277,13 +264,13 @@ export function AdminFeatures({ locale, groups, features }: Props) {
                         withRefresh(() => acceptAiIconAction(locale, f.id, iconName))()
                       }
                     />
-                  ))}
-                </ul>
+                  )}
+                />
               </div>
-            </li>
+            </div>
           );
-        })}
-      </ul>
+        }}
+      />
     </div>
   );
 }
@@ -366,36 +353,32 @@ function GroupForm({
 
 function FeatureRow({
   feature,
-  idx,
-  siblingCount,
   pending,
   isEditing,
   onEditStart,
   onEditCancel,
   onUpdate,
   onDelete,
-  onMove,
   onSuggestIcon,
   onAcceptAiIcon,
+  dragHandle,
 }: {
   feature: Feature;
-  idx: number;
-  siblingCount: number;
   pending: boolean;
   isEditing: boolean;
   onEditStart: () => void;
   onEditCancel: () => void;
   onUpdate: (body: FeatureSubmit) => void;
   onDelete: () => void;
-  onMove: (dir: -1 | 1) => void;
   onSuggestIcon: (name: string) => Promise<string | null>;
   onAcceptAiIcon: (iconName: string) => void;
+  dragHandle: React.ReactNode;
 }) {
   const en = feature.translations.find((t) => t.locale === "en")?.name ?? feature.id.slice(0, 8);
 
   if (isEditing) {
     return (
-      <li className="rounded-md border bg-muted/10 p-3">
+      <div className="rounded-md border bg-muted/10 p-3">
         <FeatureForm
           groupId={feature.groupId}
           initial={feature}
@@ -405,13 +388,14 @@ function FeatureRow({
           onSubmit={(body) => onUpdate(body)}
           onSuggestIcon={onSuggestIcon}
         />
-      </li>
+      </div>
     );
   }
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background p-3">
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background p-3">
       <div className="flex min-w-0 items-center gap-3">
+        {dragHandle}
         <span className="font-mono text-xs text-muted-foreground">pos {feature.position}</span>
         <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs">
           {feature.iconName ?? "(no icon)"}
@@ -446,24 +430,6 @@ function FeatureRow({
         </button>
         <button
           type="button"
-          disabled={pending || idx === 0}
-          onClick={() => onMove(-1)}
-          aria-label="Move up"
-          className="rounded-md border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
-        >
-          ↑
-        </button>
-        <button
-          type="button"
-          disabled={pending || idx === siblingCount - 1}
-          onClick={() => onMove(1)}
-          aria-label="Move down"
-          className="rounded-md border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
-        >
-          ↓
-        </button>
-        <button
-          type="button"
           disabled={pending}
           onClick={onEditStart}
           className="rounded-md border px-2 py-1 text-xs hover:bg-muted"
@@ -479,7 +445,7 @@ function FeatureRow({
           Delete
         </button>
       </div>
-    </li>
+    </div>
   );
 }
 

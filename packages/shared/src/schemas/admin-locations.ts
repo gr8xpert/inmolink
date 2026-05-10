@@ -85,6 +85,14 @@ export const adminLocationSchema = z.object({
   childCount: z.number().int(),
 });
 
+/** Drag-and-drop reorder among siblings (same parent + same level).
+ *  parentId=null targets root-level COUNTRY rows. */
+export const adminReorderAllLocationsRequestSchema = z.object({
+  parentId: cuid.nullable(),
+  level: locationLevelSchema,
+  ids: z.array(cuid).min(1),
+});
+
 export const adminLocationListResponseSchema = z.object({
   /** Flat list; client builds the tree by parentId. */
   items: z.array(adminLocationSchema),

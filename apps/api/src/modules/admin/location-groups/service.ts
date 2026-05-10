@@ -182,6 +182,22 @@ export async function reorderGroup(id: string, position: number) {
   return { ok: true as const };
 }
 
+/** Drag-and-drop reorder of LocationGroups themselves. */
+export async function reorderAllGroups(ids: string[]) {
+  const existing = await prisma.locationGroup.findMany({ select: { id: true } });
+  const existingIds = new Set(existing.map((r) => r.id));
+  const inputIds = new Set(ids);
+  if (existingIds.size !== inputIds.size || ![...existingIds].every((id) => inputIds.has(id))) {
+    throw new ConflictError(
+      "Reorder set mismatch — the LocationGroup catalog changed since you loaded it. Refresh and retry.",
+    );
+  }
+  await prisma.$transaction(
+    ids.map((id, position) => prisma.locationGroup.update({ where: { id }, data: { position } })),
+  );
+  return { ok: true as const };
+}
+
 // ─── Membership ops ─────────────────────────────────────────────────────
 
 export async function addMember(groupId: string, locationId: string, position?: number) {
@@ -223,6 +239,31 @@ export async function removeMember(groupId: string, locationId: string) {
     }
     throw e;
   }
+  return { ok: true as const };
+}
+
+/** Drag-and-drop reorder of all members within a group. Validates every
+ *  input locationId is currently a member of the group. */
+export async function reorderAllMembers(groupId: string, locationIds: string[]) {
+  const existing = await prisma.locationGroupMember.findMany({
+    where: { groupId },
+    select: { locationId: true },
+  });
+  const existingIds = new Set(existing.map((m) => m.locationId));
+  const inputIds = new Set(locationIds);
+  if (existingIds.size !== inputIds.size || ![...existingIds].every((id) => inputIds.has(id))) {
+    throw new ConflictError(
+      "Reorder set mismatch — group membership changed since you loaded it. Refresh and retry.",
+    );
+  }
+  await prisma.$transaction(
+    locationIds.map((locationId, position) =>
+      prisma.locationGroupMember.update({
+        where: { groupId_locationId: { groupId, locationId } },
+        data: { position },
+      }),
+    ),
+  );
   return { ok: true as const };
 }
 

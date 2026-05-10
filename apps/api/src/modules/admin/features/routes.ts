@@ -10,6 +10,8 @@ import {
   deleteGroup,
   listFeatures,
   listGroups,
+  reorderAllFeatures,
+  reorderAllGroups,
   reorderFeature,
   reorderGroup,
   suggestFeatureIcon,
@@ -113,6 +115,22 @@ export async function adminFeatureRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
+  fastify.post(
+    "/feature-groups/reorder-all",
+    {
+      schema: {
+        tags: ["admin", "features"],
+        summary: "Reorder all FeatureGroups by ordered ids list (drag-drop)",
+        body: adminFeatureSchemas.adminReorderAllFeatureGroupsRequestSchema,
+        response: { 200: z.object({ ok: z.literal(true) }) },
+      },
+    },
+    async (request) => {
+      request.requireSuperAdmin();
+      return reorderAllGroups(request.body.ids);
+    },
+  );
+
   // ─── Features ───────────────────────────────────────────────────────
 
   fastify.get(
@@ -194,6 +212,22 @@ export async function adminFeatureRoutes(app: FastifyInstance): Promise<void> {
     async (request) => {
       request.requireSuperAdmin();
       return reorderFeature(request.params.id, request.body.position);
+    },
+  );
+
+  fastify.post(
+    "/features/reorder-all",
+    {
+      schema: {
+        tags: ["admin", "features"],
+        summary: "Reorder all Features within a group by ordered ids list (drag-drop)",
+        body: adminFeatureSchemas.adminReorderAllFeaturesRequestSchema,
+        response: { 200: z.object({ ok: z.literal(true) }) },
+      },
+    },
+    async (request) => {
+      request.requireSuperAdmin();
+      return reorderAllFeatures(request.body.groupId, request.body.ids);
     },
   );
 

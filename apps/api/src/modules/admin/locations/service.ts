@@ -211,6 +211,32 @@ export async function deleteLocation(id: string) {
   return { ok: true as const };
 }
 
+/** Drag-and-drop reorder among siblings (same parent + same level).
+ *  Different from property-types/features because Locations are scoped by
+ *  (parentId, level) tuple — reordering "cities under Spain" is different
+ *  from reordering "regions under Spain". */
+export async function reorderAllLocations(
+  parentId: string | null,
+  level: adminLocationSchemas.LocationLevel,
+  ids: string[],
+) {
+  const existing = await prisma.location.findMany({
+    where: { parentId, level },
+    select: { id: true },
+  });
+  const existingIds = new Set(existing.map((r) => r.id));
+  const inputIds = new Set(ids);
+  if (existingIds.size !== inputIds.size || ![...existingIds].every((id) => inputIds.has(id))) {
+    throw new ConflictError(
+      "Reorder set mismatch — siblings under this parent changed since you loaded them. Refresh and retry.",
+    );
+  }
+  await prisma.$transaction(
+    ids.map((id, position) => prisma.location.update({ where: { id }, data: { position } })),
+  );
+  return { ok: true as const };
+}
+
 export async function reorderLocation(id: string, position: number) {
   const target = await prisma.location.findUnique({
     where: { id },

@@ -10,6 +10,20 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Added (Sprint 2 — slice 2.D.2.b/c/d, drag-and-drop on Feature / Location / LocationGroup admin)
+
+- **API reorder-all endpoints** propagated to the remaining three admin surfaces:
+  - `POST /api/dashboard/admin/feature-groups/reorder-all` — body `{ ids }`
+  - `POST /api/dashboard/admin/features/reorder-all` — body `{ groupId, ids }`
+  - `POST /api/dashboard/admin/locations/reorder-all` — body `{ parentId, level, ids }` (scoped to siblings under one parent + level — reordering "cities under Spain" is different from reordering "regions under Spain")
+  - `POST /api/dashboard/admin/location-groups/reorder-all` — body `{ ids }`
+  - `POST /api/dashboard/admin/location-groups/members/reorder-all` — body `{ groupId, locationIds }`
+  - All five validate the input set exactly matches the existing scope (rejects stale clients with 409 `TAXONOMY_CONFLICT`) then rewrite positions 0..n-1 in a single `$transaction`.
+- **Web admin/features** — replaced the up/down arrow buttons on groups + features-in-group with drag handles via `SortableList`. Same `⋮⋮` glyph + pointer / touch / keyboard semantics as 2.D.2.a.
+- **Web admin/locations** — recursive tree node now uses `SortableList` per sibling set. Drag is scoped to the `(parentId, level)` tuple at every depth — child rows can't drift across a different parent's children.
+- **Web admin/location-groups** — `SortableList` on the group list and on each group's member list. Members are keyed by `locationId` (not `id`); the Client Component projects `{...m, id: m.locationId}` into the SortableList input space and the server action accepts `locationIds` as the ordered identifier list.
+- **Existing single-step reorder endpoints kept** — they're still useful for programmatic reordering; the UI no longer uses them on any of the four admin surfaces.
+
 ### Added (Sprint 2 — slice 2.D.2.a, drag-and-drop on PropertyType admin)
 
 - **`SortableList` primitive** in `apps/web/src/components/sortable-list.tsx` — generic vertical sortable list backed by `@dnd-kit/core`+`@dnd-kit/sortable`+`@dnd-kit/modifiers`. Drag handle is opt-in (the caller renders it from the `renderItem` callback's `dragHandle` argument). Drags are constrained to vertical axis + parent element. Keyboard support via `KeyboardSensor`. `disabled` prop short-circuits to a no-drag list.

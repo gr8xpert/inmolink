@@ -173,6 +173,24 @@ export async function reorderGroup(id: string, position: number) {
   return { ok: true as const };
 }
 
+/** Drag-and-drop reorder: caller sends full ordered ids, api validates set
+ *  match (409 if siblings changed since the client snapshot) and rewrites
+ *  positions 0..n-1 atomically. */
+export async function reorderAllGroups(ids: string[]) {
+  const existing = await prisma.featureGroup.findMany({ select: { id: true } });
+  const existingIds = new Set(existing.map((r) => r.id));
+  const inputIds = new Set(ids);
+  if (existingIds.size !== inputIds.size || ![...existingIds].every((id) => inputIds.has(id))) {
+    throw new ConflictError(
+      "Reorder set mismatch — groups changed since you loaded them. Refresh and retry.",
+    );
+  }
+  await prisma.$transaction(
+    ids.map((id, position) => prisma.featureGroup.update({ where: { id }, data: { position } })),
+  );
+  return { ok: true as const };
+}
+
 // ─── Feature ────────────────────────────────────────────────────────────
 
 const FEATURE_SELECT = {
@@ -304,6 +322,25 @@ export async function reorderFeature(id: string, position: number) {
         ]
       : []),
   ]);
+  return { ok: true as const };
+}
+
+/** Drag-and-drop reorder for features within a group. */
+export async function reorderAllFeatures(groupId: string, ids: string[]) {
+  const existing = await prisma.feature.findMany({
+    where: { groupId },
+    select: { id: true },
+  });
+  const existingIds = new Set(existing.map((r) => r.id));
+  const inputIds = new Set(ids);
+  if (existingIds.size !== inputIds.size || ![...existingIds].every((id) => inputIds.has(id))) {
+    throw new ConflictError(
+      "Reorder set mismatch — features in this group changed since you loaded them. Refresh and retry.",
+    );
+  }
+  await prisma.$transaction(
+    ids.map((id, position) => prisma.feature.update({ where: { id }, data: { position } })),
+  );
   return { ok: true as const };
 }
 

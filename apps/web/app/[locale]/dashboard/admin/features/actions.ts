@@ -75,6 +75,15 @@ export async function reorderGroupAction(locale: string, id: string, position: n
   return r;
 }
 
+export async function reorderAllGroupsAction(locale: string, ids: string[]) {
+  const r = await call<{ ok: true }>(`${BASE}/feature-groups/reorder-all`, {
+    method: "POST",
+    body: JSON.stringify({ ids }),
+  });
+  if (r.ok) bust(locale);
+  return r;
+}
+
 // ─── Features ───────────────────────────────────────────────────────────
 
 export async function createFeatureAction(
@@ -114,6 +123,15 @@ export async function reorderFeatureAction(locale: string, id: string, position:
   const r = await call<{ ok: true }>(`${BASE}/features/${encodeURIComponent(id)}/reorder`, {
     method: "POST",
     body: JSON.stringify({ position }),
+  });
+  if (r.ok) bust(locale);
+  return r;
+}
+
+export async function reorderAllFeaturesAction(locale: string, groupId: string, ids: string[]) {
+  const r = await call<{ ok: true }>(`${BASE}/features/reorder-all`, {
+    method: "POST",
+    body: JSON.stringify({ groupId, ids }),
   });
   if (r.ok) bust(locale);
   return r;

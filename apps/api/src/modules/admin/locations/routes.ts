@@ -6,6 +6,7 @@ import {
   createLocation,
   deleteLocation,
   listLocations,
+  reorderAllLocations,
   reorderLocation,
   updateLocation,
 } from "./service.js";
@@ -104,6 +105,22 @@ export async function adminLocationRoutes(app: FastifyInstance): Promise<void> {
     async (request) => {
       request.requireSuperAdmin();
       return reorderLocation(request.params.id, request.body.position);
+    },
+  );
+
+  fastify.post(
+    "/locations/reorder-all",
+    {
+      schema: {
+        tags: ["admin", "locations"],
+        summary: "Reorder siblings (same parent + level) by ordered ids list (drag-drop)",
+        body: adminLocationSchemas.adminReorderAllLocationsRequestSchema,
+        response: { 200: z.object({ ok: z.literal(true) }) },
+      },
+    },
+    async (request) => {
+      request.requireSuperAdmin();
+      return reorderAllLocations(request.body.parentId, request.body.level, request.body.ids);
     },
   );
 }
