@@ -231,17 +231,19 @@
 - [x] Admin landing tile replaces placeholder
 - [x] `adminLocationSchemas` in `@inmolink/shared` (with `VALID_CHILD_LEVEL` constant exported for the UI)
 
-### 2.C.2 — LocationGroup m2m membership editor (next)
+### 2.C.2 — LocationGroup m2m membership editor ✅ (commit `409e7fc`)
 
-- [ ] API `/api/dashboard/admin/location-groups/*` (CRUD)
-- [ ] m2m membership endpoint (add/remove locations to/from a group)
-- [ ] Web UI with location autocomplete + member list editor
+- [x] API `/api/dashboard/admin/location-groups/*` (group CRUD + reorder)
+- [x] Three dedicated membership endpoints — add / remove / reorder member (separate from group PATCH so the picker doesn't ride on wholesale-replace)
+- [x] 409 on add-when-already-member
+- [x] Group delete cascades members (Prisma `onDelete: Cascade`)
+- [x] Response denormalises member metadata (`name`, `level`, `countryCode`)
+- [x] Web `/[locale]/dashboard/admin/location-groups` — group list + per-group member editor with up/down/remove + filtered `<select>` picker
+- [x] Admin landing tile added
+- [x] `adminLocationGroupSchemas` in `@inmolink/shared`
+- [ ] *(deferred to 2.D)* Replace member `<select>` with autocomplete once the location catalog grows past a few hundred entries
 
-### 2.C — Location + LocationGroup curation
-
-- [ ] 4-level location tree (COUNTRY → REGION → CITY → AREA)
-- [ ] LocationGroup m2m membership editor
-- [ ] Per-locale name + slug
+**Sprint 2 admin CRUD complete** for PropertyType / Feature / Location / LocationGroup. 2.D ships drag-drop polish + filter UI on dashboard + public search + the `taxonomyAdminFactory` refactor + dedicated location re-parenting endpoint.
 
 ### 2.D — Drag-n-drop polish + filter UI
 
