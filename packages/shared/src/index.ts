@@ -12,6 +12,7 @@ export * as adminPropertyTypeSchemas from "./schemas/admin-property-types";
 export * as mediaSchemas from "./schemas/media";
 export * as outboxSchemas from "./schemas/outbox";
 export * as propertyImageSchemas from "./schemas/property-images";
+export * as publicLocationSchemas from "./schemas/public-location";
 export * as propertySchemas from "./schemas/property";
 export * as publicPropertySchemas from "./schemas/public-property";
 export * as taxonomySchemas from "./schemas/taxonomy";

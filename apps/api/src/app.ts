@@ -21,6 +21,7 @@ import { adminLocationRoutes } from "./modules/admin/locations/routes";
 import { adminPropertyTypeRoutes } from "./modules/admin/property-types/routes";
 import { propertyImageRoutes } from "./modules/properties/images/routes";
 import { propertyRoutes } from "./modules/properties/routes";
+import { publicLocationRoutes } from "./modules/public/location-routes";
 import { publicPropertyRoutes } from "./modules/public/property-routes";
 import { taxonomyRoutes } from "./modules/taxonomy/routes";
 import { uploadRoutes } from "./modules/uploads/routes";
@@ -153,6 +154,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   await app.register(adminLocationGroupRoutes, { prefix: "/api/dashboard/admin" });
   await app.register(uploadRoutes, { prefix: "/api/uploads", storage, imageVariantQueue });
   await app.register(publicPropertyRoutes, { prefix: "/api/public", storage, search });
+  await app.register(publicLocationRoutes, { prefix: "/api/public" });
   await app.register(localStorageRoutes, { prefix: "/api/_local-storage", storage });
 
   // Graceful shutdown — drain in-flight requests + close queues + Redis (PLAN §11.7)
