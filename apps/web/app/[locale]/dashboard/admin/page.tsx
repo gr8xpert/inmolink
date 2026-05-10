@@ -102,6 +102,17 @@ export default async function AdminLandingPage({ params }: Props) {
             audit-logged.
           </p>
         </Link>
+
+        <Link
+          href={`/${locale}/dashboard/admin/billing`}
+          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+        >
+          <h2 className="font-semibold">Billing &amp; grants</h2>
+          <p className="text-sm text-muted-foreground">
+            Browse agency subscriptions; manually grant a plan tier (with optional expiry) or revoke
+            back to FREE.
+          </p>
+        </Link>
       </section>
 
       <section className="space-y-3 rounded-md border bg-muted/30 p-4">

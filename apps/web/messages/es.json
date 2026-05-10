@@ -416,5 +416,44 @@
       "LEAD_RECEIVED": "Nuevo lead",
       "IMPORT_FAILED": "Falló la importación"
     }
+  },
+  "billing": {
+    "title": "Facturación",
+    "subtitle": "Suscripción, facturas y datos de IVA.",
+    "backToDashboard": "Panel",
+    "currentPlan": "Plan actual",
+    "manageBilling": "Gestionar facturación",
+    "billingNotConfigured": "Facturación no configurada en este entorno.",
+    "billingDisabled": "La facturación no está configurada en este entorno.",
+    "planRequired": "Los anuncios públicos requieren el plan PRO. Actualiza abajo.",
+    "checkoutSuccess": "Gracias — tu suscripción se está activando.",
+    "checkoutCancelled": "Pago cancelado. Puedes actualizar cuando quieras.",
+    "renewsOn": "Se renueva el {date}",
+    "endsOn": "Se cancela el {date}",
+    "grantedManually": "Concesión manual",
+    "grantedUntil": "hasta",
+    "billingDetails": "Datos de facturación",
+    "billingDetailsHelp": "Se usan en la próxima factura. Cambiar el IVA requiere nueva validación de Stripe.",
+    "billingEmail": "Email de facturación",
+    "vatNumber": "Número de IVA",
+    "vatCountryCode": "País del IVA",
+    "vatValidated": "IVA validado por Stripe",
+    "vatPending": "IVA aún no validado por Stripe.",
+    "save": "Guardar",
+    "saved": "Guardado.",
+    "invoices": "Facturas",
+    "noInvoices": "Aún no hay facturas.",
+    "invoiceDate": "Fecha",
+    "invoiceTotal": "Total",
+    "invoiceStatus": "Estado",
+    "viewInvoice": "Ver",
+    "status": {
+      "ACTIVE": "Activo",
+      "PAST_DUE": "Vencido",
+      "CANCELLED": "Cancelado",
+      "INCOMPLETE": "Incompleto",
+      "UNPAID": "Sin pagar",
+      "PAUSED": "Pausado"
+    }
   }
 }

@@ -416,5 +416,44 @@
       "LEAD_RECEIVED": "Nouveau prospect",
       "IMPORT_FAILED": "Échec d'import"
     }
+  },
+  "billing": {
+    "title": "Facturation",
+    "subtitle": "Abonnement, factures, données TVA.",
+    "backToDashboard": "Tableau de bord",
+    "currentPlan": "Plan actuel",
+    "manageBilling": "Gérer la facturation",
+    "billingNotConfigured": "Facturation non configurée sur cet environnement.",
+    "billingDisabled": "Facturation non configurée sur cet environnement.",
+    "planRequired": "Les annonces publiques requièrent le plan PRO. Passez à l'offre supérieure ci-dessous.",
+    "checkoutSuccess": "Merci — votre abonnement est en cours d'activation.",
+    "checkoutCancelled": "Paiement annulé. Vous pouvez upgrader à tout moment.",
+    "renewsOn": "Renouvelé le {date}",
+    "endsOn": "Annulé le {date}",
+    "grantedManually": "Accordé manuellement",
+    "grantedUntil": "jusqu'au",
+    "billingDetails": "Coordonnées de facturation",
+    "billingDetailsHelp": "Utilisé pour la prochaine facture. Modifier le numéro de TVA déclenche une nouvelle validation Stripe.",
+    "billingEmail": "Email de facturation",
+    "vatNumber": "Numéro de TVA",
+    "vatCountryCode": "Pays de TVA",
+    "vatValidated": "TVA validée par Stripe",
+    "vatPending": "TVA pas encore validée.",
+    "save": "Enregistrer",
+    "saved": "Enregistré.",
+    "invoices": "Factures",
+    "noInvoices": "Pas encore de factures.",
+    "invoiceDate": "Date",
+    "invoiceTotal": "Total",
+    "invoiceStatus": "Statut",
+    "viewInvoice": "Voir",
+    "status": {
+      "ACTIVE": "Actif",
+      "PAST_DUE": "En retard",
+      "CANCELLED": "Annulé",
+      "INCOMPLETE": "Incomplet",
+      "UNPAID": "Impayé",
+      "PAUSED": "En pause"
+    }
   }
 }

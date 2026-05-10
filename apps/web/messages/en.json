@@ -412,5 +412,44 @@
       "LEAD_RECEIVED": "New lead",
       "IMPORT_FAILED": "Feed import failed"
     }
+  },
+  "billing": {
+    "title": "Billing",
+    "subtitle": "Subscription, invoices, VAT details.",
+    "backToDashboard": "Dashboard",
+    "currentPlan": "Current plan",
+    "manageBilling": "Manage billing",
+    "billingNotConfigured": "Billing not configured on this environment.",
+    "billingDisabled": "Billing is not configured on this environment.",
+    "planRequired": "Public listings require the PRO plan. Upgrade below.",
+    "checkoutSuccess": "Thanks — your subscription is being activated.",
+    "checkoutCancelled": "Checkout cancelled. You can upgrade anytime.",
+    "renewsOn": "Renews on {date}",
+    "endsOn": "Cancels on {date}",
+    "grantedManually": "Manually granted",
+    "grantedUntil": "until",
+    "billingDetails": "Billing details",
+    "billingDetailsHelp": "Used for the next invoice. Editing the VAT number requires re-validation by Stripe.",
+    "billingEmail": "Billing email",
+    "vatNumber": "VAT number",
+    "vatCountryCode": "VAT country",
+    "vatValidated": "VAT validated by Stripe",
+    "vatPending": "VAT not yet validated by Stripe.",
+    "save": "Save",
+    "saved": "Saved.",
+    "invoices": "Invoices",
+    "noInvoices": "No invoices yet.",
+    "invoiceDate": "Date",
+    "invoiceTotal": "Total",
+    "invoiceStatus": "Status",
+    "viewInvoice": "View",
+    "status": {
+      "ACTIVE": "Active",
+      "PAST_DUE": "Past due",
+      "CANCELLED": "Cancelled",
+      "INCOMPLETE": "Incomplete",
+      "UNPAID": "Unpaid",
+      "PAUSED": "Paused"
+    }
   }
 }

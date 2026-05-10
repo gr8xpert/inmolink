@@ -560,15 +560,85 @@
 - [ ] Threads tied to ViewingRequest re-render the request status banner inline (currently links back)
 - [ ] User-photo upload widget on `/dashboard/settings/profile` (Sprint 4 carry-over still open)
 
-## Sprint 7 — Billing + plan-gating
+## Sprint 7 — Billing + plan-gating ✅ COMPLETE
 
-- [ ] Stripe Checkout
-- [ ] Stripe Customer Portal
-- [ ] Webhooks + ProcessedStripeEvent
-- [ ] Plan tier enforcement helpers across gated features
-- [ ] Manual grant UI for super-admin
-- [ ] Stripe Tax + reverse-charge for VAT IDs
-- [ ] Activate PUBLIC visibility for paid agencies
+### 7.A — Schema: VAT + billingEmail on Agency ✅
+
+- [x] `Agency.billingEmail` + `vatNumber` + `vatCountryCode` + `taxIdValidated`
+- [x] Migration `20260510152523_sprint_7_billing_vat`
+- [x] Plan rows already seeded (FREE / PRO with `features` JSON matching PLAN §6)
+- [x] `AuditEventType.PLAN_CHANGED / PLAN_GRANTED_MANUALLY / PLAN_REVOKED` exist already
+
+### 7.B — Stripe SDK + ProcessedStripeEvent helpers ✅
+
+- [x] `stripe@^22.1.1` added to `apps/api`
+- [x] `apps/api/src/lib/stripe.ts` — memoized client (`apiVersion: "2026-04-22.dahlia"`, 3 retries, 20s timeout)
+- [x] `BillingDisabledError` (503 `code: BILLING_DISABLED`)
+- [x] `processStripeEvent(event, handler)` — P2002-race collapses dup deliveries
+- [x] Env vars: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO_*`, `STRIPE_TAX_ENABLED` (all optional in dev)
+
+### 7.C — Plan-tier helpers ✅
+
+- [x] `getCurrentPlanTier(agencyId)` honours manual grants + grantedUntil
+- [x] `tierHasFeature(tier, feature)` (PRO+ everywhere in v1)
+- [x] `requireFeature(request, feature)` throws `PlanRequiredError` (403 PLAN_REQUIRED); SUPER_ADMIN bypasses
+- [x] `billingSchemas` exported from `@inmolink/shared`
+
+### 7.D — Billing API ✅
+
+- [x] `GET /api/dashboard/billing/summary` — tier + status + manual-grant + VAT + flags
+- [x] `GET /api/dashboard/billing/invoices` — last 50 SubscriptionInvoice rows
+- [x] `PATCH /api/dashboard/billing/details` — billingEmail + vatNumber + vatCountryCode
+- [x] `POST /api/dashboard/billing/checkout` — Stripe Checkout Session URL (subscription mode + Stripe Tax + tax_id_collection when enabled)
+- [x] `POST /api/dashboard/billing/portal` — Customer Portal URL for self-serve changes
+- [x] AGENCY_ADMIN-gated; SUPER_ADMIN may pass `?agencyId=`
+
+### 7.E — Stripe webhook receiver ✅
+
+- [x] `POST /api/billing/webhooks/stripe` — raw-body parser scoped to plugin context
+- [x] HMAC verify via `stripe.webhooks.constructEvent`
+- [x] All work through `processStripeEvent` (idempotent on `stripeEventId`)
+- [x] Handles `checkout.session.completed`, `customer.subscription.{created,updated,deleted}`, `invoice.{paid,payment_failed,finalized,voided}`, `customer.tax_id.{created,updated}`
+- [x] Manual grants take precedence over Stripe state
+- [x] `tax = total - subtotal` (Stripe v22+ removed top-level `invoice.tax`)
+- [x] PLAN_CHANGED audit-log on every Stripe-driven tier flip
+
+### 7.F — Manual grant API + super-admin admin UI ✅
+
+- [x] `GET /api/dashboard/admin/billing/agencies` (cursor + q filter)
+- [x] `POST /api/dashboard/admin/billing/grants` (upsert + AuditLog(PLAN_GRANTED_MANUALLY))
+- [x] `POST /api/dashboard/admin/billing/grants/revoke` (back to FREE + AuditLog(PLAN_REVOKED))
+- [x] Web `/[locale]/dashboard/admin/billing` list + per-row Grant `<details>` + Revoke button
+- [x] Admin landing tile
+
+### 7.G — PUBLIC visibility plan gate ✅
+
+- [x] `assertVisibilityAllowed` in property service runs on create + on update only when visibility actually changes
+- [x] FREE agencies setting PUBLIC → 403 PLAN_REQUIRED; SUPER_ADMIN bypasses
+- [x] Web property form inline hint
+
+### 7.H — Web dashboard billing UI ✅
+
+- [x] `/[locale]/dashboard/billing` — current plan, manual-grant note, period end, invoice table
+- [x] `BillingDetailsForm` (`useActionState`) for billingEmail/VAT
+- [x] Monthly + yearly EUR upgrade buttons → `startCheckoutAction`
+- [x] `Manage` button → `openPortalAction`
+- [x] `PlanBadge` shared component
+- [x] Bell-tile-style dashboard home tile (AGENCY_ADMIN+SUPER_ADMIN only)
+
+### 7.I — i18n + docs + memory ✅
+
+- [x] 4-locale `billing` namespace (en/es/de/fr)
+- [x] CHANGELOG entry
+- [x] CHECKLIST sync (this section)
+- [x] Memory state updated
+
+### Deferred to a follow-up
+
+- [ ] BUSINESS / ENTERPRISE tier price IDs (env vars exist; UI shows PRO only)
+- [ ] Coupon / promotion code admin UI (Stripe `allow_promotion_codes: true` works on the hosted Checkout for now)
+- [ ] Per-agency Plan summary card on `/dashboard/agency` (currently only on `/dashboard/billing`)
+- [ ] Failed-payment dunning emails (Stripe sends on its own; in-app banner deferred)
 
 ## Sprint 8 — Marketing
 

@@ -416,5 +416,44 @@
       "LEAD_RECEIVED": "Neuer Lead",
       "IMPORT_FAILED": "Feed-Import fehlgeschlagen"
     }
+  },
+  "billing": {
+    "title": "Abrechnung",
+    "subtitle": "Abonnement, Rechnungen, MwSt-Daten.",
+    "backToDashboard": "Dashboard",
+    "currentPlan": "Aktueller Plan",
+    "manageBilling": "Abrechnung verwalten",
+    "billingNotConfigured": "Abrechnung in dieser Umgebung nicht konfiguriert.",
+    "billingDisabled": "Abrechnung in dieser Umgebung nicht konfiguriert.",
+    "planRequired": "Öffentliche Inserate erfordern den PRO-Plan. Unten upgraden.",
+    "checkoutSuccess": "Danke — dein Abo wird aktiviert.",
+    "checkoutCancelled": "Bezahlung abgebrochen. Du kannst jederzeit upgraden.",
+    "renewsOn": "Verlängert am {date}",
+    "endsOn": "Endet am {date}",
+    "grantedManually": "Manuell gewährt",
+    "grantedUntil": "bis",
+    "billingDetails": "Abrechnungsdaten",
+    "billingDetailsHelp": "Wird auf der nächsten Rechnung verwendet. Ändern der USt-IdNr erfordert erneute Stripe-Validierung.",
+    "billingEmail": "Abrechnungs-E-Mail",
+    "vatNumber": "USt-IdNr",
+    "vatCountryCode": "USt-Land",
+    "vatValidated": "USt von Stripe validiert",
+    "vatPending": "USt noch nicht validiert.",
+    "save": "Speichern",
+    "saved": "Gespeichert.",
+    "invoices": "Rechnungen",
+    "noInvoices": "Noch keine Rechnungen.",
+    "invoiceDate": "Datum",
+    "invoiceTotal": "Gesamt",
+    "invoiceStatus": "Status",
+    "viewInvoice": "Ansehen",
+    "status": {
+      "ACTIVE": "Aktiv",
+      "PAST_DUE": "Überfällig",
+      "CANCELLED": "Storniert",
+      "INCOMPLETE": "Unvollständig",
+      "UNPAID": "Unbezahlt",
+      "PAUSED": "Pausiert"
+    }
   }
 }

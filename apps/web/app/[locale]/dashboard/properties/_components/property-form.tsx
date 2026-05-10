@@ -282,6 +282,9 @@ export function PropertyForm(props: Props) {
               </option>
             ))}
           </select>
+          <p className="mt-1 text-xs text-muted-foreground">
+            PUBLIC is gated to PRO plans — see Billing.
+          </p>
         </Field>
 
         <Field label="Price" error={form.formState.errors.priceMajor?.message}>
