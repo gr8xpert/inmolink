@@ -640,15 +640,95 @@
 - [ ] Per-agency Plan summary card on `/dashboard/agency` (currently only on `/dashboard/billing`)
 - [ ] Failed-payment dunning emails (Stripe sends on its own; in-app banner deferred)
 
-## Sprint 8 — Marketing
+## Sprint 8 — Marketing ✅ COMPLETE
 
-- [ ] AgencyEmailConfig (per-agency SMTP)
-- [ ] AgencyEmailDomain (DKIM/SPF/DMARC verification UI)
-- [ ] EmailTemplate CRUD + merge tag editor
-- [ ] EmailCampaign create / schedule / send
-- [ ] Per-recipient tracking (open / click / bounce / unsub)
-- [ ] EmailSuppression auto-add
-- [ ] FeaturedListing schema + admin curation + public-page rendering
+### 8.A — Schema additions ✅
+
+- [x] `Contact` model + reverse rel on Agency (migration `20260510170000_sprint_8_marketing`)
+- [x] `EmailCampaignRecipient` adds `context Json` + `@@unique(campaignId, email)`
+- [x] HMAC tracking-token helpers in `@inmolink/auth` (`signTrackingToken` / `verifyTrackingToken`)
+
+### 8.B — Per-agency SMTP send pipeline ✅
+
+- [x] nodemailer 6.x added to apps/worker + apps/api
+- [x] Worker `EMAIL_SEND` processor: pooled per-agency transport, suppression check, merge-tag render, link-rewrite + open-pixel, DKIM signing
+- [x] `maybeFinalizeCampaign` flips campaign → SENT when no QUEUED recipients remain (race-safe)
+
+### 8.C — Anonymous tracking endpoints ✅
+
+- [x] `/api/email/o/:tok` — 1×1 GIF + idempotent open stamp
+- [x] `/api/email/c/:tok?u=…` — 302 redirect + click stamp
+- [x] `/api/email/u/:tok` — confirmation page + EmailSuppression(UNSUBSCRIBE) + Contact.unsubscribedAt
+
+### 8.D — AgencyEmailConfig CRUD + test-send ✅
+
+- [x] `/api/dashboard/marketing/email-config` GET/PUT/DELETE
+- [x] AES-256-GCM encrypts smtpPassword + dkimPrivateKey on persist
+- [x] `/email-config/test-send` synchronous nodemailer send + persists testStatus/testedAt
+
+### 8.E — AgencyEmailDomain DNS records + verify ✅
+
+- [x] `/api/dashboard/marketing/email-domains` CRUD
+- [x] DNS records computed (TXT for VERIFY/SPF/DMARC, CNAME-style DKIM)
+- [x] `/email-domains/:id/verify` performs `dns/promises.resolveTxt` + flips per-record statuses
+- [x] `/email-domains/dkim/rotate` generates fresh 2048-bit RSA keypair, encrypts private, returns public
+
+### 8.F — EmailTemplate CRUD + merge-tag preview ✅
+
+- [x] `/api/dashboard/marketing/templates` CRUD + `/preview` (server-side render)
+- [x] Supported tags: `{{contact.firstName}}` `{{contact.lastName}}` `{{contact.email}}` `{{property.title}}` `{{property.url}}` `{{agency.name}}` `{{unsubscribeUrl}}` `{{trackingPixelUrl}}`
+- [x] HTML-escaped substitution in body, raw substitution in subject
+
+### 8.G — EmailCampaign CRUD + schedule + send-now ✅
+
+- [x] `/api/dashboard/marketing/campaigns` CRUD
+- [x] `/send-now`: materializes EmailCampaignRecipient (skipDuplicates) + status SENDING + enqueues per-recipient EMAIL_SEND
+- [x] `/schedule`: future timestamp; CAMPAIGN_DISPATCHER ticks every 5 min and dispatches due campaigns
+- [x] `/cancel`: blocks pending sends + finishedAt
+- [x] DRAFT / SCHEDULED / SENDING / SENT / PAUSED / CANCELLED / FAILED state machine
+
+### 8.H — EmailSuppression + Contact CRUD ✅
+
+- [x] `/api/dashboard/marketing/suppressions` list/add/remove
+- [x] `/api/dashboard/marketing/contacts` list/add/update/delete/bulk
+- [x] Bulk-upsert tx for CSV-style imports (createdAt === updatedAt → "created" count)
+
+### 8.I — FeaturedListing super-admin + public ✅
+
+- [x] `/api/dashboard/admin/featured-listings` CRUD (super-admin)
+- [x] Plan-tier gate on owning agency (PRO+ via `tierHasFeature("feature:featured.listings")`)
+- [x] `/api/public/featured-listings` anonymous, position-ordered, active-window-only
+- [x] Public marketplace homepage renders 3-col grid above the search CTA
+
+### 8.J — Web dashboard pages ✅
+
+- [x] `/[locale]/dashboard/marketing` landing
+- [x] `.../marketing/templates` list + create form + delete
+- [x] `.../marketing/campaigns` list + create form (RHF-free) + send-now / cancel / delete
+- [x] `.../marketing/contacts` list + filter + create + delete
+- [x] `.../marketing/suppressions` list + manual-add + remove
+- [x] `.../agency/email-config` SMTP form + test-send + DKIM rotate
+- [x] `.../admin/featured-listings` curation with surface filter + create + delete
+- [x] Dashboard home tile + admin landing tile
+
+### 8.K — Worker scheduler + i18n + docs ✅
+
+- [x] CAMPAIGN_DISPATCHER queue + 5-min scheduler in apps/worker
+- [x] EMAIL_SEND queue producer in apps/api (one job per recipient)
+- [x] Worker config adds `API_BASE_URL` for tracking link prefix
+- [x] 4-locale `marketing` namespace
+- [x] CHANGELOG entry, CHECKLIST sync, memory state updated
+
+### Deferred to a follow-up
+
+- [ ] Webhook ingestion for SMTP relay bounces (e.g. Postmark/Mailgun callbacks) — currently bounces only flag via SMTP-level errors; soft bounces aren't separated from hard
+- [ ] Open-tracking deduplication beyond the per-recipient `openedAt is null` guard (e.g. stripping image-cache prefetches from Apple Mail Privacy)
+- [ ] Visual template editor (current UI accepts pasted HTML)
+- [ ] Per-recipient drilldown UI on the campaign detail page
+- [ ] FeaturedListing reorder UI (current admin lists by createdAt; position-only edits)
+- [ ] CSV upload form for bulk Contact import (api endpoint exists; UI defers)
+- [ ] List-Unsubscribe-Post one-click flow (`mailto:` + `https://`) — header is set; gating for one-click endpoint deferred
+- [ ] Per-locale email templates (current single template per agency)
 
 ## Sprint 9 — Tickets + Audit log
 

@@ -455,5 +455,25 @@
       "UNPAID": "Unbezahlt",
       "PAUSED": "Pausiert"
     }
+  },
+  "marketing": {
+    "title": "Marketing",
+    "subtitle": "E-Mail-Vorlagen, Kampagnen, Kontakte, Sperrlisten, Domain-Authentifizierung.",
+    "templates": "Vorlagen",
+    "campaigns": "Kampagnen",
+    "contacts": "Kontakte",
+    "suppressions": "Sperrlisten",
+    "smtp": "SMTP & DKIM",
+    "newCampaign": "Neue Kampagne",
+    "newTemplate": "Neue Vorlage",
+    "addContact": "Kontakt hinzufügen",
+    "manuallyAdd": "Manuell hinzufügen",
+    "save": "Speichern",
+    "saved": "Gespeichert.",
+    "delete": "Löschen",
+    "remove": "Entfernen",
+    "sendNow": "Jetzt senden",
+    "cancel": "Abbrechen",
+    "noResults": "Noch nichts vorhanden."
   }
 }

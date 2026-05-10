@@ -149,6 +149,18 @@ export default async function DashboardHome({ params }: Props) {
           </Link>
         )}
 
+        {session.user.agencyId && session.user.role !== "AGENT" && (
+          <Link
+            href={`/${locale}/dashboard/marketing`}
+            className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+          >
+            <h2 className="font-semibold">Marketing</h2>
+            <p className="text-sm text-muted-foreground">
+              Email templates + campaigns + contacts + suppressions. PRO plan required.
+            </p>
+          </Link>
+        )}
+
         {session.user.role === "SUPER_ADMIN" && (
           <Link
             href={`/${locale}/dashboard/admin`}

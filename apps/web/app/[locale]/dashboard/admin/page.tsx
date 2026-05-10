@@ -113,6 +113,17 @@ export default async function AdminLandingPage({ params }: Props) {
             back to FREE.
           </p>
         </Link>
+
+        <Link
+          href={`/${locale}/dashboard/admin/featured-listings`}
+          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+        >
+          <h2 className="font-semibold">Featured listings</h2>
+          <p className="text-sm text-muted-foreground">
+            Curate the homepage / location / search / agency-profile featured slots. PRO-only
+            agencies eligible.
+          </p>
+        </Link>
       </section>
 
       <section className="space-y-3 rounded-md border bg-muted/30 p-4">

@@ -451,5 +451,25 @@
       "UNPAID": "Unpaid",
       "PAUSED": "Paused"
     }
+  },
+  "marketing": {
+    "title": "Marketing",
+    "subtitle": "Email templates, campaigns, contacts, suppressions, custom domain authentication.",
+    "templates": "Templates",
+    "campaigns": "Campaigns",
+    "contacts": "Contacts",
+    "suppressions": "Suppressions",
+    "smtp": "SMTP & DKIM",
+    "newCampaign": "New campaign",
+    "newTemplate": "New template",
+    "addContact": "Add contact",
+    "manuallyAdd": "Manually add",
+    "save": "Save",
+    "saved": "Saved.",
+    "delete": "Delete",
+    "remove": "Remove",
+    "sendNow": "Send now",
+    "cancel": "Cancel",
+    "noResults": "Nothing yet."
   }
 }

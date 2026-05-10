@@ -455,5 +455,25 @@
       "UNPAID": "Sin pagar",
       "PAUSED": "Pausado"
     }
+  },
+  "marketing": {
+    "title": "Marketing",
+    "subtitle": "Plantillas, campañas, contactos, supresiones, autenticación de dominio.",
+    "templates": "Plantillas",
+    "campaigns": "Campañas",
+    "contacts": "Contactos",
+    "suppressions": "Supresiones",
+    "smtp": "SMTP y DKIM",
+    "newCampaign": "Nueva campaña",
+    "newTemplate": "Nueva plantilla",
+    "addContact": "Añadir contacto",
+    "manuallyAdd": "Añadir manualmente",
+    "save": "Guardar",
+    "saved": "Guardado.",
+    "delete": "Eliminar",
+    "remove": "Quitar",
+    "sendNow": "Enviar ahora",
+    "cancel": "Cancelar",
+    "noResults": "Aún no hay nada."
   }
 }

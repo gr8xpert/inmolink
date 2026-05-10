@@ -455,5 +455,25 @@
       "UNPAID": "Impayé",
       "PAUSED": "En pause"
     }
+  },
+  "marketing": {
+    "title": "Marketing",
+    "subtitle": "Modèles, campagnes, contacts, suppressions, authentification de domaine.",
+    "templates": "Modèles",
+    "campaigns": "Campagnes",
+    "contacts": "Contacts",
+    "suppressions": "Suppressions",
+    "smtp": "SMTP et DKIM",
+    "newCampaign": "Nouvelle campagne",
+    "newTemplate": "Nouveau modèle",
+    "addContact": "Ajouter un contact",
+    "manuallyAdd": "Ajouter manuellement",
+    "save": "Enregistrer",
+    "saved": "Enregistré.",
+    "delete": "Supprimer",
+    "remove": "Retirer",
+    "sendNow": "Envoyer maintenant",
+    "cancel": "Annuler",
+    "noResults": "Rien pour le moment."
   }
 }
