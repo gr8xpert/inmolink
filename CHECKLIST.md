@@ -219,6 +219,24 @@
 - [x] `adminFeatureSchemas` in `@inmolink/shared`
 - [ ] *(deferred to 2.D polish)* Generic `taxonomyAdminFactory` to deduplicate the two services — both follow the same "groups + items + ai-suggester" pattern
 
+### 2.C.1 — Location tree curation ✅
+
+- [x] API `/api/dashboard/admin/locations/*` (CRUD + reorder)
+- [x] 4-level hierarchy validation (COUNTRY → REGION → CITY → AREA) on create; 422 INVALID_HIERARCHY on mismatch
+- [x] `level` + `parentId` immutable on PATCH (re-parenting deferred to a dedicated endpoint)
+- [x] 409 on delete-with-children OR delete-with-property-refs
+- [x] Position is per-(parent + level); reorder swaps with same-parent occupant
+- [x] `childCount` denormalised into response
+- [x] Web `/[locale]/dashboard/admin/locations` — recursive tree view with expand/collapse, level-aware "+ child" button, inline edit, lat/long + countryCode + SEO meta per locale, per-sibling reorder
+- [x] Admin landing tile replaces placeholder
+- [x] `adminLocationSchemas` in `@inmolink/shared` (with `VALID_CHILD_LEVEL` constant exported for the UI)
+
+### 2.C.2 — LocationGroup m2m membership editor (next)
+
+- [ ] API `/api/dashboard/admin/location-groups/*` (CRUD)
+- [ ] m2m membership endpoint (add/remove locations to/from a group)
+- [ ] Web UI with location autocomplete + member list editor
+
 ### 2.C — Location + LocationGroup curation
 
 - [ ] 4-level location tree (COUNTRY → REGION → CITY → AREA)

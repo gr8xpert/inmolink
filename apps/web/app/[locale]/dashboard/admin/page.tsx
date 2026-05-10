@@ -59,10 +59,16 @@ export default async function AdminLandingPage({ params }: Props) {
           </p>
         </Link>
 
-        <div className="rounded-md border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
-          <h2 className="font-semibold text-foreground">Locations (next)</h2>
-          <p>4-level Location tree + LocationGroup. Sprint 2.C.</p>
-        </div>
+        <Link
+          href={`/${locale}/dashboard/admin/locations`}
+          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+        >
+          <h2 className="font-semibold">Locations</h2>
+          <p className="text-sm text-muted-foreground">
+            4-level tree (Country → Region → City → Area). Translations + lat/long + SEO meta.
+            LocationGroup m2m editor lands in 2.C.2.
+          </p>
+        </Link>
       </section>
     </main>
   );

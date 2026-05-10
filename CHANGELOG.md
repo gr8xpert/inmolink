@@ -10,6 +10,24 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Added (Sprint 2 — slice 2.C.1, Location tree admin curation)
+
+- **API `/api/dashboard/admin/locations/*`** — CRUD + reorder for the 4-level Location tree (`COUNTRY` → `REGION` → `CITY` → `AREA`). LocationGroup m2m membership editor lands in 2.C.2 (different UX from the parent/child tree).
+- **Tree invariants enforced server-side**:
+  - 422 `INVALID_HIERARCHY` on create when `parent.level` doesn't match the expected child level (e.g. trying to add a CITY under a COUNTRY skips REGION).
+  - `level` and `parentId` are **immutable** on PATCH — re-parenting cascades through children and is risky enough to want a dedicated endpoint with explicit re-leveling rules. Marked as future work in CHECKLIST.
+  - 409 on delete with children OR delete with property references. Admin must reassign or set `isActive=false` to retire.
+- **Position is per-parent + per-level** — `findFirst({where: { parentId, level, position }})` swap-with-occupant pattern, scoped correctly so reordering siblings in one country doesn't bump positions in another.
+- **`childCount`** denormalised into the response so the tree view's expand chevrons + "this node has children — delete will 409" preview don't need an extra round-trip.
+- **Web `/[locale]/dashboard/admin/locations`** — recursive tree view with depth-based indentation:
+  - Expand/collapse chevrons (only shown when `childCount > 0`)
+  - "+ {childLevel}" button per node (only when a valid next level exists — hidden on AREA leaves)
+  - Inline expand-to-edit (4-locale name + slug + metaTitle (≤70) + metaDescription (≤160) + countryCode + lat/long + isActive)
+  - Per-sibling up/down reorder, edit/delete buttons
+  - Parent's `countryCode` pre-fills the child form for ergonomics
+- **Admin landing tile** for Locations replaces the "(next)" placeholder.
+- **`adminLocationSchemas`** namespace in `@inmolink/shared` exposes a `VALID_CHILD_LEVEL` constant the UI uses to hide/show the "+ child" button.
+
 ### Added (Sprint 2 — slice 2.B, Feature admin curation)
 
 - **API `/api/dashboard/admin/feature-groups/*` and `/api/dashboard/admin/features/*`** — full CRUD + reorder + AI icon suggester. Schema-driven differences from 2.A: no slug on `FeatureTranslation` / `FeatureGroupTranslation` (the @@unique is `(parent, locale)` only), no `iconKind` toggle on Feature (Lucide-only per PLAN row 12).
