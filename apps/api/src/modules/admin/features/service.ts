@@ -2,6 +2,7 @@ import { suggestIcon } from "@inmolink/ai";
 import { prisma } from "@inmolink/db";
 import type { adminFeatureSchemas } from "@inmolink/shared";
 import type { Prisma } from "@prisma/client";
+import { ConflictError, NotFoundError, assertReorderSetMatch } from "../_shared/taxonomy.js";
 
 /**
  * Super-admin curation for FeatureGroup + Feature. Mirror of admin/
@@ -12,18 +13,7 @@ import type { Prisma } from "@prisma/client";
  * reassign or set isActive=false to retire.
  */
 
-export class ConflictError extends Error {
-  readonly statusCode = 409;
-  readonly code = "TAXONOMY_CONFLICT";
-}
-
-export class NotFoundError extends Error {
-  readonly statusCode = 404;
-  readonly code = "NOT_FOUND";
-  constructor(message = "Resource not found") {
-    super(message);
-  }
-}
+export { ConflictError, NotFoundError } from "../_shared/taxonomy.js";
 
 // Amenity-focused Lucide subset — different from PropertyType's catalog.
 const FEATURE_ICON_CATALOG = [
@@ -178,13 +168,11 @@ export async function reorderGroup(id: string, position: number) {
  *  positions 0..n-1 atomically. */
 export async function reorderAllGroups(ids: string[]) {
   const existing = await prisma.featureGroup.findMany({ select: { id: true } });
-  const existingIds = new Set(existing.map((r) => r.id));
-  const inputIds = new Set(ids);
-  if (existingIds.size !== inputIds.size || ![...existingIds].every((id) => inputIds.has(id))) {
-    throw new ConflictError(
-      "Reorder set mismatch — groups changed since you loaded them. Refresh and retry.",
-    );
-  }
+  assertReorderSetMatch(
+    existing.map((r) => r.id),
+    ids,
+    "FeatureGroup",
+  );
   await prisma.$transaction(
     ids.map((id, position) => prisma.featureGroup.update({ where: { id }, data: { position } })),
   );
@@ -331,13 +319,11 @@ export async function reorderAllFeatures(groupId: string, ids: string[]) {
     where: { groupId },
     select: { id: true },
   });
-  const existingIds = new Set(existing.map((r) => r.id));
-  const inputIds = new Set(ids);
-  if (existingIds.size !== inputIds.size || ![...existingIds].every((id) => inputIds.has(id))) {
-    throw new ConflictError(
-      "Reorder set mismatch — features in this group changed since you loaded them. Refresh and retry.",
-    );
-  }
+  assertReorderSetMatch(
+    existing.map((r) => r.id),
+    ids,
+    "Feature (within group)",
+  );
   await prisma.$transaction(
     ids.map((id, position) => prisma.feature.update({ where: { id }, data: { position } })),
   );

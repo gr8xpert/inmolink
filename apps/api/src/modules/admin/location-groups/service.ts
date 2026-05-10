@@ -1,6 +1,7 @@
 import { prisma } from "@inmolink/db";
 import type { adminLocationGroupSchemas } from "@inmolink/shared";
 import type { Prisma } from "@prisma/client";
+import { ConflictError, NotFoundError, assertReorderSetMatch } from "../_shared/taxonomy.js";
 
 /**
  * Super-admin curation for LocationGroup + LocationGroupMember.
@@ -14,18 +15,7 @@ import type { Prisma } from "@prisma/client";
  * swap-with-occupant idiom used elsewhere.
  */
 
-export class ConflictError extends Error {
-  readonly statusCode = 409;
-  readonly code = "TAXONOMY_CONFLICT";
-}
-
-export class NotFoundError extends Error {
-  readonly statusCode = 404;
-  readonly code = "NOT_FOUND";
-  constructor(message = "Resource not found") {
-    super(message);
-  }
-}
+export { ConflictError, NotFoundError } from "../_shared/taxonomy.js";
 
 const GROUP_INCLUDE = {
   translations: {
@@ -185,13 +175,11 @@ export async function reorderGroup(id: string, position: number) {
 /** Drag-and-drop reorder of LocationGroups themselves. */
 export async function reorderAllGroups(ids: string[]) {
   const existing = await prisma.locationGroup.findMany({ select: { id: true } });
-  const existingIds = new Set(existing.map((r) => r.id));
-  const inputIds = new Set(ids);
-  if (existingIds.size !== inputIds.size || ![...existingIds].every((id) => inputIds.has(id))) {
-    throw new ConflictError(
-      "Reorder set mismatch — the LocationGroup catalog changed since you loaded it. Refresh and retry.",
-    );
-  }
+  assertReorderSetMatch(
+    existing.map((r) => r.id),
+    ids,
+    "LocationGroup",
+  );
   await prisma.$transaction(
     ids.map((id, position) => prisma.locationGroup.update({ where: { id }, data: { position } })),
   );
@@ -249,13 +237,11 @@ export async function reorderAllMembers(groupId: string, locationIds: string[]) 
     where: { groupId },
     select: { locationId: true },
   });
-  const existingIds = new Set(existing.map((m) => m.locationId));
-  const inputIds = new Set(locationIds);
-  if (existingIds.size !== inputIds.size || ![...existingIds].every((id) => inputIds.has(id))) {
-    throw new ConflictError(
-      "Reorder set mismatch — group membership changed since you loaded it. Refresh and retry.",
-    );
-  }
+  assertReorderSetMatch(
+    existing.map((m) => m.locationId),
+    locationIds,
+    `LocationGroup members (group=${groupId})`,
+  );
   await prisma.$transaction(
     locationIds.map((locationId, position) =>
       prisma.locationGroupMember.update({

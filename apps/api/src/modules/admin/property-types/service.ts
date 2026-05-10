@@ -2,6 +2,7 @@ import { suggestIcon } from "@inmolink/ai";
 import { prisma } from "@inmolink/db";
 import type { adminPropertyTypeSchemas } from "@inmolink/shared";
 import type { Prisma } from "@prisma/client";
+import { ConflictError, NotFoundError, assertReorderSetMatch } from "../_shared/taxonomy.js";
 
 /**
  * Super-admin curation for PropertyTypeGroup + PropertyType.
@@ -18,18 +19,7 @@ import type { Prisma } from "@prisma/client";
  * read filter applied by /api/dashboard/property-types).
  */
 
-export class ConflictError extends Error {
-  readonly statusCode = 409;
-  readonly code = "TAXONOMY_CONFLICT";
-}
-
-export class NotFoundError extends Error {
-  readonly statusCode = 404;
-  readonly code = "NOT_FOUND";
-  constructor(message = "Resource not found") {
-    super(message);
-  }
-}
+export { ConflictError, NotFoundError } from "../_shared/taxonomy.js";
 
 const SUGGEST_ICON_CATALOG = [
   "building",
@@ -173,13 +163,11 @@ export async function reorderGroup(id: string, position: number) {
  *  client can't drop in a mutated catalog and silently lose rows. */
 export async function reorderAllGroups(ids: string[]) {
   const existing = await prisma.propertyTypeGroup.findMany({ select: { id: true } });
-  const existingIds = new Set(existing.map((r) => r.id));
-  const inputIds = new Set(ids);
-  if (existingIds.size !== inputIds.size || ![...existingIds].every((id) => inputIds.has(id))) {
-    throw new ConflictError(
-      "Reorder set mismatch — the catalog changed since you loaded it. Refresh and retry.",
-    );
-  }
+  assertReorderSetMatch(
+    existing.map((r) => r.id),
+    ids,
+    "PropertyTypeGroup",
+  );
   await prisma.$transaction(
     ids.map((id, position) =>
       prisma.propertyTypeGroup.update({ where: { id }, data: { position } }),
@@ -345,13 +333,11 @@ export async function reorderAllTypes(groupId: string, ids: string[]) {
     where: { groupId },
     select: { id: true },
   });
-  const existingIds = new Set(existing.map((r) => r.id));
-  const inputIds = new Set(ids);
-  if (existingIds.size !== inputIds.size || ![...existingIds].every((id) => inputIds.has(id))) {
-    throw new ConflictError(
-      "Reorder set mismatch — the group's types changed since you loaded it. Refresh and retry.",
-    );
-  }
+  assertReorderSetMatch(
+    existing.map((r) => r.id),
+    ids,
+    "PropertyType (within group)",
+  );
   await prisma.$transaction(
     ids.map((id, position) => prisma.propertyType.update({ where: { id }, data: { position } })),
   );

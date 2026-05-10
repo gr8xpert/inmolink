@@ -1,6 +1,12 @@
 import { prisma } from "@inmolink/db";
 import { adminLocationSchemas } from "@inmolink/shared";
 import type { Prisma } from "@prisma/client";
+import {
+  ConflictError,
+  InvalidHierarchyError,
+  NotFoundError,
+  assertReorderSetMatch,
+} from "../_shared/taxonomy.js";
 
 /**
  * Super-admin curation for Location (4-level tree).
@@ -24,23 +30,7 @@ import type { Prisma } from "@prisma/client";
 
 const { VALID_CHILD_LEVEL } = adminLocationSchemas;
 
-export class ConflictError extends Error {
-  readonly statusCode = 409;
-  readonly code = "TAXONOMY_CONFLICT";
-}
-
-export class NotFoundError extends Error {
-  readonly statusCode = 404;
-  readonly code = "NOT_FOUND";
-  constructor(message = "Resource not found") {
-    super(message);
-  }
-}
-
-export class InvalidHierarchyError extends Error {
-  readonly statusCode = 422;
-  readonly code = "INVALID_HIERARCHY";
-}
+export { ConflictError, InvalidHierarchyError, NotFoundError } from "../_shared/taxonomy.js";
 
 const LOCATION_SELECT = {
   id: true,
@@ -224,13 +214,11 @@ export async function reorderAllLocations(
     where: { parentId, level },
     select: { id: true },
   });
-  const existingIds = new Set(existing.map((r) => r.id));
-  const inputIds = new Set(ids);
-  if (existingIds.size !== inputIds.size || ![...existingIds].every((id) => inputIds.has(id))) {
-    throw new ConflictError(
-      "Reorder set mismatch — siblings under this parent changed since you loaded them. Refresh and retry.",
-    );
-  }
+  assertReorderSetMatch(
+    existing.map((r) => r.id),
+    ids,
+    `Location siblings (parent=${parentId ?? "root"}, level=${level})`,
+  );
   await prisma.$transaction(
     ids.map((id, position) => prisma.location.update({ where: { id }, data: { position } })),
   );

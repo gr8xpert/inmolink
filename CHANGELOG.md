@@ -10,6 +10,12 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Refactored (Sprint 2 — slice 2.E.5, taxonomy admin shared helpers)
+
+- **`apps/api/src/modules/admin/_shared/taxonomy.ts`** — extracted `ConflictError`, `NotFoundError`, `InvalidHierarchyError`, and `assertReorderSetMatch(existingIds, inputIds, entityName)` from the four duplicate copies across PropertyType / Feature / Location / LocationGroup services.
+- The four taxonomy admin services now `import` from `_shared/taxonomy.js` and re-export the error classes for callers (`throw new ConflictError(...)` is still part of the service public API). `assertReorderSetMatch` replaces six near-identical 6-line set-comparison blocks with one line plus an entity-name string for the error message.
+- Considered a full `taxonomyAdminFactory` (single generic CRUD/reorder factory parameterized by Prisma delegate). Decided against it: the four entities have meaningfully different invariants — tree vs flat, m2m membership vs translations, with/without slug, with/without iconKind+iconR2Key. A factory would have ended up with N optional config flags that mostly turn the abstraction back into the per-entity branches it was meant to remove. The shared-helper extraction captures most of the dedup with low blast radius.
+
 ### Added (Sprint 2 — slice 2.E, polish bundle: move / search facets / SVG icons / autocomplete)
 
 - **Location re-parenting endpoint** `POST /api/dashboard/admin/locations/:id/move` — same-level only (rejects cross-level + cycles via 422). Validates the new parent's level is the immediate predecessor (COUNTRY → REGION, REGION → CITY, CITY → AREA), walks the ancestor chain to detect cycles, and auto-assigns position to the end of the new parent's siblings. The descendants come along for free since only the target node's `parentId` pointer changes.
