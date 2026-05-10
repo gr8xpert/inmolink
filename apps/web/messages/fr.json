@@ -456,6 +456,30 @@
       "PAUSED": "En pause"
     }
   },
+  "tickets": {
+    "title": "Tickets",
+    "subtitle": "Demandes d'assistance pour bugs, facturation ou compte.",
+    "new": "Nouveau ticket",
+    "subject": "Sujet",
+    "category": "Catégorie",
+    "priority": "Priorité",
+    "status": "Statut",
+    "body": "Message",
+    "reply": "Répondre",
+    "send": "Envoyer",
+    "internalNote": "Note interne (super-admin uniquement)",
+    "noTickets": "Pas encore de tickets."
+  },
+  "audit": {
+    "title": "Journal d'audit",
+    "subtitle": "Événements de sécurité. Super-admin uniquement.",
+    "type": "Type d'événement",
+    "actor": "Acteur",
+    "target": "Cible",
+    "metadata": "Métadonnées",
+    "filter": "Filtrer",
+    "next": "Suivant"
+  },
   "marketing": {
     "title": "Marketing",
     "subtitle": "Modèles, campagnes, contacts, suppressions, authentification de domaine.",

@@ -456,6 +456,30 @@
       "PAUSED": "Pausiert"
     }
   },
+  "tickets": {
+    "title": "Tickets",
+    "subtitle": "Support-Anfragen für Bugs, Abrechnung oder Konto.",
+    "new": "Neues Ticket",
+    "subject": "Betreff",
+    "category": "Kategorie",
+    "priority": "Priorität",
+    "status": "Status",
+    "body": "Nachricht",
+    "reply": "Antworten",
+    "send": "Senden",
+    "internalNote": "Interne Notiz (nur Super-Admin)",
+    "noTickets": "Noch keine Tickets."
+  },
+  "audit": {
+    "title": "Audit-Protokoll",
+    "subtitle": "Sicherheitsrelevante Ereignisse. Nur Super-Admin.",
+    "type": "Ereignistyp",
+    "actor": "Akteur",
+    "target": "Ziel",
+    "metadata": "Metadaten",
+    "filter": "Filtern",
+    "next": "Weiter"
+  },
   "marketing": {
     "title": "Marketing",
     "subtitle": "E-Mail-Vorlagen, Kampagnen, Kontakte, Sperrlisten, Domain-Authentifizierung.",

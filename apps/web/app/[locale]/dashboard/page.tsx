@@ -161,6 +161,17 @@ export default async function DashboardHome({ params }: Props) {
           </Link>
         )}
 
+        <Link
+          href={`/${locale}/dashboard/tickets`}
+          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+        >
+          <h2 className="font-semibold">Support tickets</h2>
+          <p className="text-sm text-muted-foreground">
+            Open a ticket for bugs, billing, or account questions. Threaded conversation with
+            super-admin.
+          </p>
+        </Link>
+
         {session.user.role === "SUPER_ADMIN" && (
           <Link
             href={`/${locale}/dashboard/admin`}

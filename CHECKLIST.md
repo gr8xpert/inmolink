@@ -730,13 +730,64 @@
 - [ ] List-Unsubscribe-Post one-click flow (`mailto:` + `https://`) — header is set; gating for one-click endpoint deferred
 - [ ] Per-locale email templates (current single template per agency)
 
-## Sprint 9 — Tickets + Audit log
+## Sprint 9 — Tickets + Audit log ✅ COMPLETE
 
-- [ ] Ticket + TicketMessage UIs
-- [ ] R2 attachments
-- [ ] Super-admin queue
-- [ ] AuditLog wired into security-sensitive actions
-- [ ] Audit log viewer
+### 9.A — Audit log helpers + wiring ✅
+
+- [x] `apps/api/src/lib/audit.ts` — `writeAuditLog` + `writeAuditLogTx` (capture IP/UA, soft-fail)
+- [x] PASSWORD_CHANGED on `/me/password` PATCH
+- [x] TOTP_ENABLED / TOTP_DISABLED on two-factor verify/disable
+- [x] PROPERTY_DELETED on soft-delete route
+- [x] SUPER_ADMIN_BULK_OPERATION on ticket assign
+
+### 9.B — Tickets API ✅
+
+- [x] `/api/dashboard/tickets` list (cursor + filters) / detail / create / reply / assign / status
+- [x] Visibility per role (AGENT own / AGENCY_ADMIN agency / SUPER_ADMIN all)
+- [x] Server-computed `callerActions` (canReply / canAssign / canChangeStatus / canSeeInternal)
+- [x] Internal notes filtered for non-super-admin readers
+- [x] Auto state transitions (RESOLVED→IN_PROGRESS on customer reply; OPEN→IN_PROGRESS on first super-admin reply)
+- [x] `assignedToId` restricted to SUPER_ADMIN role
+
+### 9.C — Ticket attachments via R2 ✅
+
+- [x] Reuse `/api/uploads/sign` + `/api/uploads/register` pipeline
+- [x] `TicketMessage.attachments` JSON `{mediaObjectId, name, size, mimeType, r2Key}`
+- [x] `refCount++` + clear `scheduledDeleteAt` in same tx as message create
+- [x] Hydrate URLs via `storage.publicUrl(r2Key)` on read
+- [ ] *(deferred)* UI uploader widget for tickets — schema + api ready; reuse `ImageUploader` shape
+
+### 9.D — Audit log viewer ✅
+
+- [x] `/api/dashboard/admin/audit-log` cursor-paginated (super-admin only)
+- [x] Filters: type / actor email / agencyId / targetKind / fromDate / toDate
+- [x] Web `/[locale]/dashboard/admin/audit-log` table view + filter form
+- [x] Admin landing tile
+
+### 9.E — Web tickets UI ✅
+
+- [x] `/[locale]/dashboard/tickets` list (status filter + subject search + cursor)
+- [x] `/[locale]/dashboard/tickets/new` form (subject + category + priority + body)
+- [x] `/[locale]/dashboard/tickets/[id]` thread (status/priority badges + status-button row + reply form + isInternal toggle for super-admin + attachment links)
+- [x] Same `/dashboard/tickets` page used as super-admin queue (visibility logic in service yields the right scope)
+- [x] Dashboard home tile + admin landing tile
+
+### 9.F — i18n + docs ✅
+
+- [x] 4-locale `tickets` + `audit` namespaces (en/es/de/fr)
+- [x] CHANGELOG entry
+- [x] CHECKLIST sync (this section)
+- [x] Memory state
+
+### Deferred to a follow-up
+
+- [ ] Ticket attachment UI uploader (schema + api support shipped; reuse the `ImageUploader` shape)
+- [ ] Audit-log expand-row to show full `metadata` JSON (currently truncated at 120 chars)
+- [ ] Audit-log CSV export for super-admin review
+- [ ] Saved-filter chips on the audit-log page (presets like "Last 24h plan changes", "Failed login burst")
+- [ ] Email notifications on ticket reply (Sprint 8 marketing infra is ready; needs a transactional template)
+- [ ] AGENCY_CREATED / ROLE_CHANGED audit hook on invite-accept (not yet wired; existing flow doesn't write the event)
+- [ ] IMPORT_CREDENTIALS_UPDATED hook on import CRUD (service signature refactor needed to plumb request)
 
 ## Sprint 10 — Webhooks (out)
 

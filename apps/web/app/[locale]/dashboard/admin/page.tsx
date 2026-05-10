@@ -124,6 +124,28 @@ export default async function AdminLandingPage({ params }: Props) {
             agencies eligible.
           </p>
         </Link>
+
+        <Link
+          href={`/${locale}/dashboard/tickets`}
+          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+        >
+          <h2 className="font-semibold">Tickets queue</h2>
+          <p className="text-sm text-muted-foreground">
+            Triage support tickets from agents. Reply, assign, and walk the OPEN → IN_PROGRESS →
+            RESOLVED → CLOSED state machine.
+          </p>
+        </Link>
+
+        <Link
+          href={`/${locale}/dashboard/admin/audit-log`}
+          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+        >
+          <h2 className="font-semibold">Audit log</h2>
+          <p className="text-sm text-muted-foreground">
+            Security-sensitive events — logins, password changes, plan grants, dispute resolutions.
+            Filterable by event, actor, agency, and target.
+          </p>
+        </Link>
       </section>
 
       <section className="space-y-3 rounded-md border bg-muted/30 p-4">

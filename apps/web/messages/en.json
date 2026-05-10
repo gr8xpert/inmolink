@@ -452,6 +452,30 @@
       "PAUSED": "Paused"
     }
   },
+  "tickets": {
+    "title": "Tickets",
+    "subtitle": "Support requests for bugs, billing, or account questions.",
+    "new": "New ticket",
+    "subject": "Subject",
+    "category": "Category",
+    "priority": "Priority",
+    "status": "Status",
+    "body": "Body",
+    "reply": "Reply",
+    "send": "Send",
+    "internalNote": "Internal note (super-admin only)",
+    "noTickets": "No tickets yet."
+  },
+  "audit": {
+    "title": "Audit log",
+    "subtitle": "Security-sensitive events. Super-admin only.",
+    "type": "Event type",
+    "actor": "Actor",
+    "target": "Target",
+    "metadata": "Metadata",
+    "filter": "Filter",
+    "next": "Next"
+  },
   "marketing": {
     "title": "Marketing",
     "subtitle": "Email templates, campaigns, contacts, suppressions, custom domain authentication.",
