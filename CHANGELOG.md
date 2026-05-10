@@ -10,6 +10,10 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Changed (post-v1 smoke pass — pre-local-test hygiene)
+
+- **`apps/api/.env.example` + `apps/worker/.env.example` brought back in sync with their Zod config schemas.** Sprint 0 placeholders had drifted across Sprints 4–12: api gained 10 missing vars (`LOCAL_STORAGE_*`, `PUBLIC_BASE_URL`, `EMAIL_FROM`, `TURNSTILE_SECRET`, all four `STRIPE_PRICE_*`, `STRIPE_TAX_ENABLED`); worker gained 4 (`EMAIL_FROM`, `API_BASE_URL`, `WEB_BASE_URL`, `PUBLIC_BASE_URL`). Both apps still booted via Zod defaults so this was a docs-only gap, but a fresh-clone developer would have been confused. `.env.example.production` (Sprint 12) remains the canonical prod reference and was already comprehensive.
+
 ### Added (Sprint 12 — pressure test + launch prep, slices 12.A–12.I)
 
 - **Synthetic bulk seed** (`apps/worker/scripts/seed-bulk.ts`). Configurable `--agencies` / `--properties` / `--country` flags. Idempotent on re-run via `synthetic-` slug prefix. Uses `createManyAndReturn` in batches of 1000 + a single shared agent per agency to keep FK constraints quick. `pnpm --filter @inmolink/worker seed:bulk -- --agencies 5000 --properties 30000` matches the PLAN §11.12 ceiling for the bench environment.
