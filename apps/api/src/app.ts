@@ -15,6 +15,7 @@ import { Redis } from "ioredis";
 import type { Env } from "./config";
 import { closeQueues, getImageVariantQueue } from "./lib/queues";
 import { adminFeatureRoutes } from "./modules/admin/features/routes";
+import { adminLocationGroupRoutes } from "./modules/admin/location-groups/routes";
 import { adminLocationRoutes } from "./modules/admin/locations/routes";
 import { adminPropertyTypeRoutes } from "./modules/admin/property-types/routes";
 import { propertyImageRoutes } from "./modules/properties/images/routes";
@@ -141,6 +142,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   await app.register(adminPropertyTypeRoutes, { prefix: "/api/dashboard/admin" });
   await app.register(adminFeatureRoutes, { prefix: "/api/dashboard/admin" });
   await app.register(adminLocationRoutes, { prefix: "/api/dashboard/admin" });
+  await app.register(adminLocationGroupRoutes, { prefix: "/api/dashboard/admin" });
   await app.register(uploadRoutes, { prefix: "/api/uploads", storage, imageVariantQueue });
   await app.register(publicPropertyRoutes, { prefix: "/api/public", storage });
   await app.register(localStorageRoutes, { prefix: "/api/_local-storage", storage });

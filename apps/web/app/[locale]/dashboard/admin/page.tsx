@@ -66,7 +66,17 @@ export default async function AdminLandingPage({ params }: Props) {
           <h2 className="font-semibold">Locations</h2>
           <p className="text-sm text-muted-foreground">
             4-level tree (Country → Region → City → Area). Translations + lat/long + SEO meta.
-            LocationGroup m2m editor lands in 2.C.2.
+          </p>
+        </Link>
+
+        <Link
+          href={`/${locale}/dashboard/admin/location-groups`}
+          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+        >
+          <h2 className="font-semibold">Location groups</h2>
+          <p className="text-sm text-muted-foreground">
+            Editorial bundles like &ldquo;Costa del Sol&rdquo;. Translations + member picker +
+            per-member reorder.
           </p>
         </Link>
       </section>

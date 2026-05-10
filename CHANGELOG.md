@@ -10,6 +10,22 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Added (Sprint 2 — slice 2.C.2, LocationGroup membership editor)
+
+- **API `/api/dashboard/admin/location-groups/*`** — Group CRUD + reorder mirrors 2.C.1, plus three dedicated membership endpoints:
+  - `POST /:id/members` — add a Location (409 if already a member; appends to end of member list when `position` omitted)
+  - `DELETE /:id/members/:locationId` — remove a member
+  - `POST /:id/members/reorder` — swap with same-group occupant at target position
+  - Membership ops are intentionally **separate from group PATCH** so the picker UX doesn't have to ride on the wholesale-replace translation pattern.
+- **Group `delete` cascades members** via Prisma `onDelete: Cascade` on `LocationGroupMember` — explicit since we don't expose group ids elsewhere; cheap to nuke the m2m.
+- **Response denormalises member metadata** — each member carries `{ locationId, position, name, level, countryCode }` (en name preferred, falls back to first available) so the picker UX renders without a join.
+- **Web `/[locale]/dashboard/admin/location-groups`** — group list with translations editor + per-group member list:
+  - Each member row shows `pos · LEVEL · countryCode · name` plus up/down/remove buttons
+  - "Add location" `<select>` filtered to non-members, sorted by `(countryCode, level, name)` — works fine at v1 catalog scale (a few hundred locations); `2.D` will swap to autocomplete once it grows
+  - Confirm-on-destructive (delete group / remove member)
+- **Admin landing tile** for Location groups added.
+- **`adminLocationGroupSchemas`** namespace in `@inmolink/shared` (group create/update + denormalised member shape + add/reorder request schemas).
+
 ### Added (Sprint 2 — slice 2.C.1, Location tree admin curation)
 
 - **API `/api/dashboard/admin/locations/*`** — CRUD + reorder for the 4-level Location tree (`COUNTRY` → `REGION` → `CITY` → `AREA`). LocationGroup m2m membership editor lands in 2.C.2 (different UX from the parent/child tree).
