@@ -47,6 +47,18 @@ export default async function DashboardHome({ params }: Props) {
             Browse + manage listings (your own and the agency&apos;s shared inventory).
           </p>
         </Link>
+
+        {session.user.role === "SUPER_ADMIN" && (
+          <Link
+            href={`/${locale}/dashboard/admin`}
+            className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+          >
+            <h2 className="font-semibold">Admin</h2>
+            <p className="text-sm text-muted-foreground">
+              Curate property types, features, and locations. Super-admin only.
+            </p>
+          </Link>
+        )}
       </section>
 
       <section className="space-y-2 rounded-md border bg-muted/30 p-4 text-xs text-muted-foreground">

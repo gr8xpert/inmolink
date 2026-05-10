@@ -195,11 +195,37 @@
 
 ## Sprint 2 — Locations / Property Types / Features (super-admin curated)
 
-- [ ] Super-admin CRUD UIs for Location / LocationGroup / PropertyType / PropertyTypeGroup / Feature / FeatureGroup
-- [ ] Drag-n-drop ordering (`@dnd-kit/core`)
-- [ ] Per-locale translation editor
-- [ ] AI icon suggester service (Claude Haiku)
-- [ ] Filter UI on dashboard property search
+### 2.A — PropertyType + PropertyTypeGroup curation ✅
+
+- [x] `requireSuperAdmin()` Fastify request helper (401 anon, 403 non-super-admin)
+- [x] API: `/api/dashboard/admin/property-type-groups/*` (CRUD + reorder)
+- [x] API: `/api/dashboard/admin/property-types/*` (CRUD + reorder + suggest-icon + accept-ai-icon)
+- [x] 409 on delete-with-children (groups with types) or delete-with-references (types with properties)
+- [x] PATCH replaces translations wholesale (single transaction)
+- [x] Web `/[locale]/dashboard/admin` super-admin landing (server-side role redirect)
+- [x] Web `/[locale]/dashboard/admin/property-types` — groups + types CRUD with inline edit, 4-locale translation tabs, auto-slug, isActive toggle
+- [x] AI icon suggester button (calls Claude Haiku via `@inmolink/ai`); admin-override flag tracking
+- [x] Up/down arrow reorder (per-row swap) — drag-drop deferred to a polish slice
+- [x] Dashboard home surfaces "Admin" tile for super-admins
+- [x] `adminPropertyTypeSchemas` in `@inmolink/shared`
+
+### 2.B — Feature + FeatureGroup curation (next)
+
+- [ ] Same shape as 2.A but for amenities (Lucide icons only — no custom SVG per schema)
+- [ ] Reuse the GroupForm / TypeForm components if practical
+
+### 2.C — Location + LocationGroup curation
+
+- [ ] 4-level location tree (COUNTRY → REGION → CITY → AREA)
+- [ ] LocationGroup m2m membership editor
+- [ ] Per-locale name + slug
+
+### 2.D — Drag-n-drop polish + filter UI
+
+- [ ] Replace up/down arrows with `@dnd-kit/core` for groups + types + features + locations
+- [ ] Filter UI on dashboard property list — typeahead taxonomy pickers, location autocomplete, multi-select
+- [ ] Filter UI on public marketplace search — same pickers, locale-aware
+- [ ] Custom SVG icon upload for PropertyType (R2-stored)
 
 ## Sprint 3 — Public marketplace MVP
 

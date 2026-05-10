@@ -6,6 +6,7 @@ declare module "fastify" {
   interface FastifyRequest {
     user?: AuthenticatedUser;
     requireUser(): AuthenticatedUser;
+    requireSuperAdmin(): AuthenticatedUser;
   }
 }
 
@@ -52,6 +53,23 @@ export function installAuth(app: FastifyInstance, opts: InstallAuthOptions): voi
       throw err;
     }
     return this.user;
+  });
+
+  // requireSuperAdmin — gate for /api/dashboard/admin/* taxonomy curation
+  // routes. 401 if no session, 403 if signed in as non-super-admin. Keeps
+  // role checks out of every individual route handler.
+  app.decorateRequest("requireSuperAdmin", function (this: FastifyRequest) {
+    const user = this.requireUser();
+    if (user.role !== "SUPER_ADMIN") {
+      const err = new Error("Super-admin role required") as Error & {
+        statusCode: number;
+        code: string;
+      };
+      err.statusCode = 403;
+      err.code = "SUPER_ADMIN_REQUIRED";
+      throw err;
+    }
+    return user;
   });
 
   app.addHook("preHandler", async (request) => {

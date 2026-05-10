@@ -101,6 +101,9 @@ dumps/
 # Storybook (if used later)
 storybook-static/
 
+# graphify knowledge-graph artifacts (regenerable from source)
+graphify-out/
+
 # Misc
 *.tgz
 *.tar.gz

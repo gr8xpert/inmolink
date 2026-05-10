@@ -10,6 +10,25 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Added (Sprint 2 — slice 2.A, PropertyType admin curation)
+
+- **`requireSuperAdmin()` decorator** on Fastify request alongside `requireUser`. Returns 401 for anonymous, 403 (`SUPER_ADMIN_REQUIRED`) for signed-in non-super-admins. Single-line gate at the top of every admin route.
+- **API `/api/dashboard/admin/property-type-groups/*` and `/api/dashboard/admin/property-types/*`** — full CRUD + reorder + AI icon suggester. Notable behaviours:
+  - **No hard delete when in use.** `DELETE /property-type-groups/:id` returns 409 if any types reference it; `DELETE /property-types/:id` returns 409 if any Property rows reference it. Admin must reassign or set `isActive=false` to retire.
+  - **Translation-replace-wholesale** on PATCH — simpler than computing diffs; the request body's `translations` array fully replaces the prior set inside one transaction.
+  - **Reorder** = swap with neighbor at target position. Same pattern as ImageManager — temporary collision is harmless because reads sort by `(position, createdAt)`.
+  - **Icon admin-override flag** flips automatically when the admin writes any of `iconKind` / `iconName` / `iconR2Key` directly. The AI suggester respects this flag (won't overwrite admin choices); accepting an AI suggestion via `/accept-ai-icon` clears the flag and stamps `iconAiSuggestedAt`.
+- **`POST /api/dashboard/admin/property-types/suggest-icon`** — calls Claude Haiku with a 25-name Lucide catalog (residential / commercial / outdoor / amenity icons). Tighter rate limit (30/min/IP) than other admin routes. Returns `{ iconName: string | null }`.
+- **Web admin landing** at `/[locale]/dashboard/admin` — super-admin-only Server Component shell with cards for property-types (live), features (deferred to 2.B), locations (deferred to 2.C). Non-super-admins are server-side redirected to `/dashboard`. The dashboard home now surfaces an "Admin" tile for super-admins.
+- **Web `/[locale]/dashboard/admin/property-types`** — single-page CRUD UI:
+  - Groups + nested types tree with inline expand-to-edit
+  - 4-locale translation editor with auto-slug + per-locale validation
+  - Per-row up/down arrows for reorder, edit/delete buttons, isActive toggle
+  - "Suggest icon" buttons (server actions wrap the api endpoint) — both inline in the type row (one-click suggest + accept) and in the type form (suggest then save with everything else)
+  - Confirms on destructive actions; surfaces api error messages inline
+- **`@inmolink/ai`** is now a runtime dep of `apps/api` (was a worker-only dep).
+- **`adminPropertyTypeSchemas`** namespace in `@inmolink/shared` — Zod create/update/list/reorder/suggest-icon shapes.
+
 ### Added (Sprint 1 — slice H, unit tests)
 
 - **Vitest wired** in `packages/auth`, `packages/storage`, `apps/api` (each gets `vitest@^2.1.8` devDep + `test` / `test:watch` scripts). Root `pnpm test` already runs the matrix via Turbo. `packages/imports` script bumped to `--passWithNoTests` so its empty-fixture state doesn't fail the whole graph.
