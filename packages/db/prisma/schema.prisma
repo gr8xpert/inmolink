@@ -628,6 +628,7 @@ model PropertyType {
   group        PropertyTypeGroup         @relation(fields: [groupId], references: [id])
   translations PropertyTypeTranslation[]
   properties   Property[]
+  feedTypeMaps FeedTypeMap[]
 
   @@index([groupId, position])
 }
@@ -778,6 +779,26 @@ model FeedRun {
 
   @@index([connectionId, startedAt(sort: Desc)])
   @@index([status])
+}
+
+/// Super-admin curated mapping from a feed's source label to a canonical
+/// PropertyType (PLAN §11.5 — "Super-admin maintains KyeroType →
+/// PropertyTypeId mapping table; unmatched towns/types route to DRAFT
+/// with alert"). Keyed on (kind + lowercased source label) so the same
+/// raw string can map differently across connectors.
+model FeedTypeMap {
+  id             String            @id @default(cuid())
+  kind           FeedConnectorKind
+  sourceLabel    String // canonical: lower-cased, trimmed
+  propertyTypeId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  propertyType PropertyType @relation(fields: [propertyTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([kind, sourceLabel])
+  @@index([propertyTypeId])
 }
 
 // ============================================================================

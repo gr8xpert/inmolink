@@ -366,6 +366,9 @@ importers:
 
   packages/imports:
     dependencies:
+      '@inmolink/db':
+        specifier: workspace:*
+        version: link:../db
       '@inmolink/shared':
         specifier: workspace:*
         version: link:../shared

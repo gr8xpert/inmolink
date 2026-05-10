@@ -13,4 +13,5 @@ export * from "./connector";
 export * from "./connectors/generic-xml";
 export * from "./connectors/kyero";
 export * from "./connectors/resale-online";
+export * from "./matchers";
 export * from "./registry";

@@ -6,6 +6,7 @@
 export * from "./locales";
 export * from "./permissions";
 export * as adminFeatureSchemas from "./schemas/admin-features";
+export * as adminFeedTypeMapSchemas from "./schemas/admin-feed-type-maps";
 export * as adminLocationGroupSchemas from "./schemas/admin-location-groups";
 export * as adminLocationSchemas from "./schemas/admin-locations";
 export * as adminPropertyTypeSchemas from "./schemas/admin-property-types";
