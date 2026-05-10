@@ -38,6 +38,10 @@ const envSchema = z.object({
 
   // Resend (transactional email)
   RESEND_API_KEY: optionalString,
+
+  // Public-app base URL — embedded in sitemap <loc> elements + alternate
+  // hreflang links. Defaults to the dev port; prod overrides via env.
+  PUBLIC_BASE_URL: z.string().url().default("http://localhost:3002"),
 });
 
 export type Env = z.infer<typeof envSchema>;

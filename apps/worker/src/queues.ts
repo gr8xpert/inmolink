@@ -20,6 +20,7 @@ export const QUEUE_NAMES = {
   IMAGE_VARIANT: "image-variant",
   SEARCH_REINDEX: "search-reindex",
   MEDIA_CLEANUP: "media-cleanup", // orphan cleanup (PLAN §11.1)
+  SITEMAP_GENERATE: "sitemap-generate", // daily, PLAN §11.13
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -33,4 +34,5 @@ export const QUEUE_PRIORITIES: Record<QueueName, number> = {
   [QUEUE_NAMES.IMAGE_VARIANT]: 10,
   [QUEUE_NAMES.SEARCH_REINDEX]: 10,
   [QUEUE_NAMES.MEDIA_CLEANUP]: 10,
+  [QUEUE_NAMES.SITEMAP_GENERATE]: 10,
 };

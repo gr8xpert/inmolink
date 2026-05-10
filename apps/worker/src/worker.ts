@@ -6,6 +6,7 @@ import { loadConfig } from "./config.js";
 import { makeImageVariantProcessor } from "./processors/image-variant/processor.js";
 import { makeMediaCleanupProcessor } from "./processors/media-cleanup/processor.js";
 import { makeOutboxDrainProcessor } from "./processors/outbox-drain/processor.js";
+import { makeSitemapGenerateProcessor } from "./processors/sitemap-generate/processor.js";
 import { QUEUE_NAMES, type QueueName } from "./queues.js";
 import { createStorage } from "./storage.js";
 
@@ -55,11 +56,17 @@ const searchAdapter = new MeilisearchAdapter(env.MEILISEARCH_HOST, env.MEILISEAR
 const imageVariantProcessor = makeImageVariantProcessor({ storage, logger });
 const mediaCleanupProcessor = makeMediaCleanupProcessor({ storage, logger });
 const outboxDrainProcessor = makeOutboxDrainProcessor({ adapter: searchAdapter, logger });
+const sitemapGenerateProcessor = makeSitemapGenerateProcessor({
+  storage,
+  logger,
+  publicBaseUrl: env.PUBLIC_BASE_URL,
+});
 
 function processorFor(queueName: QueueName): Processor {
   if (queueName === QUEUE_NAMES.IMAGE_VARIANT) return imageVariantProcessor;
   if (queueName === QUEUE_NAMES.MEDIA_CLEANUP) return mediaCleanupProcessor;
   if (queueName === QUEUE_NAMES.SEARCH_REINDEX) return outboxDrainProcessor;
+  if (queueName === QUEUE_NAMES.SITEMAP_GENERATE) return sitemapGenerateProcessor;
   return placeholderProcessor;
 }
 
@@ -81,6 +88,14 @@ const MEDIA_CLEANUP_SCHEDULE_ID = "media-cleanup-daily";
 const searchReindexQueue = new Queue(QUEUE_NAMES.SEARCH_REINDEX, { connection });
 const OUTBOX_DRAIN_SCHEDULE_EVERY_MS = 5_000;
 const OUTBOX_DRAIN_SCHEDULE_ID = "outbox-drain-tick";
+
+/**
+ * SITEMAP_GENERATE Queue + scheduler. Daily at 02:00 UTC — apps/public
+ * route handlers serve the latest output from Storage. PLAN §11.13.
+ */
+const sitemapQueue = new Queue(QUEUE_NAMES.SITEMAP_GENERATE, { connection });
+const SITEMAP_SCHEDULE_PATTERN = "0 0 2 * * *";
+const SITEMAP_SCHEDULE_ID = "sitemap-generate-daily";
 
 const workers: Worker[] = [];
 
@@ -151,12 +166,32 @@ logger.info(
   "Outbox-drain scheduler upserted",
 );
 
+await sitemapQueue.upsertJobScheduler(
+  SITEMAP_SCHEDULE_ID,
+  { pattern: SITEMAP_SCHEDULE_PATTERN },
+  {
+    name: "tick",
+    data: {},
+    opts: {
+      attempts: 2,
+      backoff: { type: "exponential", delay: 60_000 },
+      removeOnComplete: { count: 30 },
+      removeOnFail: { count: 50 },
+    },
+  },
+);
+logger.info(
+  { id: SITEMAP_SCHEDULE_ID, pattern: SITEMAP_SCHEDULE_PATTERN },
+  "Sitemap-generate scheduler upserted",
+);
+
 // Graceful shutdown — drain in-flight jobs (PLAN §11.7)
 const shutdown = async (signal: string): Promise<void> => {
   logger.info({ signal }, "Shutting down workers gracefully");
   await Promise.all(workers.map((w) => w.close()));
   await mediaCleanupQueue.close();
   await searchReindexQueue.close();
+  await sitemapQueue.close();
   await connection.quit();
   process.exit(0);
 };
