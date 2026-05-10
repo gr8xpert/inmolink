@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { Env } from "../../config";
+import { writeAuditLog } from "../../lib/audit";
 import { completeEnrollment, disableTwoFactor, startEnrollment } from "./service";
 
 type TwoFactorRoutesOpts = { env: Env };
@@ -49,7 +50,16 @@ export async function twoFactorRoutes(
     },
     async (request) => {
       const user = request.requireUser();
-      return completeEnrollment(user, request.body, env);
+      const r = await completeEnrollment(user, request.body, env);
+      await writeAuditLog({
+        type: "TOTP_ENABLED",
+        request,
+        actorUserId: user.id,
+        agencyId: user.agencyId,
+        targetKind: "User",
+        targetId: user.id,
+      });
+      return r;
     },
   );
 
@@ -66,7 +76,16 @@ export async function twoFactorRoutes(
     },
     async (request) => {
       const user = request.requireUser();
-      return disableTwoFactor(user, request.body, env);
+      const r = await disableTwoFactor(user, request.body, env);
+      await writeAuditLog({
+        type: "TOTP_DISABLED",
+        request,
+        actorUserId: user.id,
+        agencyId: user.agencyId,
+        targetKind: "User",
+        targetId: user.id,
+      });
+      return r;
     },
   );
 }

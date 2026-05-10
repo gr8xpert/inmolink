@@ -2,6 +2,7 @@ import { propertySchemas } from "@inmolink/shared";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
+import { writeAuditLog } from "../../lib/audit";
 import {
   createForUser,
   getOneForDashboard,
@@ -102,6 +103,15 @@ export async function propertyRoutes(app: FastifyInstance): Promise<void> {
     async (request) => {
       const user = request.requireUser();
       const r = await softDeleteForUser(user, request.params.id);
+      await writeAuditLog({
+        type: "PROPERTY_DELETED",
+        request,
+        actorUserId: user.id,
+        agencyId: user.agencyId,
+        targetKind: "Property",
+        targetId: r.id,
+        metadata: { hardDeleteAt: r.hardDeleteAt?.toISOString() ?? null },
+      });
       return {
         id: r.id,
         deletedAt: r.deletedAt ? r.deletedAt.toISOString() : null,

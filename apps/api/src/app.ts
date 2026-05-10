@@ -27,6 +27,7 @@ import { adminLocationRoutes } from "./modules/admin/locations/routes";
 import { adminPropertyTypeRoutes } from "./modules/admin/property-types/routes";
 import { adminSitemapRoutes } from "./modules/admin/sitemap-routes";
 import { agencyRoutes } from "./modules/agency/routes";
+import { auditLogRoutes } from "./modules/audit/routes";
 import { adminBillingRoutes, billingRoutes } from "./modules/billing/routes";
 import { stripeWebhookRoutes } from "./modules/billing/webhook";
 import { chatRoutes } from "./modules/chat/routes";
@@ -47,6 +48,7 @@ import { publicProfileRoutes } from "./modules/public/profile-routes";
 import { publicPropertyRoutes } from "./modules/public/property-routes";
 import { publicSitemapRoutes } from "./modules/public/sitemap-routes";
 import { taxonomyRoutes } from "./modules/taxonomy/routes";
+import { ticketRoutes } from "./modules/tickets/routes";
 import { twoFactorRoutes } from "./modules/two-factor/routes";
 import { uploadRoutes } from "./modules/uploads/routes";
 import { viewingRequestRoutes } from "./modules/viewings/routes";
@@ -204,6 +206,11 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   await app.register(dealRoutes, { prefix: "/api/dashboard/deals" });
   await app.register(chatRoutes, { prefix: "/api/dashboard/chat" });
   await app.register(notificationRoutes, { prefix: "/api/dashboard/notifications" });
+
+  // Tickets + Audit log — Sprint 9. Tickets visible to opener / agency admin /
+  // super-admin per ticketVisibilityWhere; audit-log surface is super-admin-only.
+  await app.register(ticketRoutes, { prefix: "/api/dashboard/tickets", storage });
+  await app.register(auditLogRoutes, { prefix: "/api/dashboard/admin/audit-log" });
 
   // Billing — Sprint 7. AGENCY_ADMIN-gated; SUPER_ADMIN-only sub-tree under
   // /admin/billing. The webhook receiver is under /api/billing/webhooks/stripe

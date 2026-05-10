@@ -3,6 +3,7 @@ import type { Storage } from "@inmolink/storage";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
+import { writeAuditLog } from "../../lib/audit";
 import {
   changeMyPassword,
   getMeForUser,
@@ -69,6 +70,14 @@ export async function meRoutes(app: FastifyInstance, opts: MeRoutesOpts): Promis
     async (request, reply) => {
       const user = request.requireUser();
       await changeMyPassword(user, request.body);
+      await writeAuditLog({
+        type: "PASSWORD_CHANGED",
+        request,
+        actorUserId: user.id,
+        agencyId: user.agencyId,
+        targetKind: "User",
+        targetId: user.id,
+      });
       return reply.code(204).send(null);
     },
   );
