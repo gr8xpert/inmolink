@@ -30,6 +30,7 @@ import { publicProfileRoutes } from "./modules/public/profile-routes";
 import { publicPropertyRoutes } from "./modules/public/property-routes";
 import { publicSitemapRoutes } from "./modules/public/sitemap-routes";
 import { taxonomyRoutes } from "./modules/taxonomy/routes";
+import { twoFactorRoutes } from "./modules/two-factor/routes";
 import { uploadRoutes } from "./modules/uploads/routes";
 import { installAuth } from "./plugins/auth";
 import { healthRoutes } from "./routes/health";
@@ -152,6 +153,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   // Routes
   await app.register(healthRoutes, { prefix: "/api/health" });
   await app.register(meRoutes, { prefix: "/api/dashboard/me", storage });
+  await app.register(twoFactorRoutes, { prefix: "/api/dashboard/me/two-factor", env });
   await app.register(agencyRoutes, { prefix: "/api/dashboard/agency", storage });
   await app.register(dashboardInviteRoutes, { prefix: "/api/dashboard/agency", storage, env });
   await app.register(publicInviteRoutes, { prefix: "/api/public", storage });

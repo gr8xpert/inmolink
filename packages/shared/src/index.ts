@@ -21,6 +21,7 @@ export * as publicProfileSchemas from "./schemas/public-profile";
 export * as propertySchemas from "./schemas/property";
 export * as publicPropertySchemas from "./schemas/public-property";
 export * as taxonomySchemas from "./schemas/taxonomy";
+export * as twoFactorSchemas from "./schemas/two-factor";
 export * as uploadSchemas from "./schemas/upload";
 
 // Re-export Zod for callers

@@ -8,4 +8,6 @@ export { auth, handlers, signIn, signOut } from "./auth";
 export { authConfig } from "./auth.config";
 export { AuthError, CredentialsSignin } from "next-auth";
 export * from "./can";
+export * from "./crypto";
 export * from "./password";
+export * from "./totp";
