@@ -4,6 +4,30 @@ import type { PropertySearchDocument, SearchAdapter, SearchQuery, SearchResult }
 
 const INDEX_PREFIX = "properties_";
 
+/**
+ * Index settings applied at bootstrap. Search-by-text targets the
+ * translatable fields; filters/sorts only target the typed columns. The
+ * Meilisearch ranking rules order is the recommended default — relevance
+ * (words / typo / proximity / attribute) before custom (publishedAt:desc),
+ * so a slightly older but vastly more relevant property still wins. See
+ * §11.5 of PLAN: "Meilisearch outbox pattern + per-locale indices".
+ */
+const SEARCHABLE_ATTRIBUTES = ["title", "description", "locationName", "propertyTypeName"];
+const FILTERABLE_ATTRIBUTES = [
+  "transactionType",
+  "propertyTypeId",
+  "locationId",
+  "countryCode",
+  "priceCents",
+  "bedrooms",
+  "bathrooms",
+  "features",
+  "status",
+  "visibility",
+  "_geo",
+];
+const SORTABLE_ATTRIBUTES = ["publishedAt", "priceCents", "_geo"];
+
 export class MeilisearchAdapter implements SearchAdapter {
   private readonly client: MeiliSearch;
 
@@ -13,6 +37,38 @@ export class MeilisearchAdapter implements SearchAdapter {
 
   private indexName(locale: Locale): string {
     return `${INDEX_PREFIX}${locale}`;
+  }
+
+  /**
+   * Bootstrap one locale's index — idempotent. Safe to call on every
+   * worker boot; Meili applies the setting tasks in a queue and skips
+   * no-ops. Run once at deploy time and again on the reindex script.
+   */
+  async configureIndex(locale: Locale): Promise<void> {
+    const index = this.client.index(this.indexName(locale));
+    await index.updateSettings({
+      searchableAttributes: SEARCHABLE_ATTRIBUTES,
+      filterableAttributes: FILTERABLE_ATTRIBUTES,
+      sortableAttributes: SORTABLE_ATTRIBUTES,
+      // Default ranking rules + custom relevance booster for fresh listings.
+      rankingRules: [
+        "words",
+        "typo",
+        "proximity",
+        "attribute",
+        "sort",
+        "exactness",
+        "publishedAt:desc",
+      ],
+      // Pagination cap protects against scrapers paging through all 30K+
+      // listings; cursor users on the dashboard hit this never.
+      pagination: { maxTotalHits: 5000 },
+    });
+  }
+
+  /** Bootstrap all locale indices in parallel — used by reindex script. */
+  async configureAllIndices(): Promise<void> {
+    await Promise.all([...LOCALES].map((locale) => this.configureIndex(locale)));
   }
 
   async upsert(doc: PropertySearchDocument): Promise<void> {
