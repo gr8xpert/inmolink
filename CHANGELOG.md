@@ -10,6 +10,13 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Added (Sprint 2 — slice 2.D.1, dashboard property filter UI)
+
+- **`PropertyFilters` Client Component** on `/[locale]/dashboard/properties` — URL-driven filter bar with `q / status / visibility / transactionType / propertyTypeId / locationId`. Status enum is the full Prisma set (DRAFT / ACTIVE / UNDER_OFFER / SOLD / RENTED / WITHDRAWN). Pickers populate from the existing `/api/dashboard/property-types` + `/locations` endpoints (locale-aware).
+- **Server Component now prefetches** types + locations + property list **in parallel** with the existing `/api/dashboard/properties` call. Three round-trips collapse into one waterfall stage.
+- **Filters survive pagination** — the next-page link carries forward all current filters and only swaps the `cursor`. Apply-button shows the active filter count; Reset is disabled when no filters are set.
+- **Apply / Reset semantics** match the public marketplace search bar — submit pushes a new path, Reset returns to the bare list.
+
 ### Added (Sprint 2 — slice 2.C.2, LocationGroup membership editor)
 
 - **API `/api/dashboard/admin/location-groups/*`** — Group CRUD + reorder mirrors 2.C.1, plus three dedicated membership endpoints:

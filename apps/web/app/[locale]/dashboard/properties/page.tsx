@@ -1,20 +1,38 @@
 import { ApiError, apiFetch } from "@/lib/api";
 import { formatDate, formatMoney } from "@/lib/format";
 import { auth } from "@inmolink/auth";
-import type { propertySchemas } from "@inmolink/shared";
+import type { propertySchemas, taxonomySchemas } from "@inmolink/shared";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { PropertyFilters } from "./property-filters";
 
 type Props = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ cursor?: string; status?: string; q?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 type ListResponse = {
   items: Array<propertySchemas.PropertyListItem>;
   nextCursor: string | null;
 };
+
+type TypesResponse = { items: taxonomySchemas.PropertyTypeListItem[] };
+type LocationsResponse = { items: taxonomySchemas.LocationListItem[] };
+
+const FILTER_KEYS = [
+  "q",
+  "status",
+  "visibility",
+  "transactionType",
+  "propertyTypeId",
+  "locationId",
+] as const;
+
+function strParam(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
+}
 
 const STATUS_CHIP: Record<string, string> = {
   DRAFT: "bg-zinc-100 text-zinc-800",
@@ -35,19 +53,44 @@ export default async function PropertiesListPage({ params, searchParams }: Props
   const t = await getTranslations({ locale, namespace: "properties" });
   const sp = await searchParams;
 
+  // Build the api query from URL searchParams, forwarding only fields the
+  // api list schema understands. Cursor is included when present.
   const qs = new URLSearchParams();
   qs.set("limit", "20");
-  if (sp.cursor) qs.set("cursor", sp.cursor);
-  if (sp.status) qs.set("status", sp.status);
-  if (sp.q) qs.set("q", sp.q);
+  const cursor = strParam(sp.cursor);
+  if (cursor) qs.set("cursor", cursor);
+  for (const k of FILTER_KEYS) {
+    const v = strParam(sp[k]);
+    if (v && v.length > 0) qs.set(k, v);
+  }
 
   let data: ListResponse;
+  let types: TypesResponse;
+  let locations: LocationsResponse;
   try {
-    data = await apiFetch<ListResponse>(`/api/dashboard/properties?${qs.toString()}`);
+    [data, types, locations] = await Promise.all([
+      apiFetch<ListResponse>(`/api/dashboard/properties?${qs.toString()}`),
+      apiFetch<TypesResponse>(`/api/dashboard/property-types?locale=${locale}`),
+      apiFetch<LocationsResponse>(`/api/dashboard/locations?locale=${locale}`),
+    ]);
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) redirect(`/${locale}/sign-in`);
     throw err;
   }
+
+  // Carry-forward filters into the next-page link so pagination doesn't
+  // reset the user's filters.
+  const nextHref = data.nextCursor
+    ? (() => {
+        const next = new URLSearchParams();
+        for (const [k, v] of Object.entries(sp)) {
+          if (k === "cursor" || v === undefined) continue;
+          next.set(k, Array.isArray(v) ? (v[0] ?? "") : v);
+        }
+        next.set("cursor", data.nextCursor);
+        return `/${locale}/dashboard/properties?${next.toString()}`;
+      })()
+    : null;
 
   return (
     <main className="container mx-auto max-w-5xl space-y-6 p-8">
@@ -71,6 +114,20 @@ export default async function PropertiesListPage({ params, searchParams }: Props
           </Link>
         </div>
       </header>
+
+      <PropertyFilters
+        locale={locale}
+        propertyTypes={types.items}
+        locations={locations.items}
+        initial={{
+          q: strParam(sp.q) ?? "",
+          status: strParam(sp.status) ?? "",
+          visibility: strParam(sp.visibility) ?? "",
+          transactionType: strParam(sp.transactionType) ?? "",
+          propertyTypeId: strParam(sp.propertyTypeId) ?? "",
+          locationId: strParam(sp.locationId) ?? "",
+        }}
+      />
 
       {data.items.length === 0 ? (
         <p className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
@@ -120,12 +177,9 @@ export default async function PropertiesListPage({ params, searchParams }: Props
         </ul>
       )}
 
-      {data.nextCursor && (
+      {nextHref && (
         <div className="flex justify-end">
-          <Link
-            href={`/${locale}/dashboard/properties?cursor=${encodeURIComponent(data.nextCursor)}`}
-            className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-          >
+          <Link href={nextHref} className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
             {t("nextPage")}
           </Link>
         </div>

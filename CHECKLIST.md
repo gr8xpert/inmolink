@@ -247,9 +247,12 @@
 
 ### 2.D — Drag-n-drop polish + filter UI
 
-- [ ] Replace up/down arrows with `@dnd-kit/core` for groups + types + features + locations
-- [ ] Filter UI on dashboard property list — typeahead taxonomy pickers, location autocomplete, multi-select
-- [ ] Filter UI on public marketplace search — same pickers, locale-aware
+- [ ] Replace up/down arrows with `@dnd-kit/core` for groups + types + features + locations + group members
+- [x] **2.D.1 — Filter UI on dashboard property list** — `PropertyFilters` Client Component with q / status / visibility / transactionType / propertyTypeId / locationId pickers. Server Component prefetches taxonomy in parallel; filters survive pagination via carry-forward.
+- [ ] Filter UI on public marketplace search — already has q / transaction / type / location / price / beds; Sprint 2.D adds `featureIds[]` multi-select once the api supports it
+- [ ] Replace `<select>` pickers with typeahead/autocomplete once the catalog grows past ~100 entries (deferred trigger)
+- [ ] `taxonomyAdminFactory` refactor — DRY up the four admin services that share "groups + items + reorder + ai-suggester"
+- [ ] Dedicated location re-parenting endpoint (`POST /locations/:id/move`) with cascade re-leveling for descendants
 - [ ] Custom SVG icon upload for PropertyType (R2-stored)
 
 ## Sprint 3 — Public marketplace MVP
