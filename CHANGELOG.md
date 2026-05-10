@@ -10,6 +10,14 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Added (Sprint 2 — slice 2.B, Feature admin curation)
+
+- **API `/api/dashboard/admin/feature-groups/*` and `/api/dashboard/admin/features/*`** — full CRUD + reorder + AI icon suggester. Schema-driven differences from 2.A: no slug on `FeatureTranslation` / `FeatureGroupTranslation` (the @@unique is `(parent, locale)` only), no `iconKind` toggle on Feature (Lucide-only per PLAN row 12).
+- **AI suggester catalog tuned for amenities** — 41 Lucide names (waves, bath, bed, snowflake, parking, leaf, dumbbell, …) versus the 25-name residential / commercial catalog used for property types. Hint passed to Claude is `"Feature (amenity)"`.
+- **Web `/[locale]/dashboard/admin/features`** — same UX shape as the property-types page but without slug + iconKind. Groups + nested features tree, inline expand-to-edit, 4-locale name editor, per-row up/down/edit/delete, isActive toggle, "Suggest icon" buttons.
+- **Admin landing tile** for Features replaces the "(next)" placeholder.
+- **`adminFeatureSchemas`** namespace in `@inmolink/shared`.
+
 ### Added (Sprint 2 — slice 2.A, PropertyType admin curation)
 
 - **`requireSuperAdmin()` decorator** on Fastify request alongside `requireUser`. Returns 401 for anonymous, 403 (`SUPER_ADMIN_REQUIRED`) for signed-in non-super-admins. Single-line gate at the top of every admin route.

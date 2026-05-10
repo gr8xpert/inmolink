@@ -209,10 +209,15 @@
 - [x] Dashboard home surfaces "Admin" tile for super-admins
 - [x] `adminPropertyTypeSchemas` in `@inmolink/shared`
 
-### 2.B — Feature + FeatureGroup curation (next)
+### 2.B — Feature + FeatureGroup curation ✅ (commit `f385b19`)
 
-- [ ] Same shape as 2.A but for amenities (Lucide icons only — no custom SVG per schema)
-- [ ] Reuse the GroupForm / TypeForm components if practical
+- [x] API `/api/dashboard/admin/feature-groups/*` (CRUD + reorder)
+- [x] API `/api/dashboard/admin/features/*` (CRUD + reorder + suggest-icon + accept-ai-icon)
+- [x] AI suggester catalog tuned for amenities (41 Lucide icons, hint `"Feature (amenity)"`)
+- [x] Web `/[locale]/dashboard/admin/features` — same UX as property-types but without slug + iconKind
+- [x] Admin landing tile replaces the placeholder
+- [x] `adminFeatureSchemas` in `@inmolink/shared`
+- [ ] *(deferred to 2.D polish)* Generic `taxonomyAdminFactory` to deduplicate the two services — both follow the same "groups + items + ai-suggester" pattern
 
 ### 2.C — Location + LocationGroup curation
 
