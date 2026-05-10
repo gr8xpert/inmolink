@@ -343,14 +343,61 @@
 - [ ] LocationFAQ admin UI (schema + reads exist; admin CRUD UI not built)
 - [ ] Cloudflare Turnstile verification on lead submit (Sprint 4 — needs the platform Turnstile site key)
 
-## Sprint 4 — Agencies + Profiles + 2FA + Settings
+## Sprint 4 — Agencies + Profiles + 2FA + Settings ✅ COMPLETE
 
-- [ ] Rich agency profile (logo / banner / hero / socials)
-- [ ] Public `/agency/[slug]` and `/agent/[slug]` pages
-- [ ] Agency invite flow (email + signed token)
-- [ ] User Settings (profile, password change, language)
-- [ ] Agency Settings (branding, commission defaults)
-- [ ] TOTP 2FA optional
+### 4.A — User profile + password + preferences ✅ (`fcab4c1`)
+
+- [x] `meSchemas` in `@inmolink/shared` (profile / password / settings / detail)
+- [x] `/api/dashboard/me/{,profile,password,settings}` — auto-create UserSettings on first read; password change verifies Argon2id + rehashes (rate-limited 5/5 min); slug-uniqueness collisions surface as 409
+- [x] Web `/[locale]/dashboard/settings` landing + `/profile` + `/password` + `/preferences` (RHF + Zod, cookie-forwarded apiFetch, Server Actions)
+- [x] 4-locale `settings` namespace + bonus `agency` / `invite` / `publicAgency` / `twoFactor` namespaces (consumed by 4.B–E)
+
+### 4.B — Agency settings + branding ✅ (`692a393`)
+
+- [x] `agencySchemas` (details / branding / translations / settings / detail)
+- [x] `/api/dashboard/agency/{,details,branding,translations,settings}` — AGENCY_ADMIN-gated; SUPER_ADMIN may pass `?agencyId=` to manage any agency
+- [x] Replace-translations wholesale per (agencyId, locale)
+- [x] Web `/[locale]/dashboard/agency` single-page editor with four sections: Branding (R2 sign+register pipeline reused via shared `@/lib/uploads`), Details, Translations (4-locale tabs), Defaults (commission / SLA windows)
+- [x] Logo / banner / hero upload with JPG/PNG/WebP cap of 10 MB
+
+### 4.C — Agency invite flow ✅ (`b7eb452`)
+
+- [x] `inviteSchemas` (create / accept-new / accept-existing / summary / for-accept / team)
+- [x] Dashboard: `/api/dashboard/agency/team` + invites POST / :id/resend POST / :id DELETE — pending invites for the same email re-issue rather than stack pending tokens
+- [x] Public: `/api/public/invites/:token` GET + `/accept-new` (anonymous; email taken from invite, not body, so no impersonation) + `/accept-existing` (authed; email must match)
+- [x] Email via Resend (`apps/api/src/lib/email.ts`) — `RESEND_API_KEY` optional in dev; missing key logs the link instead of failing
+- [x] Web `/[locale]/dashboard/agency/team` (members list + pending list with Resend / Revoke per row) + `/[locale]/invite/[token]` accept page (3 branches: anonymous signup, signed-in matching email, signed-in mismatch / conflict)
+- [x] NextAuth Credentials signIn after new-user accept so dashboard redirect works without re-prompt
+- [x] Auth.js middleware allowlist extended to `/invite/<token>`
+
+### 4.D — Public agency + agent profile pages ✅ (`742502a`)
+
+- [x] `publicProfileSchemas` (agency detail / agent detail / paginated card list)
+- [x] `/api/public/agencies/:slug` + `/agencies/:slug/properties` + `/agents/:slug` + `/agents/:slug/properties` — hard filters baked in: Agency `isPublic && isActive`, Agent `publicProfileEnabled && isActive` AND owning agency public+active, Property cards `status=ACTIVE && visibility=PUBLIC && deletedAt=null`
+- [x] Web `/[locale]/agency/[slug]` + `/[locale]/agent/[slug]` (ISR 300s) with JSON-LD `RealEstateAgent` (with `member` array + `sameAs` socials) and `Person` + `worksFor` respectively
+- [x] hreflang same-path alternates + canonical
+- [x] Inline first 12 cards; "see all" link to `/search`
+
+### 4.E — TOTP 2FA optional ✅ (`e0b00e5`)
+
+- [x] Pure-Node TOTP (RFC 6238 / SHA-1 / 6 digits / 30 s ± 1 step skew) + AES-256-GCM helpers in `@inmolink/auth` (shared between sign-in flow and api enroll service)
+- [x] Recovery codes (8 × xxxx-xxxx-xxxx) Argon2id-hashed; consume-once persistence
+- [x] `/api/dashboard/me/two-factor/{enroll,verify,disable}` — verify rate-limited 5/5 min
+- [x] Sign-in flow gates on UserSettings.totpEnabledAt — missing code throws `TotpRequired` (`code=totp_required`); page swaps to a 2FA step carrying email + password forward and prompts for code or recovery code
+- [x] Web `/[locale]/dashboard/settings/two-factor` — three-state UI (idle → enrolling → saved-with-recovery-codes) + disable panel behind a `<details>` when 2FA is on
+
+### 4.F — Sprint 3 polish carry-overs ✅ (`08b60d9`)
+
+- [x] **Cloudflare Turnstile** verify on lead submit — `TURNSTILE_SECRET` server-side; `NEXT_PUBLIC_TURNSTILE_SITE_KEY` client-side; failed verification returns the same fake-success as honeypot hits so bots can't probe; both env vars optional → dev still works without a Cloudflare account
+- [x] **Sitemap regenerate-now** — `/api/dashboard/admin/sitemap/regenerate` (super-admin); coalesced jobId at minute granularity so accidental double-clicks don't queue twice; admin landing tile + Client Component button
+- [ ] *(deferred — same as Sprint 3 deferred list)* LocationFAQ admin UI + per-locale slug variants on Location/LocationGroup landing alternates
+
+### Deferred to a follow-up
+
+- [ ] Per-locale slug variants for Location + LocationGroup landing pages (currently same-path) — needs `alternateSlugs` field on the landing API response, mirroring property detail
+- [ ] LocationFAQ admin UI (schema + reads exist; admin CRUD UI not built)
+- [ ] Two-factor recovery-code regenerate (current flow returns codes once on enroll; user must disable + re-enroll to get a fresh set)
+- [ ] User-photo upload widget on `/dashboard/settings/profile` (schema + R2 key field exist; UI defers to existing branding-uploader pattern in a follow-up)
 
 ## Sprint 5 — Imports (Kyero priority)
 
