@@ -24,6 +24,7 @@ export const QUEUE_NAMES = {
   VIEWING_EXPIRE: "viewing-expire", // hourly: PENDING viewings past expiresAt → EXPIRED
   NOTIFICATION_DIGEST: "notification-digest", // hourly: drain queued notifications via email
   CAMPAIGN_DISPATCHER: "campaign-dispatcher", // 5-min tick: SCHEDULED campaigns past scheduledFor
+  WEBHOOK_DISPATCHER: "webhook-dispatcher", // 30-s tick: PENDING deliveries past nextAttemptAt
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -41,4 +42,5 @@ export const QUEUE_PRIORITIES: Record<QueueName, number> = {
   [QUEUE_NAMES.VIEWING_EXPIRE]: 10,
   [QUEUE_NAMES.NOTIFICATION_DIGEST]: 5,
   [QUEUE_NAMES.CAMPAIGN_DISPATCHER]: 5,
+  [QUEUE_NAMES.WEBHOOK_DISPATCHER]: 5,
 };

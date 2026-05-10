@@ -1,6 +1,7 @@
 import { prisma } from "@inmolink/db";
 import type { dealSchemas } from "@inmolink/shared";
 import { Prisma } from "@prisma/client";
+import { emitWebhookEvent } from "../../lib/webhooks";
 import { createNotification } from "../notifications/service.js";
 
 /**
@@ -399,6 +400,21 @@ export async function confirmDeal(
           },
         ],
       });
+      // Emit on the listing-agency side; the introducer agency may also
+      // want a copy but we'd need to dedup if both subscribe. v1 keeps it
+      // on the owner agency only.
+      if (next.ownerAgencyId) {
+        await emitWebhookEvent(tx, {
+          type: "DEAL_CONFIRMED",
+          agencyId: next.ownerAgencyId,
+          payload: {
+            dealId: row.id,
+            propertyId: row.propertyId,
+            agreedPriceCents: next.agreedPriceCents.toString(),
+            currency: next.currency,
+          },
+        });
+      }
     } else {
       // Just nudge the side that still owes confirmation
       const otherUserId = isOwner ? row.introducerUserId : row.ownerUserId;
@@ -468,6 +484,18 @@ export async function disputeDeal(
         metadata: { reason: input.reason },
       },
     });
+    if (row.ownerAgencyId) {
+      await emitWebhookEvent(tx, {
+        type: "DEAL_DISPUTED",
+        agencyId: row.ownerAgencyId,
+        payload: {
+          dealId: row.id,
+          propertyId: row.propertyId,
+          reason: input.reason,
+          openedByUserId: caller.userId,
+        },
+      });
+    }
     return next;
   });
   return toResponse(updated, caller);

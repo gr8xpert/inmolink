@@ -52,6 +52,8 @@ import { ticketRoutes } from "./modules/tickets/routes";
 import { twoFactorRoutes } from "./modules/two-factor/routes";
 import { uploadRoutes } from "./modules/uploads/routes";
 import { viewingRequestRoutes } from "./modules/viewings/routes";
+import { adminWebhookDeliveryRoutes } from "./modules/webhooks/admin-routes";
+import { webhookRoutes } from "./modules/webhooks/routes";
 import { installAuth } from "./plugins/auth";
 import { installSocketIO } from "./realtime/io";
 import { healthRoutes } from "./routes/health";
@@ -211,6 +213,16 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   // super-admin per ticketVisibilityWhere; audit-log surface is super-admin-only.
   await app.register(ticketRoutes, { prefix: "/api/dashboard/tickets", storage });
   await app.register(auditLogRoutes, { prefix: "/api/dashboard/admin/audit-log" });
+
+  // Webhooks (out) — Sprint 10. Per-agency endpoint config; super-admin
+  // delivery viewer + manual replay.
+  await app.register(webhookRoutes, {
+    prefix: "/api/dashboard/agency/webhooks",
+    encryptionKeyHex: env.ENCRYPTION_KEY,
+  });
+  await app.register(adminWebhookDeliveryRoutes, {
+    prefix: "/api/dashboard/admin/webhook-deliveries",
+  });
 
   // Billing — Sprint 7. AGENCY_ADMIN-gated; SUPER_ADMIN-only sub-tree under
   // /admin/billing. The webhook receiver is under /api/billing/webhooks/stripe

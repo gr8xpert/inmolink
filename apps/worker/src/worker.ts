@@ -13,6 +13,8 @@ import { makeNotificationDigestProcessor } from "./processors/notification-diges
 import { makeOutboxDrainProcessor } from "./processors/outbox-drain/processor.js";
 import { makeSitemapGenerateProcessor } from "./processors/sitemap-generate/processor.js";
 import { makeViewingExpireProcessor } from "./processors/viewing-expire/processor.js";
+import { makeWebhookDeliverProcessor } from "./processors/webhook-deliver/processor.js";
+import { makeWebhookDispatcherProcessor } from "./processors/webhook-dispatcher/processor.js";
 import { QUEUE_NAMES, type QueueName } from "./queues.js";
 import { createStorage } from "./storage.js";
 
@@ -91,6 +93,18 @@ const campaignDispatcherProcessor = makeCampaignDispatcherProcessor({
   logger,
 });
 
+// Sprint 10 webhooks (out). The dispatcher needs a Queue ref to enqueue
+// deliveries; the deliver processor handles HTTP POST + signing + retry.
+const webhookDeliverQueue = new Queue(QUEUE_NAMES.WEBHOOK_DELIVER, { connection });
+const webhookDeliverProcessor = makeWebhookDeliverProcessor({
+  encryptionKey: env.ENCRYPTION_KEY,
+  logger,
+});
+const webhookDispatcherProcessor = makeWebhookDispatcherProcessor({
+  webhookQueue: webhookDeliverQueue,
+  logger,
+});
+
 // FEED_IMPORT shares Redis with the IMAGE_VARIANT queue — we hand the
 // processor a ref to the same Queue so freshly imported MediaObjects
 // trigger eager variant generation through the existing pipeline.
@@ -112,6 +126,8 @@ function processorFor(queueName: QueueName): Processor {
   if (queueName === QUEUE_NAMES.NOTIFICATION_DIGEST) return notificationDigestProcessor;
   if (queueName === QUEUE_NAMES.EMAIL_SEND) return emailSendProcessor;
   if (queueName === QUEUE_NAMES.CAMPAIGN_DISPATCHER) return campaignDispatcherProcessor;
+  if (queueName === QUEUE_NAMES.WEBHOOK_DELIVER) return webhookDeliverProcessor;
+  if (queueName === QUEUE_NAMES.WEBHOOK_DISPATCHER) return webhookDispatcherProcessor;
   return placeholderProcessor;
 }
 
@@ -166,6 +182,15 @@ const NOTIFICATION_DIGEST_SCHEDULE_ID = "notification-digest-hourly";
 const campaignDispatcherQueue = new Queue(QUEUE_NAMES.CAMPAIGN_DISPATCHER, { connection });
 const CAMPAIGN_DISPATCHER_SCHEDULE_EVERY_MS = 5 * 60_000;
 const CAMPAIGN_DISPATCHER_SCHEDULE_ID = "campaign-dispatcher-tick";
+
+/**
+ * WEBHOOK_DISPATCHER Queue + scheduler. Tick every 30 s — finds PENDING
+ * deliveries past `nextAttemptAt` and enqueues each on WEBHOOK_DELIVER.
+ * PLAN §11.10.
+ */
+const webhookDispatcherQueue = new Queue(QUEUE_NAMES.WEBHOOK_DISPATCHER, { connection });
+const WEBHOOK_DISPATCHER_SCHEDULE_EVERY_MS = 30_000;
+const WEBHOOK_DISPATCHER_SCHEDULE_ID = "webhook-dispatcher-tick";
 
 const workers: Worker[] = [];
 
@@ -311,6 +336,24 @@ logger.info(
   "Campaign-dispatcher scheduler upserted",
 );
 
+await webhookDispatcherQueue.upsertJobScheduler(
+  WEBHOOK_DISPATCHER_SCHEDULE_ID,
+  { every: WEBHOOK_DISPATCHER_SCHEDULE_EVERY_MS },
+  {
+    name: "tick",
+    data: {},
+    opts: {
+      attempts: 1,
+      removeOnComplete: { count: 100 },
+      removeOnFail: { count: 50 },
+    },
+  },
+);
+logger.info(
+  { id: WEBHOOK_DISPATCHER_SCHEDULE_ID, everyMs: WEBHOOK_DISPATCHER_SCHEDULE_EVERY_MS },
+  "Webhook-dispatcher scheduler upserted",
+);
+
 /**
  * Feed-import scheduler reconciliation (PLAN §11.5).
  *
@@ -366,6 +409,8 @@ const shutdown = async (signal: string): Promise<void> => {
   await notificationDigestQueue.close();
   await campaignDispatcherQueue.close();
   await emailSendQueueForCampaigns.close();
+  await webhookDispatcherQueue.close();
+  await webhookDeliverQueue.close();
   await connection.quit();
   process.exit(0);
 };

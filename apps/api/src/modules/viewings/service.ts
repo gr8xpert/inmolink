@@ -3,6 +3,7 @@ import { prisma } from "@inmolink/db";
 import type { viewingRequestSchemas } from "@inmolink/shared";
 import type { Storage } from "@inmolink/storage";
 import type { Prisma, ViewingStatus } from "@prisma/client";
+import { emitWebhookEvent } from "../../lib/webhooks";
 import { createNotification } from "../notifications/service.js";
 
 /**
@@ -318,6 +319,17 @@ export async function createViewingRequest(
         introducerMessage: input.introducerMessage ?? null,
       },
     });
+    await emitWebhookEvent(tx, {
+      type: "VIEWING_REQUESTED",
+      agencyId: property.ownerAgencyId,
+      payload: {
+        viewingRequestId: row.id,
+        propertyId: row.propertyId,
+        introducerUserId: caller.userId,
+        ownerUserId: property.ownerUserId,
+        expiresAt: expiresAt.toISOString(),
+      },
+    });
     return row;
   });
 
@@ -461,6 +473,18 @@ export async function acceptViewingRequest(
       targetId: row.id,
       payload: { scheduledAt: input.scheduledAt, meetingPoint: input.meetingPoint ?? null },
     });
+    if (next.property.ownerAgencyId) {
+      await emitWebhookEvent(tx, {
+        type: "VIEWING_ACCEPTED",
+        agencyId: next.property.ownerAgencyId,
+        payload: {
+          viewingRequestId: row.id,
+          propertyId: row.propertyId,
+          scheduledAt: input.scheduledAt,
+          meetingPoint: input.meetingPoint ?? null,
+        },
+      });
+    }
     return next;
   });
 
@@ -495,6 +519,17 @@ export async function declineViewingRequest(
       targetId: row.id,
       payload: { reason: input.responseMessage ?? null },
     });
+    if (next.property.ownerAgencyId) {
+      await emitWebhookEvent(tx, {
+        type: "VIEWING_DECLINED",
+        agencyId: next.property.ownerAgencyId,
+        payload: {
+          viewingRequestId: row.id,
+          propertyId: row.propertyId,
+          reason: input.responseMessage ?? null,
+        },
+      });
+    }
     return next;
   });
   return toResponse(updated, caller, hexKey, storage);
@@ -632,6 +667,17 @@ export async function setViewingOutcome(
       targetId: row.id,
       payload: { outcome: input.outcome },
     });
+    if (next.property.ownerAgencyId) {
+      await emitWebhookEvent(tx, {
+        type: "VIEWING_COMPLETED",
+        agencyId: next.property.ownerAgencyId,
+        payload: {
+          viewingRequestId: row.id,
+          propertyId: row.propertyId,
+          outcome: input.outcome,
+        },
+      });
+    }
     return next;
   });
   return toResponse(updated, caller, hexKey, storage);

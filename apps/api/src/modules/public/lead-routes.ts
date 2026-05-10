@@ -3,6 +3,7 @@ import { prisma } from "@inmolink/db";
 import { leadSchemas } from "@inmolink/shared";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import { emitWebhookEvent } from "../../lib/webhooks";
 
 /**
  * Public lead-capture (PLAN §11.4 row 27). Anonymous POST endpoint hit
@@ -137,22 +138,41 @@ export async function publicLeadRoutes(
       const ipHash = hashIp(request.ip, ipSalt);
       const userAgent = request.headers["user-agent"]?.slice(0, 500) ?? null;
 
-      const lead = await prisma.lead.create({
-        data: {
-          source: body.source,
-          propertyId: body.source === "PROPERTY_DETAIL" && body.propertyId ? body.propertyId : null,
-          agencyId: resolvedAgencyId,
-          name: body.name,
-          email: body.email ?? null,
-          phone: body.phone ?? null,
-          message: body.message,
-          locale: body.locale,
-          ipHash,
-          userAgent,
-          turnstileVerified,
-          status: "NEW",
-        },
-        select: { id: true },
+      const lead = await prisma.$transaction(async (tx) => {
+        const created = await tx.lead.create({
+          data: {
+            source: body.source,
+            propertyId:
+              body.source === "PROPERTY_DETAIL" && body.propertyId ? body.propertyId : null,
+            agencyId: resolvedAgencyId,
+            name: body.name,
+            email: body.email ?? null,
+            phone: body.phone ?? null,
+            message: body.message,
+            locale: body.locale,
+            ipHash,
+            userAgent,
+            turnstileVerified,
+            status: "NEW",
+          },
+          select: { id: true },
+        });
+        if (resolvedAgencyId) {
+          await emitWebhookEvent(tx, {
+            type: "LEAD_CREATED",
+            agencyId: resolvedAgencyId,
+            payload: {
+              leadId: created.id,
+              source: body.source,
+              propertyId: body.propertyId ?? null,
+              name: body.name,
+              email: body.email ?? null,
+              phone: body.phone ?? null,
+              locale: body.locale,
+            },
+          });
+        }
+        return created;
       });
 
       // 6-char user-facing ref. Cuid suffix is random enough to avoid

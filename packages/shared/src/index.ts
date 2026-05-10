@@ -31,6 +31,7 @@ export * as propertySchemas from "./schemas/property";
 export * as publicPropertySchemas from "./schemas/public-property";
 export * as taxonomySchemas from "./schemas/taxonomy";
 export * as ticketSchemas from "./schemas/ticket";
+export * as webhookSchemas from "./schemas/webhook";
 export * as twoFactorSchemas from "./schemas/two-factor";
 export * as uploadSchemas from "./schemas/upload";
 export * as viewingRequestSchemas from "./schemas/viewing-request";

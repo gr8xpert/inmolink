@@ -1,6 +1,7 @@
 import { prisma } from "@inmolink/db";
 import type { propertySchemas } from "@inmolink/shared";
 import type { Prisma } from "@prisma/client";
+import { emitWebhookEvent } from "../../lib/webhooks";
 import { emitSearchPropertyDelete, emitSearchPropertyUpsert } from "../outbox/service";
 
 type ListItemRow = {
@@ -206,6 +207,19 @@ export async function createProperty({ input, ownerUserId, ownerAgencyId }: Crea
     // index — keeps the visibility transition obvious in the event log.
     await emitSearchPropertyUpsert(tx, { propertyId: created.id, reason: "create" });
 
+    await emitWebhookEvent(tx, {
+      type: "PROPERTY_CREATED",
+      agencyId: ownerAgencyId,
+      payload: {
+        propertyId: created.id,
+        status: created.status,
+        visibility: created.visibility,
+        priceCents: created.priceCents.toString(),
+        currency: created.currency,
+        transactionType: created.transactionType,
+      },
+    });
+
     return created;
   });
 }
@@ -291,7 +305,21 @@ export async function updateProperty({ id, input }: UpdateArgs) {
       input.featureIds !== undefined ? "feature_change" : "update";
     await emitSearchPropertyUpsert(tx, { propertyId: id, reason });
 
-    return tx.property.findUniqueOrThrow({ where: { id }, include: DETAIL_INCLUDE });
+    const finalRow = await tx.property.findUniqueOrThrow({
+      where: { id },
+      include: DETAIL_INCLUDE,
+    });
+    await emitWebhookEvent(tx, {
+      type: "PROPERTY_UPDATED",
+      agencyId: finalRow.ownerAgencyId,
+      payload: {
+        propertyId: id,
+        status: finalRow.status,
+        visibility: finalRow.visibility,
+        reason,
+      },
+    });
+    return finalRow;
   });
 }
 
@@ -304,13 +332,19 @@ export async function softDeleteProperty(id: string) {
     const updated = await tx.property.update({
       where: { id },
       data: { deletedAt: now, hardDeleteAt },
-      select: { id: true, deletedAt: true, hardDeleteAt: true },
+      select: { id: true, deletedAt: true, hardDeleteAt: true, ownerAgencyId: true },
     });
     // Pull from search across every locale right away so a public
     // visitor can't keep finding a soft-deleted listing for the 30-day
     // hard-delete grace window. Hard-delete worker emits no second event
     // — the index entry is already gone.
     await emitSearchPropertyDelete(tx, { propertyId: id, reason: "soft_delete" });
+
+    await emitWebhookEvent(tx, {
+      type: "PROPERTY_DELETED",
+      agencyId: updated.ownerAgencyId,
+      payload: { propertyId: id, hardDeleteAt: hardDeleteAt.toISOString() },
+    });
     return updated;
   });
 }
