@@ -80,6 +80,17 @@ export default async function AdminLandingPage({ params }: Props) {
             per-member reorder.
           </p>
         </Link>
+
+        <Link
+          href={`/${locale}/dashboard/admin/feed-type-maps`}
+          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+        >
+          <h2 className="font-semibold">Feed type mappings</h2>
+          <p className="text-sm text-muted-foreground">
+            Map raw connector labels (Kyero "Townhouse", Resale "Adosado", …) to canonical property
+            types so imports route correctly.
+          </p>
+        </Link>
       </section>
 
       <section className="space-y-3 rounded-md border bg-muted/30 p-4">

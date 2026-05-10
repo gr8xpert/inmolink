@@ -399,18 +399,77 @@
 - [ ] Two-factor recovery-code regenerate (current flow returns codes once on enroll; user must disable + re-enroll to get a fresh set)
 - [ ] User-photo upload widget on `/dashboard/settings/profile` (schema + R2 key field exist; UI defers to existing branding-uploader pattern in a follow-up)
 
-## Sprint 5 — Imports (Kyero priority)
+## Sprint 5 — Imports (Kyero priority) ✅ COMPLETE
 
-- [ ] FeedConnection + encrypted creds (AES-256-GCM)
-- [ ] Adapter interface + Kyero connector (using `samples/feeds/kyero-sample.xml`)
-- [ ] Resale Online connector
-- [ ] Generic XML connector (mappable)
-- [ ] Streaming SAX parser
-- [ ] Worker BullMQ jobs (sync + per-image download with content-hash dedup)
-- [ ] Field-level lock UI
-- [ ] Per-connection ON/OFF toggle
-- [ ] Run history + error log UI
-- [ ] Manual XML upload path
+### 5.A — Kyero streaming SAX connector ✅ (`8e75074`)
+
+- [x] `@inmolink/imports` Kyero adapter with `sax`-based streaming parser (PLAN §11.5 — never buffers full feed)
+- [x] AsyncQueue with backpressure (parser pauses when buffer > 50)
+- [x] State machine handles locale-keyed `<title>` / `<desc>` / per-feature names; strips `(Province)` suffix; preserves `?v=` cache-buster on image URLs (worker hashes bytes); falls back to `<id>` when `<ref>` empty
+- [x] 10 vitest unit tests against `samples/feeds/kyero-sample.xml` — 270 properties + 8,962 image URLs
+
+### 5.B — Resale Online + Generic XML connectors ✅ (`3b6bece`)
+
+- [x] Generic XML engine driven by agency-supplied path → field mappings (same SAX state machine, same backpressure)
+- [x] Per-locale text via static `locale` or `localeFromAttr` attribute capture (e.g. `<title language="en">`)
+- [x] Resale Online ships as a baked-in preset over the engine (Spain MLS — same agencies that publish Kyero feeds)
+- [x] `makeConnector(kind, args)` registry; GENERIC_XML requires fieldMappings
+- [x] 3 additional tests: custom-shaped feed via mappings, skip-missing-fields, Resale preset
+
+### 5.C — FeedTypeMap mapping table + matchers + super-admin API ✅ (`831f4b4`)
+
+- [x] Schema: `FeedTypeMap(kind, sourceLabel, propertyTypeId)` unique on `(kind, sourceLabel)`; sourceLabel canonicalised (trim + lower) on every write
+- [x] Migration: `20260510125707_sprint_5_feed_type_map`
+- [x] Matchers in `@inmolink/imports` (api + worker share): `findPropertyTypeForFeed` (FeedTypeMap → translation fallback → null); `findLocationForTown` (CI city match scoped to country, province tie-breaker, ambiguous flag); `findFeatureIdsByName` (any-locale translation match, dedupe ids, surface unmatched names)
+- [x] `/api/dashboard/admin/feed-type-maps` super-admin CRUD; P2002 → 409
+- [x] 10 matcher tests with mocked Prisma
+
+### 5.D — Worker import processor + scheduler + image dedup pipeline ✅ (`c4e2ee8`)
+
+- [x] `FEED_IMPORT` BullMQ processor (atomic mutex, FeedRun resolution, AES-256-GCM credential decrypt, connector dispatch via registry)
+- [x] `upsertPropertyFromListing`: matches type/location/features; respects `lockedFields` (per-field skip on update; `translations` / `features` / `images` lock the whole replace pass); drops to DRAFT when type/location unmatched on first import
+- [x] Image attach pipeline: downloads each URL (25 MB cap), SHA-256 hashes, dedups against MediaObject (refCount-bump on hit; PUT + create on miss), enqueues eager variants matching the dashboard upload flow's jobIds
+- [x] FeedRun lifecycle: SUCCESS / PARTIAL (errors but progress) / FAILED (no progress); persists counts + errorsLog
+- [x] Worker boot reconciles feed-import schedulers from FeedConnection rows (drift safety net; api keeps them in sync on CRUD)
+- [x] Schema additions: `Property.sourceUpdatedAt` + `videoUrl` (migration `20260510130837_sprint_5_property_source_metadata`)
+
+### 5.E — API: FeedConnection CRUD + manual run + run history ✅ (`804c567`)
+
+- [x] `/api/dashboard/imports` (list / detail / create / update / delete) + `/:id/run` + `/:id/runs`
+- [x] Visibility: agent sees own; AGENCY_ADMIN sees agency feeds; SUPER_ADMIN sees all
+- [x] Credentials write-only on wire — api AES-encrypts before persistence; response surfaces `hasCredentials` boolean
+- [x] Schedule sync on every CRUD: `upsertJobScheduler` on create/enable, `removeJobScheduler` on delete/disable
+- [x] Manual-run pre-creates `FeedRun(QUEUED)` (dashboard sees pending run immediately) + coalesces double-clicks with per-minute jobId
+
+### 5.F — Web dashboard imports UI + field-level locks ✅ (`d87eae6`)
+
+- [x] `/[locale]/dashboard/imports` list + create + edit (RHF + Zod); per-row ON/OFF toggle; last-run timestamp; error badge
+- [x] Run history per connection: color-coded `FeedRunStatus` chips + counts; "Run now" button
+- [x] Server Actions for create / update / delete / run / toggleSync
+- [x] `FieldLocksManager` on property edit page (non-MANUAL sources only); shared lock keys via `feedImportSchemas.lockableFieldSchema`
+- [x] 4-locale `imports` namespace (en/es/de/fr)
+
+### 5.G — Manual XML upload path ✅ (`cb1e220`)
+
+- [x] `POST /api/dashboard/imports/upload-xml` (multipart, 10 MB cap)
+- [x] Schema additions: `FeedConnection.uploadedFileKey` (migration `20260510132125_sprint_5_manual_xml_upload`)
+- [x] Storage key: `imports/<userId>/<ts>-<filename>`; transient connection with `syncEnabled=false`; feedUrl carries `upload://<filename>` label
+- [x] Worker streams from `storage.download(uploadedFileKey)` instead of HTTP fetch when key set
+- [x] Mutex relaxed for MANUAL/RETRY triggers (manual-upload connections live with sync permanently off)
+- [x] Storage cleanup on connection delete
+- [x] `<details>` panel + `ManualUpload` Client Component (`credentials: "include"` posts directly to api)
+
+### 5.H — Type-mapping admin UI ✅
+
+- [x] `/[locale]/dashboard/admin/feed-type-maps` super-admin surface (add form, inline property-type select, delete)
+- [x] Admin landing tile
+
+### Deferred to a follow-up
+
+- [ ] Visual builder for GENERIC_XML mappings (current UI accepts pasted JSON)
+- [ ] Anomaly detection — pause + alert if a feed run delivers >5× typical volume (PLAN §11.9)
+- [ ] Floor plan attach pipeline (image-attach equivalent, uses existing `PropertyFloorPlan` schema)
+- [ ] Per-locale feature names propagated through to `Feature` lookup (matcher currently only consults the `en` canonical)
 
 ## Sprint 6 — Viewing Requests + Deals + Chat
 
