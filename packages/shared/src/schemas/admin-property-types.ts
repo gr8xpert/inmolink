@@ -94,6 +94,10 @@ export const adminPropertyTypeSchema = z.object({
   iconKind: iconKindSchema,
   iconName: z.string().nullable(),
   iconR2Key: z.string().nullable(),
+  /** Resolved public URL for `iconR2Key` — null when no custom icon is set.
+   *  The service computes this via the storage facade so the admin UI
+   *  doesn't have to know whether we're on R2 or the dev local-fs path. */
+  iconPublicUrl: z.string().nullable(),
   iconAiSuggestedAt: z.string().datetime().nullable(),
   iconAdminOverrode: z.boolean(),
   translations: z.array(

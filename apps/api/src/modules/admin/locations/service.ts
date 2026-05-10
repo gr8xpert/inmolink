@@ -237,6 +237,74 @@ export async function reorderAllLocations(
   return { ok: true as const };
 }
 
+/** Re-parent a Location, same level only. The new parent's level must be
+ *  the immediate predecessor (COUNTRY → REGION, REGION → CITY, CITY → AREA),
+ *  matching the create-time hierarchy rule.
+ *
+ *  Implementation:
+ *  - 422 if target is COUNTRY (no parent allowed)
+ *  - 404 if newParentId doesn't exist
+ *  - 422 if newParent.level + 1 !== target.level
+ *  - 422 if newParent is the target itself or a descendant (would form a cycle)
+ *  - position auto-assigned to end of new parent's siblings
+ *  - countryCode is NOT propagated — admin must update separately if the move
+ *    crosses a country boundary (rare; surface this in the UI before allowing it)
+ *
+ *  Descendants keep their parentId chain — only the `target.parentId` pointer
+ *  changes, so the rest of the subtree comes along for free. */
+export async function moveLocation(id: string, newParentId: string) {
+  const target = await prisma.location.findUnique({
+    where: { id },
+    select: { id: true, level: true, parentId: true },
+  });
+  if (!target) throw new NotFoundError("Location not found");
+  if (target.level === "COUNTRY") {
+    throw new InvalidHierarchyError("COUNTRY rows cannot be moved (they have no parent)");
+  }
+  if (target.parentId === newParentId) {
+    return { ok: true as const };
+  }
+
+  const newParent = await prisma.location.findUnique({
+    where: { id: newParentId },
+    select: { id: true, level: true },
+  });
+  if (!newParent) throw new NotFoundError("New parent not found");
+  const expectedChild = VALID_CHILD_LEVEL[newParent.level as adminLocationSchemas.LocationLevel];
+  if (expectedChild !== target.level) {
+    throw new InvalidHierarchyError(
+      `New parent (${newParent.level}) cannot have ${target.level} children — expected ${expectedChild ?? "no children"}`,
+    );
+  }
+
+  // Cycle check: walk up newParent's ancestor chain — if we hit `target.id`,
+  // this would create a cycle.
+  let cursor: string | null = newParent.id;
+  while (cursor) {
+    if (cursor === target.id) {
+      throw new InvalidHierarchyError("Cannot move a Location under itself or its own descendant");
+    }
+    const next: { parentId: string | null } | null = await prisma.location.findUnique({
+      where: { id: cursor },
+      select: { parentId: true },
+    });
+    cursor = next?.parentId ?? null;
+  }
+
+  const max = await prisma.location.findFirst({
+    where: { parentId: newParentId, level: target.level },
+    select: { position: true },
+    orderBy: { position: "desc" },
+  });
+  const position = max ? max.position + 1 : 0;
+
+  await prisma.location.update({
+    where: { id },
+    data: { parentId: newParentId, position },
+  });
+  return { ok: true as const };
+}
+
 export async function reorderLocation(id: string, position: number) {
   const target = await prisma.location.findUnique({
     where: { id },

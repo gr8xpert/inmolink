@@ -6,6 +6,7 @@ import {
   createLocation,
   deleteLocation,
   listLocations,
+  moveLocation,
   reorderAllLocations,
   reorderLocation,
   updateLocation,
@@ -16,8 +17,8 @@ import {
  * → AREA). LocationGroup m2m membership lands in slice 2.C.2.
  *
  * Tree invariants enforced server-side:
- *  - level + parentId are immutable on PATCH (re-parenting is a future
- *    dedicated endpoint).
+ *  - level + parentId are immutable on PATCH; re-parenting goes through
+ *    `POST /:id/move` (same-level only — see service comment).
  *  - 422 INVALID_HIERARCHY on create when parent.level mismatches expected.
  *  - 409 on delete-with-children OR delete-with-property-refs.
  */
@@ -121,6 +122,23 @@ export async function adminLocationRoutes(app: FastifyInstance): Promise<void> {
     async (request) => {
       request.requireSuperAdmin();
       return reorderAllLocations(request.body.parentId, request.body.level, request.body.ids);
+    },
+  );
+
+  fastify.post(
+    "/locations/:id/move",
+    {
+      schema: {
+        tags: ["admin", "locations"],
+        summary: "Re-parent a Location, same level only (rejects cross-level + cycles via 422)",
+        params: idParam,
+        body: adminLocationSchemas.adminMoveLocationRequestSchema,
+        response: { 200: z.object({ ok: z.literal(true) }) },
+      },
+    },
+    async (request) => {
+      request.requireSuperAdmin();
+      return moveLocation(request.params.id, request.body.newParentId);
     },
   );
 }

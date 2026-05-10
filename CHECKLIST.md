@@ -252,6 +252,10 @@
   - [x] **2.D.2.b — Feature admin** — `feature-groups/reorder-all` + `features/reorder-all` API; Client Component swaps the up/down arrows for drag handles on both groups and features-in-group.
   - [x] **2.D.2.c — Location admin (tree)** — `locations/reorder-all` API scoped to `(parentId, level)` tuple; recursive `TreeNode` renders one `SortableList` per sibling set so drags can't drift across parents or levels.
   - [x] **2.D.2.d — LocationGroup admin** — `location-groups/reorder-all` (groups) + `location-groups/members/reorder-all` (members within a group) API; Client Component projects `{...m, id: m.locationId}` into the SortableList input space since members are keyed by locationId.
+  - [x] **2.E.1 — Location re-parenting** — `POST /locations/:id/move` (same-level only, cycle-checked); admin UI `MovePicker` + Combobox for candidate selection.
+  - [x] **2.E.2 — featureIds[] multi-select** — public `/properties` query supports repeated `featureIds`; new `GET /api/dashboard/features` endpoint; checkbox-pill UI on `/search`.
+  - [x] **2.E.3 — Custom SVG icon upload** — PropertyType admin Library/Custom radio + sign+register pipeline integration; `iconPublicUrl` decoration in routes layer; row preview renders actual SVG via `<img>` (never inline).
+  - [x] **2.E.4 — Combobox autocomplete** — generic `apps/web/src/components/combobox.tsx`; replaces native `<select>` in admin/locations Move picker + admin/location-groups member picker.
 - [x] **2.D.1 — Filter UI on dashboard property list** — `PropertyFilters` Client Component with q / status / visibility / transactionType / propertyTypeId / locationId pickers. Server Component prefetches taxonomy in parallel; filters survive pagination via carry-forward.
 - [ ] Filter UI on public marketplace search — already has q / transaction / type / location / price / beds; Sprint 2.D adds `featureIds[]` multi-select once the api supports it
 - [ ] Replace `<select>` pickers with typeahead/autocomplete once the catalog grows past ~100 entries (deferred trigger)

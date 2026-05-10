@@ -1,7 +1,7 @@
 "use server";
 
 import { ApiError, apiFetch } from "@/lib/api";
-import type { adminPropertyTypeSchemas } from "@inmolink/shared";
+import type { adminPropertyTypeSchemas, uploadSchemas } from "@inmolink/shared";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -144,6 +144,23 @@ export async function suggestIconAction(name: string, hint?: string) {
   return call<{ iconName: string | null }>(`${BASE}/property-types/suggest-icon`, {
     method: "POST",
     body: JSON.stringify({ name, hint }),
+  });
+}
+
+// ─── Custom SVG icon upload — wraps the standard /api/uploads/sign +
+//     /api/uploads/register pipeline. Browser still PUTs to R2 directly.
+
+export async function signIconUploadAction(file: uploadSchemas.SignUploadFile) {
+  return call<{ results: uploadSchemas.SignUploadResult[] }>("/api/uploads/sign", {
+    method: "POST",
+    body: JSON.stringify({ files: [file] }),
+  });
+}
+
+export async function registerIconUploadAction(upload: uploadSchemas.RegisterUploadFile) {
+  return call<{ results: uploadSchemas.RegisterUploadResult[] }>("/api/uploads/register", {
+    method: "POST",
+    body: JSON.stringify({ uploads: [upload] }),
   });
 }
 

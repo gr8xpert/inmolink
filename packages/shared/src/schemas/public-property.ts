@@ -92,6 +92,14 @@ export const publicPropertyListQuerySchema = z.object({
   minPriceCents: z.coerce.number().int().nonnegative().optional(),
   maxPriceCents: z.coerce.number().int().nonnegative().optional(),
   bedrooms: z.coerce.number().int().nonnegative().optional(),
+  // Multi-select on amenities. Repeated `featureIds=<cuid>` querystring
+  // params (Fastify parses these into an array). Semantics: AND — every
+  // listed feature must be on the property. Capped at 16 so a malicious
+  // client can't blow up the planner with a huge AND chain.
+  featureIds: z.preprocess(
+    (v) => (Array.isArray(v) ? v : v === undefined ? undefined : [v]),
+    z.array(cuid).max(16).optional(),
+  ),
   // Free-text query — ILIKE on title in v1; tsvector + Meilisearch later.
   q: z.string().max(200).optional(),
   cursor: z.string().optional(),

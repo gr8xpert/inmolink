@@ -1,5 +1,6 @@
 "use client";
 
+import { Combobox } from "@/components/combobox";
 import { SortableList } from "@/components/sortable-list";
 import { adminLocationSchemas } from "@inmolink/shared";
 import { useRouter } from "next/navigation";
@@ -7,6 +8,7 @@ import { useState, useTransition } from "react";
 import {
   createLocationAction,
   deleteLocationAction,
+  moveLocationAction,
   reorderAllLocationsAction,
   updateLocationAction,
 } from "./actions";
@@ -29,6 +31,15 @@ type LocSubmit = adminLocationSchemas.AdminLocationUpdate;
 type Level = adminLocationSchemas.LocationLevel;
 
 const LEVEL_DEPTH: Record<Level, number> = { COUNTRY: 0, REGION: 1, CITY: 2, AREA: 3 };
+
+/** Inverse of VALID_CHILD_LEVEL — for a moving node's level, which level
+ *  is the valid parent? Used to filter the move picker's candidates. */
+const PARENT_LEVEL_OF: Record<Level, Level | null> = {
+  COUNTRY: null,
+  REGION: "COUNTRY",
+  CITY: "REGION",
+  AREA: "CITY",
+};
 const slugRe = /^[a-z0-9-]+$/;
 const slugify = (s: string) =>
   s
@@ -125,6 +136,8 @@ export function AdminLocations({ locale, locations }: Props) {
   const [editing, setEditing] = useState<string | null>(null);
   // Either "root" (creating a COUNTRY) or a parent id (creating its child level).
   const [creatingChildOf, setCreatingChildOf] = useState<string | "root" | null>(null);
+  // When set, the picker UI is shown inline under that node.
+  const [movingId, setMovingId] = useState<string | null>(null);
 
   function withRefresh<A extends unknown[]>(
     fn: (...args: A) => Promise<{ ok: boolean; error?: string }>,
@@ -138,6 +151,7 @@ export function AdminLocations({ locale, locations }: Props) {
             router.refresh();
             setEditing(null);
             setCreatingChildOf(null);
+            setMovingId(null);
           } else {
             setError(res.error ?? "Update failed");
           }
@@ -215,10 +229,12 @@ export function AdminLocations({ locale, locations }: Props) {
           <TreeNode
             node={node}
             byParent={byParent}
+            allLocations={locations}
             depth={0}
             expanded={expanded}
             editing={editing}
             creatingChildOf={creatingChildOf}
+            movingId={movingId}
             pending={pending}
             locale={locale}
             dragHandle={dragHandle}
@@ -246,6 +262,10 @@ export function AdminLocations({ locale, locations }: Props) {
             onCreateChild={withRefresh((body: adminLocationSchemas.AdminLocationCreate) =>
               createLocationAction(locale, body),
             )}
+            onMoveToggle={(id) => setMovingId((v) => (v === id ? null : id))}
+            onMove={withRefresh((id: string, newParentId: string) =>
+              moveLocationAction(locale, id, newParentId),
+            )}
           />
         )}
       />
@@ -256,10 +276,12 @@ export function AdminLocations({ locale, locations }: Props) {
 function TreeNode({
   node,
   byParent,
+  allLocations,
   depth,
   expanded,
   editing,
   creatingChildOf,
+  movingId,
   pending,
   locale,
   dragHandle,
@@ -271,13 +293,17 @@ function TreeNode({
   onReorderSiblings,
   onCreateChildToggle,
   onCreateChild,
+  onMoveToggle,
+  onMove,
 }: {
   node: Loc;
   byParent: Map<string | null, Loc[]>;
+  allLocations: Loc[];
   depth: number;
   expanded: Set<string>;
   editing: string | null;
   creatingChildOf: string | "root" | null;
+  movingId: string | null;
   pending: boolean;
   locale: string;
   dragHandle: React.ReactNode;
@@ -293,12 +319,16 @@ function TreeNode({
   ) => void;
   onCreateChildToggle: (id: string) => void;
   onCreateChild: (body: adminLocationSchemas.AdminLocationCreate) => void;
+  onMoveToggle: (id: string) => void;
+  onMove: (id: string, newParentId: string) => void;
 }) {
   const en = node.translations.find((t) => t.locale === "en")?.name ?? node.id.slice(0, 8);
   const isOpen = expanded.has(node.id);
   const isEditing = editing === node.id;
   const isCreatingChild = creatingChildOf === node.id;
+  const isMoving = movingId === node.id;
   const childLevel = adminLocationSchemas.VALID_CHILD_LEVEL[node.level];
+  const parentLevel = PARENT_LEVEL_OF[node.level];
   const children = byParent.get(node.id) ?? [];
 
   return (
@@ -359,6 +389,16 @@ function TreeNode({
                 {isCreatingChild ? "Cancel" : `+ ${childLevel}`}
               </button>
             )}
+            {parentLevel && (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => onMoveToggle(node.id)}
+                className="rounded-md border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
+              >
+                {isMoving ? "Cancel" : "Move"}
+              </button>
+            )}
             <button
               type="button"
               disabled={pending}
@@ -376,6 +416,19 @@ function TreeNode({
               Delete
             </button>
           </div>
+        </div>
+      )}
+
+      {isMoving && parentLevel && (
+        <div className="my-2 rounded-md border bg-muted/20 p-3" style={{ marginLeft: depth * 20 }}>
+          <MovePicker
+            node={node}
+            parentLevel={parentLevel}
+            allLocations={allLocations}
+            pending={pending}
+            onCancel={() => onMoveToggle(node.id)}
+            onConfirm={(newParentId) => onMove(node.id, newParentId)}
+          />
         </div>
       )}
 
@@ -402,10 +455,12 @@ function TreeNode({
             <TreeNode
               node={child}
               byParent={byParent}
+              allLocations={allLocations}
               depth={depth + 1}
               expanded={expanded}
               editing={editing}
               creatingChildOf={creatingChildOf}
+              movingId={movingId}
               pending={pending}
               locale={locale}
               dragHandle={childDragHandle}
@@ -417,10 +472,107 @@ function TreeNode({
               onReorderSiblings={onReorderSiblings}
               onCreateChildToggle={onCreateChildToggle}
               onCreateChild={onCreateChild}
+              onMoveToggle={onMoveToggle}
+              onMove={onMove}
             />
           )}
         />
       )}
+    </div>
+  );
+}
+
+function MovePicker({
+  node,
+  parentLevel,
+  allLocations,
+  pending,
+  onCancel,
+  onConfirm,
+}: {
+  node: Loc;
+  parentLevel: Level;
+  allLocations: Loc[];
+  pending: boolean;
+  onCancel: () => void;
+  onConfirm: (newParentId: string) => void;
+}) {
+  // Descendants of `node` (including itself) are invalid parent candidates
+  // — would form a cycle. Walk the tree once and collect them.
+  const blockedIds = new Set<string>([node.id]);
+  let added = true;
+  while (added) {
+    added = false;
+    for (const l of allLocations) {
+      if (l.parentId && blockedIds.has(l.parentId) && !blockedIds.has(l.id)) {
+        blockedIds.add(l.id);
+        added = true;
+      }
+    }
+  }
+
+  const candidates = allLocations
+    .filter((l) => l.level === parentLevel && !blockedIds.has(l.id) && l.id !== node.parentId)
+    .sort((a, b) => {
+      if (a.countryCode !== b.countryCode) return a.countryCode.localeCompare(b.countryCode);
+      const an = a.translations.find((t) => t.locale === "en")?.name ?? a.id;
+      const bn = b.translations.find((t) => t.locale === "en")?.name ?? b.id;
+      return an.localeCompare(bn);
+    });
+
+  const [pick, setPick] = useState<string>("");
+
+  if (candidates.length === 0) {
+    return (
+      <div className="space-y-2 text-xs text-muted-foreground">
+        <p>
+          No valid {parentLevel} candidates for this {node.level}. Same-level moves only — create a
+          target {parentLevel} first.
+        </p>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-md border bg-background px-3 py-1.5 text-xs hover:bg-muted"
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-end gap-2">
+      <div className="flex flex-1 flex-col gap-1 text-sm">
+        <span className="text-xs uppercase text-muted-foreground">New {parentLevel} parent</span>
+        <Combobox
+          options={candidates.map((l) => {
+            const name = l.translations.find((t) => t.locale === "en")?.name ?? l.id;
+            return {
+              value: l.id,
+              label: `${l.countryCode} · ${name}`,
+            };
+          })}
+          value={pick}
+          onChange={setPick}
+          placeholder={`Type to search ${parentLevel.toLowerCase()}…`}
+          disabled={pending}
+        />
+      </div>
+      <button
+        type="button"
+        onClick={onCancel}
+        className="rounded-md border bg-background px-3 py-2 text-sm hover:bg-muted"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        disabled={pending || !pick}
+        onClick={() => pick && onConfirm(pick)}
+        className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+      >
+        Move here
+      </button>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { adminPropertyTypeSchemas } from "@inmolink/shared";
+import type { Storage } from "@inmolink/storage";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
@@ -27,10 +28,23 @@ import {
  * The legacy anon `GET /api/dashboard/property-types` (slice F.2) stays
  * read-only and locale-flattened for the picker UX.
  */
-export async function adminPropertyTypeRoutes(app: FastifyInstance): Promise<void> {
+export async function adminPropertyTypeRoutes(
+  app: FastifyInstance,
+  opts: { storage: Storage },
+): Promise<void> {
+  const { storage } = opts;
   const fastify = app.withTypeProvider<ZodTypeProvider>();
 
   const idParam = z.object({ id: z.string().min(1) });
+
+  // Decorate a TypeDto with a resolved publicUrl for its iconR2Key. The
+  // service stays storage-agnostic; this lives in routes where storage is
+  // already available.
+  type ServiceTypeDto = Awaited<ReturnType<typeof createType>>;
+  const decorateType = (dto: ServiceTypeDto) => ({
+    ...dto,
+    iconPublicUrl: dto.iconR2Key ? storage.publicUrl(dto.iconR2Key) : null,
+  });
 
   // ─── Groups ──────────────────────────────────────────────────────────
 
@@ -147,7 +161,8 @@ export async function adminPropertyTypeRoutes(app: FastifyInstance): Promise<voi
     },
     async (request) => {
       request.requireSuperAdmin();
-      return listTypes();
+      const out = await listTypes();
+      return { items: out.items.map(decorateType) };
     },
   );
 
@@ -164,7 +179,7 @@ export async function adminPropertyTypeRoutes(app: FastifyInstance): Promise<voi
     async (request, reply) => {
       request.requireSuperAdmin();
       const created = await createType(request.body);
-      return reply.code(201).send(created);
+      return reply.code(201).send(decorateType(created));
     },
   );
 
@@ -181,7 +196,8 @@ export async function adminPropertyTypeRoutes(app: FastifyInstance): Promise<voi
     },
     async (request) => {
       request.requireSuperAdmin();
-      return updateType(request.params.id, request.body);
+      const updated = await updateType(request.params.id, request.body);
+      return decorateType(updated);
     },
   );
 
@@ -267,7 +283,8 @@ export async function adminPropertyTypeRoutes(app: FastifyInstance): Promise<voi
     },
     async (request) => {
       request.requireSuperAdmin();
-      return acceptAiIcon(request.params.id, request.body.iconName);
+      const updated = await acceptAiIcon(request.params.id, request.body.iconName);
+      return decorateType(updated);
     },
   );
 }

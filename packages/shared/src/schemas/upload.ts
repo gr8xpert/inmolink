@@ -30,6 +30,10 @@ const allowedMimeTypes = [
   "image/heic",
   "image/heif",
   "image/gif",
+  // Vector — used by the PropertyType admin's custom-icon flow.
+  // Always rendered via `<img src>` (not inline) so embedded scripts can't
+  // execute; size is capped tighter at the route layer.
+  "image/svg+xml",
   // Floor plans
   "application/pdf",
   // Videos
@@ -63,6 +67,11 @@ export const signUploadResultSchema = z.discriminatedUnion("status", [
     hash: sha256Hex,
     status: z.literal("exists"),
     mediaObjectId: z.string(),
+    /** Content-addressed storage key for the existing MediaObject. Returned
+     *  alongside publicUrl so callers that want to bind the file to a
+     *  durable column (e.g. PropertyType.iconR2Key) don't have to re-resolve
+     *  the key from the URL. */
+    key: z.string(),
     publicUrl: z.string(),
   }),
   z.object({

@@ -37,5 +37,22 @@ export const locationListResponseSchema = z.object({
   items: z.array(locationListItemSchema),
 });
 
+/** Feature picker shape — id + groupId + localized name + icon. Used by
+ *  the public search amenity multi-select and any future agent-side
+ *  "tag-on-property" widget. */
+export const featureListItemSchema = z.object({
+  id: cuid,
+  groupId: cuid,
+  groupName: z.string(),
+  name: z.string(),
+  iconName: z.string().nullable(),
+  position: z.number().int(),
+});
+
+export const featureListResponseSchema = z.object({
+  items: z.array(featureListItemSchema),
+});
+
 export type PropertyTypeListItem = z.infer<typeof propertyTypeListItemSchema>;
 export type LocationListItem = z.infer<typeof locationListItemSchema>;
+export type FeatureListItem = z.infer<typeof featureListItemSchema>;

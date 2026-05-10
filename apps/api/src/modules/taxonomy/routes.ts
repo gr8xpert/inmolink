@@ -104,4 +104,54 @@ export async function taxonomyRoutes(app: FastifyInstance): Promise<void> {
       };
     },
   );
+
+  fastify.get(
+    "/features",
+    {
+      schema: {
+        tags: ["taxonomy"],
+        summary: "List active Features (with their group's localized name) — for picker UIs",
+        querystring: localeQuery,
+        response: { 200: taxonomySchemas.featureListResponseSchema },
+      },
+    },
+    async (request) => {
+      const { locale } = request.query;
+      // One-shot: include the group + its translations so the picker can
+      // render Feature rows grouped by Group without a follow-up call.
+      const rows = await prisma.feature.findMany({
+        where: { isActive: true, group: { isActive: true } },
+        select: {
+          id: true,
+          groupId: true,
+          iconName: true,
+          position: true,
+          translations: { select: { locale: true, name: true } },
+          group: {
+            select: {
+              position: true,
+              translations: { select: { locale: true, name: true } },
+            },
+          },
+        },
+        orderBy: [{ groupId: "asc" }, { position: "asc" }],
+      });
+      // Re-sort by group position then feature position so the picker's
+      // visual order matches the admin's curated order.
+      rows.sort((a, b) => {
+        if (a.group.position !== b.group.position) return a.group.position - b.group.position;
+        return a.position - b.position;
+      });
+      return {
+        items: rows.map((r) => ({
+          id: r.id,
+          groupId: r.groupId,
+          groupName: pickName(r.group.translations, locale),
+          name: pickName(r.translations, locale),
+          iconName: r.iconName,
+          position: r.position,
+        })),
+      };
+    },
+  );
 }

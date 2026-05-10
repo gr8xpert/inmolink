@@ -1,5 +1,6 @@
 "use client";
 
+import { Combobox } from "@/components/combobox";
 import { SortableList } from "@/components/sortable-list";
 import type { adminLocationGroupSchemas, adminLocationSchemas } from "@inmolink/shared";
 import { useRouter } from "next/navigation";
@@ -347,22 +348,19 @@ function AddMemberForm({
 
   return (
     <div className="flex flex-wrap items-end gap-2">
-      <label className="flex flex-1 flex-col gap-1 text-sm">
+      <div className="flex flex-1 flex-col gap-1 text-sm">
         <span className="text-xs uppercase text-muted-foreground">Add location</span>
-        <select
-          className="input"
+        <Combobox
+          options={available.map((l) => ({
+            value: l.id,
+            label: `${l.countryCode} · ${l.level} · ${locationDisplayName(l)}`,
+          }))}
           value={pick}
-          onChange={(e) => setPick(e.target.value)}
+          onChange={setPick}
+          placeholder="Type to search…"
           disabled={pending}
-        >
-          <option value="">— select a location —</option>
-          {available.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.countryCode} · {l.level} · {locationDisplayName(l)}
-            </option>
-          ))}
-        </select>
-      </label>
+        />
+      </div>
       <button
         type="button"
         disabled={pending || !pick}

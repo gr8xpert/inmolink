@@ -93,6 +93,19 @@ export const adminReorderAllLocationsRequestSchema = z.object({
   ids: z.array(cuid).min(1),
 });
 
+/** Re-parent a Location to a different parent, **same level**. The api
+ *  rejects cross-level moves (422 INVALID_HIERARCHY) — moving a CITY under
+ *  a COUNTRY skips REGION, which would leave its AREA descendants at an
+ *  invalid depth. The Location's own level + every descendant's level
+ *  stay unchanged; only the chain of `parentId` pointers shifts.
+ *
+ *  COUNTRY rows cannot be moved (they have no parent). The new parent's
+ *  level must be the immediate predecessor of the moving node's level
+ *  (same rule as create). */
+export const adminMoveLocationRequestSchema = z.object({
+  newParentId: cuid,
+});
+
 export const adminLocationListResponseSchema = z.object({
   /** Flat list; client builds the tree by parentId. */
   items: z.array(adminLocationSchema),

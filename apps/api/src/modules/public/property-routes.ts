@@ -87,6 +87,17 @@ export async function publicPropertyRoutes(
               },
             }
           : {}),
+        // featureIds: AND — every listed feature must be on the property.
+        // Modelled as one `features.some` per id rather than `every` (which
+        // would also match properties with NO features when the array is
+        // empty — wrong semantics).
+        ...(q.featureIds && q.featureIds.length > 0
+          ? {
+              AND: q.featureIds.map((featureId) => ({
+                features: { some: { featureId } },
+              })),
+            }
+          : {}),
         // Free-text — ILIKE on title + description across any locale's
         // translation. Sprint 3 swaps this for Meilisearch with proper
         // tokenisation, language analyzers, and faceting.

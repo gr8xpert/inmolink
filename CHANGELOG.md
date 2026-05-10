@@ -10,6 +10,17 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Added (Sprint 2 — slice 2.E, polish bundle: move / search facets / SVG icons / autocomplete)
+
+- **Location re-parenting endpoint** `POST /api/dashboard/admin/locations/:id/move` — same-level only (rejects cross-level + cycles via 422). Validates the new parent's level is the immediate predecessor (COUNTRY → REGION, REGION → CITY, CITY → AREA), walks the ancestor chain to detect cycles, and auto-assigns position to the end of the new parent's siblings. The descendants come along for free since only the target node's `parentId` pointer changes.
+- **Web admin/locations Move button** — appears on every non-COUNTRY row. Inline `MovePicker` filters candidate parents to the predecessor level, excludes self + descendants client-side (api re-validates), and uses the new `Combobox` autocomplete instead of a native select.
+- **Public search amenity facets** — `featureIds[]` multi-select query param on `/api/public/properties`. Repeated `featureIds=<cuid>` in the querystring; AND semantics (every listed feature must be on the property), capped at 16 to keep the planner happy. Filter is composed as `AND: featureIds.map(id => ({ features: { some: { featureId: id } } }))` — `every` was wrong because it would also match properties with NO features when the array is empty.
+- **`GET /api/dashboard/features`** — public read endpoint returning active Features grouped by their FeatureGroup. Re-sorts by `(group.position, feature.position)` so the picker visual order matches the admin's curated order. Used by the public search amenity facets and any future agent-side picker.
+- **Public search filter UI** — `<details>` collapsible "Amenities" section with checkbox pills grouped by FeatureGroup. URL is the source of truth (back/forward + sharing work without ceremony); pagination next-page link re-appends every selected `featureIds` so filters survive paging.
+- **Custom SVG icon upload for PropertyType** — admin form has a Library / Custom radio. Custom branch pipes through the existing sign + register upload pipeline (50 KB UI cap, `image/svg+xml` MIME, AES + dedup all reused). Icons are rendered via `<img src>` only — never inline — so embedded scripts in malicious SVGs can't execute. The admin row preview renders the actual SVG; the form preview shows it before save.
+- **`iconPublicUrl`** added to the admin `PropertyType` DTO. The routes layer (which already has the `Storage` instance) decorates `iconR2Key` into a resolved URL, keeping the service storage-agnostic. `signUploadResult.exists` now also exposes the canonical `key` so callers binding to a durable column don't have to re-resolve from the URL.
+- **Generic `Combobox` primitive** in `apps/web/src/components/combobox.tsx` — searchable single-select with keyboard nav (↑/↓/enter/escape), substring match, click-outside close, configurable max-results. No third-party dep — the catalog sizes we hit (≤ a few thousand entries) don't justify Headless UI. Replaces native `<select>` in admin/locations Move picker + admin/location-groups member picker.
+
 ### Added (Sprint 2 — slice 2.D.2.b/c/d, drag-and-drop on Feature / Location / LocationGroup admin)
 
 - **API reorder-all endpoints** propagated to the remaining three admin surfaces:

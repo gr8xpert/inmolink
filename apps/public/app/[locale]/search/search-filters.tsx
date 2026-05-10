@@ -2,7 +2,7 @@
 
 import type { taxonomySchemas } from "@inmolink/shared";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 /**
  * Search filter bar. Submits via GET so the URL is the source of truth
@@ -21,28 +21,59 @@ type Initial = {
   maxPriceCents: string;
   bedrooms: string;
   q: string;
+  featureIds: string[];
 };
 
 type Props = {
   locale: string;
   propertyTypes: taxonomySchemas.PropertyTypeListItem[];
   locations: taxonomySchemas.LocationListItem[];
+  features: taxonomySchemas.FeatureListItem[];
   initial: Initial;
 };
 
-export function SearchFilters({ locale, propertyTypes, locations, initial }: Props) {
+type ScalarKey = Exclude<keyof Initial, "featureIds">;
+
+export function SearchFilters({ locale, propertyTypes, locations, features, initial }: Props) {
   const router = useRouter();
   const [values, setValues] = useState<Initial>(initial);
 
-  function set<K extends keyof Initial>(key: K, value: string) {
+  function set(key: ScalarKey, value: string) {
     setValues((v) => ({ ...v, [key]: value }));
   }
+
+  function toggleFeature(id: string) {
+    setValues((v) => {
+      const has = v.featureIds.includes(id);
+      return {
+        ...v,
+        featureIds: has ? v.featureIds.filter((x) => x !== id) : [...v.featureIds, id],
+      };
+    });
+  }
+
+  // Group features by groupId for the rendered checkboxes — public api
+  // already returns them in (group.position, feature.position) order, so
+  // we just preserve insertion order in a Map.
+  const groupedFeatures = useMemo(() => {
+    const m = new Map<string, { name: string; items: typeof features }>();
+    for (const f of features) {
+      const g = m.get(f.groupId);
+      if (g) g.items.push(f);
+      else m.set(f.groupId, { name: f.groupName, items: [f] });
+    }
+    return Array.from(m.values());
+  }, [features]);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(values)) {
-      if (v && v.length > 0) qs.set(k, v);
+      if (k === "featureIds") {
+        for (const id of values.featureIds) qs.append("featureIds", id);
+      } else if (typeof v === "string" && v.length > 0) {
+        qs.set(k, v);
+      }
     }
     // Cursor is reset on every filter change — old cursor is meaningless
     // against a different filter set.
@@ -59,6 +90,7 @@ export function SearchFilters({ locale, propertyTypes, locations, initial }: Pro
       maxPriceCents: "",
       bedrooms: "",
       q: "",
+      featureIds: [],
     });
     router.push(`/${locale}/search`);
   }
@@ -179,6 +211,49 @@ export function SearchFilters({ locale, propertyTypes, locations, initial }: Pro
           Reset
         </button>
       </div>
+
+      {groupedFeatures.length > 0 && (
+        <details className="sm:col-span-2 lg:col-span-4" open={values.featureIds.length > 0}>
+          <summary className="cursor-pointer select-none text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Amenities
+            {values.featureIds.length > 0 && (
+              <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                {values.featureIds.length}
+              </span>
+            )}
+          </summary>
+          <div className="mt-3 space-y-3">
+            {groupedFeatures.map((g) => (
+              <fieldset key={g.name} className="space-y-1">
+                <legend className="text-xs font-semibold text-muted-foreground">{g.name}</legend>
+                <div className="flex flex-wrap gap-2">
+                  {g.items.map((f) => {
+                    const checked = values.featureIds.includes(f.id);
+                    return (
+                      <label
+                        key={f.id}
+                        className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition ${
+                          checked
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "bg-background hover:bg-muted"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={checked}
+                          onChange={() => toggleFeature(f.id)}
+                        />
+                        {f.name}
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            ))}
+          </div>
+        </details>
+      )}
     </form>
   );
 }

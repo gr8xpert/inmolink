@@ -58,6 +58,7 @@ export async function signUploads(
         hash: file.hash,
         status: "exists",
         mediaObjectId: hit.id,
+        key: hit.r2Key,
         publicUrl: storage.publicUrl(hit.r2Key),
       });
       continue;

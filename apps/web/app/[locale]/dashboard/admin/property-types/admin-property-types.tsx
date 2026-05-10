@@ -1,7 +1,7 @@
 "use client";
 
 import { SortableList } from "@/components/sortable-list";
-import type { adminPropertyTypeSchemas } from "@inmolink/shared";
+import type { adminPropertyTypeSchemas, uploadSchemas } from "@inmolink/shared";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
@@ -10,8 +10,10 @@ import {
   createTypeAction,
   deleteGroupAction,
   deleteTypeAction,
+  registerIconUploadAction,
   reorderAllGroupsAction,
   reorderAllTypesAction,
+  signIconUploadAction,
   suggestIconAction,
   updateGroupAction,
   updateTypeAction,
@@ -458,9 +460,17 @@ function TypeRow({
       <div className="flex min-w-0 items-center gap-3">
         {dragHandle}
         <span className="font-mono text-xs text-muted-foreground">pos {type.position}</span>
-        <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs">
-          {type.iconName ?? "(no icon)"}
-        </span>
+        {type.iconKind === "CUSTOM" && type.iconPublicUrl ? (
+          <img
+            src={type.iconPublicUrl}
+            alt="custom icon"
+            className="h-6 w-6 rounded border bg-background p-0.5"
+          />
+        ) : (
+          <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs">
+            {type.iconName ?? "(no icon)"}
+          </span>
+        )}
         <span className="truncate font-medium">{en}</span>
         {!type.isActive && (
           <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs">Inactive</span>
@@ -510,6 +520,17 @@ function TypeRow({
   );
 }
 
+const SVG_MAX_BYTES = 50 * 1024; // 50 KB hard cap on UI side; api applies 500 MB cap
+const SVG_MIME = "image/svg+xml";
+
+async function sha256Hex(file: File): Promise<string> {
+  const buf = await file.arrayBuffer();
+  const hashBuf = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(hashBuf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 function TypeForm({
   groupId,
   initial,
@@ -529,7 +550,11 @@ function TypeForm({
 }) {
   const [translations, setTranslations] = useState(loadTranslations(initial?.translations ?? []));
   const [isActive, setIsActive] = useState(initial?.isActive ?? true);
+  const [iconKind, setIconKind] = useState<"LIBRARY" | "CUSTOM">(initial?.iconKind ?? "LIBRARY");
   const [iconName, setIconName] = useState<string>(initial?.iconName ?? "");
+  const [iconR2Key, setIconR2Key] = useState<string | null>(initial?.iconR2Key ?? null);
+  const [iconPublicUrl, setIconPublicUrl] = useState<string | null>(initial?.iconPublicUrl ?? null);
+  const [uploadingSvg, setUploadingSvg] = useState(false);
   const [activeTab, setActiveTab] = useState<Locale>("en");
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -545,19 +570,94 @@ function TypeForm({
     else setLocalError("AI returned no suggestion.");
   }
 
+  async function uploadSvg(file: File) {
+    setLocalError(null);
+    if (file.type !== SVG_MIME) {
+      setLocalError("Custom icon must be an SVG.");
+      return;
+    }
+    if (file.size > SVG_MAX_BYTES) {
+      setLocalError(`SVG too large (${(file.size / 1024).toFixed(1)} KB > 50 KB cap)`);
+      return;
+    }
+    setUploadingSvg(true);
+    try {
+      const hash = await sha256Hex(file);
+      const sign = await signIconUploadAction({
+        hash,
+        mimeType: SVG_MIME as uploadSchemas.MediaMimeType,
+        bytes: file.size,
+      });
+      if (!sign.ok) throw new Error(sign.error);
+      const sig = sign.data.results[0];
+      if (!sig) throw new Error("sign returned no results");
+
+      if (sig.status === "upload") {
+        const put = await fetch(sig.uploadUrl, {
+          method: "PUT",
+          body: file,
+          headers: sig.requiredHeaders,
+        });
+        if (!put.ok) throw new Error(`PUT ${put.status} ${put.statusText}`);
+      }
+
+      // Always register so the MediaObject row exists with refCount + 24h
+      // orphan grace; cleanup worker reaps it if save never lands.
+      const reg = await registerIconUploadAction({
+        hash,
+        mimeType: SVG_MIME as uploadSchemas.MediaMimeType,
+      });
+      if (!reg.ok) throw new Error(reg.error);
+      const result = reg.data.results[0];
+      if (!result) throw new Error("register returned no results");
+
+      // Both sign branches now expose `key`; the upload branch returns its
+      // own `uploadUrl`/`key`, the exists branch returns the MediaObject's
+      // canonical `key`. We bind iconR2Key to the durable key, not to the
+      // mediaObjectId.
+      setIconR2Key(sig.key);
+      setIconPublicUrl(result.publicUrl);
+      setIconKind("CUSTOM");
+    } catch (e) {
+      setLocalError(e instanceof Error ? e.message : "SVG upload failed");
+    } finally {
+      setUploadingSvg(false);
+    }
+  }
+
+  function clearCustomIcon() {
+    setIconR2Key(null);
+    setIconPublicUrl(null);
+    setIconKind("LIBRARY");
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setLocalError(null);
     try {
       const trs = trimTranslations(translations, true);
-      onSubmit({
-        groupId,
-        translations: trs,
-        isActive,
-        iconKind: "LIBRARY",
-        iconName: iconName.trim() || null,
-        iconR2Key: null,
-      });
+      if (iconKind === "CUSTOM") {
+        if (!iconR2Key) {
+          throw new Error("Upload an SVG before saving with kind = CUSTOM");
+        }
+        onSubmit({
+          groupId,
+          translations: trs,
+          isActive,
+          iconKind: "CUSTOM",
+          iconName: null,
+          iconR2Key,
+        });
+      } else {
+        onSubmit({
+          groupId,
+          translations: trs,
+          isActive,
+          iconKind: "LIBRARY",
+          iconName: iconName.trim() || null,
+          iconR2Key: null,
+        });
+      }
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : "Validation error");
     }
@@ -599,28 +699,100 @@ function TypeForm({
         </div>
       ))}
 
-      <div className="grid gap-2 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-xs uppercase text-muted-foreground">
-            Lucide icon name (kebab-case)
-          </span>
-          <div className="flex gap-2">
+      <div className="space-y-2 rounded-md border bg-muted/10 p-3">
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <span className="text-xs uppercase text-muted-foreground">Icon kind</span>
+          <label className="inline-flex items-center gap-1.5">
             <input
-              className="input"
-              value={iconName}
-              onChange={(e) => setIconName(e.target.value)}
-              placeholder="e.g. building-2 or home"
+              type="radio"
+              name="iconKind"
+              value="LIBRARY"
+              checked={iconKind === "LIBRARY"}
+              onChange={() => setIconKind("LIBRARY")}
             />
-            <button
-              type="button"
-              onClick={suggest}
-              disabled={pending}
-              className="shrink-0 rounded-md border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
-            >
-              Suggest
-            </button>
+            Library (Lucide name)
+          </label>
+          <label className="inline-flex items-center gap-1.5">
+            <input
+              type="radio"
+              name="iconKind"
+              value="CUSTOM"
+              checked={iconKind === "CUSTOM"}
+              onChange={() => setIconKind("CUSTOM")}
+            />
+            Custom SVG
+          </label>
+        </div>
+
+        {iconKind === "LIBRARY" ? (
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-xs uppercase text-muted-foreground">
+              Lucide icon name (kebab-case)
+            </span>
+            <div className="flex gap-2">
+              <input
+                className="input"
+                value={iconName}
+                onChange={(e) => setIconName(e.target.value)}
+                placeholder="e.g. building-2 or home"
+              />
+              <button
+                type="button"
+                onClick={suggest}
+                disabled={pending}
+                className="shrink-0 rounded-md border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
+              >
+                Suggest
+              </button>
+            </div>
+          </label>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              {iconPublicUrl ? (
+                /* Render via <img>, never inline — embedded scripts in the
+                   SVG can't execute when loaded as an image. */
+                <img
+                  src={iconPublicUrl}
+                  alt="Custom icon preview"
+                  className="h-12 w-12 rounded border bg-background p-1"
+                />
+              ) : (
+                <span className="flex h-12 w-12 items-center justify-center rounded border border-dashed bg-background text-[10px] text-muted-foreground">
+                  no SVG
+                </span>
+              )}
+              <div className="flex flex-col gap-1 text-xs">
+                <label className="cursor-pointer rounded-md border bg-background px-2 py-1 hover:bg-muted">
+                  <input
+                    type="file"
+                    accept="image/svg+xml"
+                    className="sr-only"
+                    disabled={pending || uploadingSvg}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadSvg(f);
+                      e.target.value = "";
+                    }}
+                  />
+                  {uploadingSvg ? "Uploading…" : iconR2Key ? "Replace SVG" : "Upload SVG"}
+                </label>
+                {iconR2Key && (
+                  <button
+                    type="button"
+                    onClick={clearCustomIcon}
+                    disabled={pending}
+                    className="text-left text-rose-700 hover:underline"
+                  >
+                    Clear (back to Library)
+                  </button>
+                )}
+                <span className="text-muted-foreground">≤ 50 KB · image/svg+xml</span>
+              </div>
+            </div>
           </div>
-        </label>
+        )}
+
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"

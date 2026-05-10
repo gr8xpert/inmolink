@@ -85,3 +85,12 @@ export async function reorderAllLocationsAction(
   if (r.ok) bust(locale);
   return r;
 }
+
+export async function moveLocationAction(locale: string, id: string, newParentId: string) {
+  const r = await call<{ ok: true }>(`${BASE}/locations/${encodeURIComponent(id)}/move`, {
+    method: "POST",
+    body: JSON.stringify({ newParentId }),
+  });
+  if (r.ok) bust(locale);
+  return r;
+}

@@ -33,6 +33,7 @@ type ListResponse = {
 
 type TypesResponse = { items: taxonomySchemas.PropertyTypeListItem[] };
 type LocationsResponse = { items: taxonomySchemas.LocationListItem[] };
+type FeaturesResponse = { items: taxonomySchemas.FeatureListItem[] };
 
 function strParam(v: string | string[] | undefined): string | undefined {
   if (Array.isArray(v)) return v[0];
@@ -62,8 +63,16 @@ export default async function SearchPage({ params, searchParams }: Props) {
     const v = strParam(sp[k]);
     if (v && v.length > 0) apiQs.set(k, v);
   }
+  // featureIds is repeated — append, don't set.
+  const rawFeatures = sp.featureIds;
+  const selectedFeatureIds = Array.isArray(rawFeatures)
+    ? rawFeatures.filter((s) => s.length > 0)
+    : rawFeatures
+      ? [rawFeatures]
+      : [];
+  for (const id of selectedFeatureIds) apiQs.append("featureIds", id);
 
-  const [list, types, locations] = await Promise.all([
+  const [list, types, locations, features] = await Promise.all([
     publicApiFetch<ListResponse>(`/api/public/properties?${apiQs.toString()}`, {
       // Filtered queries get short revalidation; the home / no-filter
       // case piggybacks on the page-level export above.
@@ -71,16 +80,22 @@ export default async function SearchPage({ params, searchParams }: Props) {
     }),
     publicApiFetch<TypesResponse>(`/api/dashboard/property-types?locale=${locale}`),
     publicApiFetch<LocationsResponse>(`/api/dashboard/locations?locale=${locale}`),
+    publicApiFetch<FeaturesResponse>(`/api/dashboard/features?locale=${locale}`),
   ]);
 
   // Carry-forward params for the next-page link so filters survive
-  // pagination. Strip cursor + replace with the new one.
+  // pagination. Strip cursor + replace with the new one. featureIds is
+  // multi-valued — re-append every entry.
   const nextHref = list.nextCursor
     ? (() => {
         const next = new URLSearchParams();
         for (const [k, v] of Object.entries(sp)) {
           if (k === "cursor" || v === undefined) continue;
-          next.set(k, Array.isArray(v) ? (v[0] ?? "") : v);
+          if (Array.isArray(v)) {
+            for (const one of v) if (one) next.append(k, one);
+          } else {
+            next.set(k, v);
+          }
         }
         next.set("cursor", list.nextCursor);
         return `/${locale}/search?${next.toString()}`;
@@ -101,6 +116,7 @@ export default async function SearchPage({ params, searchParams }: Props) {
         locale={locale}
         propertyTypes={types.items}
         locations={locations.items}
+        features={features.items}
         initial={{
           transactionType: strParam(sp.transactionType) ?? "",
           propertyTypeId: strParam(sp.propertyTypeId) ?? "",
@@ -109,6 +125,7 @@ export default async function SearchPage({ params, searchParams }: Props) {
           maxPriceCents: strParam(sp.maxPriceCents) ?? "",
           bedrooms: strParam(sp.bedrooms) ?? "",
           q: strParam(sp.q) ?? "",
+          featureIds: selectedFeatureIds,
         }}
       />
 
