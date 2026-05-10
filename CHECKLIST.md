@@ -193,7 +193,7 @@
 
 ---
 
-## Sprint 2 — Locations / Property Types / Features (super-admin curated)
+## Sprint 2 — Locations / Property Types / Features (super-admin curated) ✅ COMPLETE
 
 ### 2.A — PropertyType + PropertyTypeGroup curation ✅
 
@@ -217,7 +217,7 @@
 - [x] Web `/[locale]/dashboard/admin/features` — same UX as property-types but without slug + iconKind
 - [x] Admin landing tile replaces the placeholder
 - [x] `adminFeatureSchemas` in `@inmolink/shared`
-- [ ] *(deferred to 2.D polish)* Generic `taxonomyAdminFactory` to deduplicate the two services — both follow the same "groups + items + ai-suggester" pattern
+- [x] *(landed as 2.E.5)* Shared taxonomy helpers (`_shared/taxonomy.ts`) — full `taxonomyAdminFactory` declined: divergent invariants across the four entities (tree vs flat / m2m vs translations / with vs without slug or icon kind) would have forced N config flags that defeat the abstraction. Shared error classes + `assertReorderSetMatch` capture the meaningful dedup at low risk.
 
 ### 2.C.1 — Location tree curation ✅
 
@@ -241,13 +241,13 @@
 - [x] Web `/[locale]/dashboard/admin/location-groups` — group list + per-group member editor with up/down/remove + filtered `<select>` picker
 - [x] Admin landing tile added
 - [x] `adminLocationGroupSchemas` in `@inmolink/shared`
-- [ ] *(deferred to 2.D)* Replace member `<select>` with autocomplete once the location catalog grows past a few hundred entries
+- [x] *(landed as 2.E.4)* Combobox autocomplete replaces the member `<select>` (and the move-picker `<select>` in admin/locations) — works at any catalog size, not just past a few hundred entries.
 
-**Sprint 2 admin CRUD complete** for PropertyType / Feature / Location / LocationGroup. 2.D ships drag-drop polish + filter UI on dashboard + public search + the `taxonomyAdminFactory` refactor + dedicated location re-parenting endpoint.
+**Sprint 2 — COMPLETE** for PropertyType / Feature / Location / LocationGroup admin CRUD + drag-drop polish + filter UI + 2.E polish bundle (`/move`, `featureIds[]` facets, custom SVG icons, Combobox, shared helpers).
 
-### 2.D — Drag-n-drop polish + filter UI
+### 2.D — Drag-n-drop polish + filter UI ✅
 
-- [/] Replace up/down arrows with `@dnd-kit/core` for groups + types + features + locations + group members
+- [x] Replace up/down arrows with `@dnd-kit/core` for groups + types + features + locations + group members
   - [x] **2.D.2.a — PropertyType admin** — `SortableList` primitive (generic, vertical-axis, parent-restricted, keyboard sensors). `reorder-all` endpoints replace single-step swaps. Pointer + touch + keyboard drag all work.
   - [x] **2.D.2.b — Feature admin** — `feature-groups/reorder-all` + `features/reorder-all` API; Client Component swaps the up/down arrows for drag handles on both groups and features-in-group.
   - [x] **2.D.2.c — Location admin (tree)** — `locations/reorder-all` API scoped to `(parentId, level)` tuple; recursive `TreeNode` renders one `SortableList` per sibling set so drags can't drift across parents or levels.
@@ -258,11 +258,11 @@
   - [x] **2.E.4 — Combobox autocomplete** — generic `apps/web/src/components/combobox.tsx`; replaces native `<select>` in admin/locations Move picker + admin/location-groups member picker.
   - [x] **2.E.5 — Taxonomy admin shared helpers** — `_shared/taxonomy.ts` consolidates `ConflictError` / `NotFoundError` / `InvalidHierarchyError` (was 4× duplicated) + `assertReorderSetMatch` (was 6× duplicated). Full factory deemed too costly given divergent invariants.
 - [x] **2.D.1 — Filter UI on dashboard property list** — `PropertyFilters` Client Component with q / status / visibility / transactionType / propertyTypeId / locationId pickers. Server Component prefetches taxonomy in parallel; filters survive pagination via carry-forward.
-- [ ] Filter UI on public marketplace search — already has q / transaction / type / location / price / beds; Sprint 2.D adds `featureIds[]` multi-select once the api supports it
-- [ ] Replace `<select>` pickers with typeahead/autocomplete once the catalog grows past ~100 entries (deferred trigger)
-- [ ] `taxonomyAdminFactory` refactor — DRY up the four admin services that share "groups + items + reorder + ai-suggester"
-- [ ] Dedicated location re-parenting endpoint (`POST /locations/:id/move`) with cascade re-leveling for descendants
-- [ ] Custom SVG icon upload for PropertyType (R2-stored)
+- [x] **Public marketplace search facets** — `featureIds[]` multi-select shipped in 2.E.2 (AND semantics, cap 16, AND-composed `features.some` per id). Collapsible amenity-pill UI on `/[locale]/search`.
+- [x] **Combobox autocomplete** shipped as 2.E.4 — replaces native `<select>` everywhere the catalog could realistically grow past tens of entries (admin/locations Move picker + admin/location-groups member picker).
+- [x] **Taxonomy admin shared helpers** shipped as 2.E.5 — full factory declined; `_shared/taxonomy.ts` covers the high-value dedup. Note in the file explains the trade-off if anyone wants to revisit.
+- [x] **Location re-parenting** shipped as 2.E.1 — `POST /locations/:id/move`, same-level only with cycle check. Cross-level moves with cascade re-leveling are deferred to a future iteration if a real use case appears (today's admin can solve the ~rare cross-level case by creating the target then deleting the source).
+- [x] **Custom SVG icon upload for PropertyType** shipped as 2.E.3 — `image/svg+xml` in upload allowlist (50 KB UI cap), sign+register pipeline reused, `iconPublicUrl` resolved by routes layer, render via `<img>` only.
 
 ## Sprint 3 — Public marketplace MVP
 
