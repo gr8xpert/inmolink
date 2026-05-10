@@ -307,5 +307,114 @@
       "uploading": "Téléversement…",
       "error": "Échec du téléversement."
     }
+  },
+  "viewings": {
+    "title": "Visites",
+    "subtitle": "Demandes de visite envoyées et reçues. Les infos client sont chiffrées au repos.",
+    "back": "Tableau de bord",
+    "empty": "Aucune demande de visite pour le moment.",
+    "next": "Page suivante",
+    "with": "avec {name}",
+    "client": "client {name}",
+    "scheduled": "Programmée",
+    "role": { "all": "Toutes", "owner": "Mon annonce", "introducer": "J'ai présenté" },
+    "status": {
+      "PENDING": "En attente",
+      "ACCEPTED": "Acceptée",
+      "DECLINED": "Refusée",
+      "RESCHEDULED": "Reprogrammée",
+      "CANCELLED": "Annulée",
+      "COMPLETED": "Terminée",
+      "EXPIRED": "Expirée"
+    },
+    "outcome": {
+      "NO_INTEREST": "Pas intéressé",
+      "INTERESTED": "Intéressé",
+      "OFFER_MADE": "Offre faite",
+      "SOLD": "Vendu",
+      "RENTED": "Loué"
+    },
+    "new": { "title": "Nouvelle demande de visite" },
+    "detail": {
+      "parties": "Parties",
+      "owner": "Agent de l'annonce",
+      "introducer": "Présentateur",
+      "client": "Client (chiffré)",
+      "encryptedNote": "Visible uniquement par vous et l'agent de l'annonce. AES-256-GCM au repos.",
+      "name": "Nom",
+      "email": "E-mail",
+      "phone": "Téléphone",
+      "whatsappHint": "(WhatsApp)",
+      "notes": "Notes",
+      "schedule": "Rendez-vous",
+      "preferredDates": "Dates préférées",
+      "expires": "La demande expire",
+      "outcome": "Issue",
+      "openChat": "Ouvrir le chat avec {name}"
+    }
+  },
+  "deals": {
+    "title": "Transactions",
+    "subtitle": "Validation de commission entre l'agent et le présentateur. Les deux parties doivent confirmer.",
+    "back": "Tableau de bord",
+    "empty": "Aucune transaction pour le moment.",
+    "next": "Page suivante",
+    "submitNew": "Soumettre",
+    "status": {
+      "PENDING_BOTH": "En attente des deux",
+      "PENDING_OWNER": "En attente de l'agent",
+      "PENDING_INTRODUCER": "En attente du présentateur",
+      "CONFIRMED": "Confirmée",
+      "DISPUTED": "En litige",
+      "CANCELLED": "Annulée"
+    },
+    "actions": {
+      "confirm": "Confirmer",
+      "dispute": "Ouvrir un litige",
+      "cancel": "Annuler",
+      "resolve": "Résoudre le litige",
+      "confirmOutcome": "Marquer confirmée",
+      "cancelOutcome": "Marquer annulée"
+    },
+    "fields": {
+      "agreedPrice": "Prix convenu",
+      "commissionPct": "Commission %",
+      "introducerSharePct": "Part présentateur %",
+      "totalCommission": "Commission totale",
+      "ownerAmount": "Montant agent",
+      "introducerAmount": "Montant présentateur",
+      "closingDate": "Date de clôture"
+    }
+  },
+  "chat": {
+    "title": "Chat",
+    "subtitle": "Conversations en direct liées aux demandes de visite ou messages directs.",
+    "back": "Tableau de bord",
+    "noThreads": "Pas encore de conversations — acceptez une demande de visite ou écrivez à un collègue.",
+    "send": "Envoyer",
+    "writeMessage": "Écrire un message…",
+    "viewingPin": "Depuis la demande de visite",
+    "openProfile": "Voir le profil"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "Aucune notification.",
+    "markAllRead": "Tout marquer comme lu",
+    "kinds": {
+      "VIEWING_REQUESTED": "Nouvelle demande de visite",
+      "VIEWING_ACCEPTED": "Visite acceptée",
+      "VIEWING_DECLINED": "Visite refusée",
+      "VIEWING_RESCHEDULED": "Visite reprogrammée",
+      "VIEWING_CANCELLED": "Visite annulée",
+      "VIEWING_EXPIRING_SOON": "Visite expirée",
+      "VIEWING_OUTCOME_SET": "Issue enregistrée",
+      "DEAL_SUBMITTED": "Transaction à confirmer",
+      "DEAL_CONFIRMED": "Transaction confirmée",
+      "DEAL_DISPUTED": "Transaction en litige",
+      "DEAL_DISPUTE_RESOLVED": "Litige résolu",
+      "CHAT_MESSAGE": "Nouveau message",
+      "LEAD_RECEIVED": "Nouveau prospect",
+      "IMPORT_FAILED": "Échec d'import"
+    }
   }
 }

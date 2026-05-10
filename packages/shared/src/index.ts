@@ -19,6 +19,7 @@ export * as inviteSchemas from "./schemas/invite";
 export * as leadSchemas from "./schemas/lead";
 export * as meSchemas from "./schemas/me";
 export * as mediaSchemas from "./schemas/media";
+export * as notificationSchemas from "./schemas/notification";
 export * as outboxSchemas from "./schemas/outbox";
 export * as propertyImageSchemas from "./schemas/property-images";
 export * as publicLocationSchemas from "./schemas/public-location";

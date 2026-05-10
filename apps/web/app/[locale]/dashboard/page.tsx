@@ -1,4 +1,6 @@
+import { apiFetch } from "@/lib/api";
 import { auth, signOut } from "@inmolink/auth";
+import type { notificationSchemas } from "@inmolink/shared";
 import { setRequestLocale } from "next-intl/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -21,6 +23,18 @@ export default async function DashboardHome({ params }: Props) {
     await signOut({ redirectTo: `/${locale}/sign-in` });
   }
 
+  // Notification badge — soft-fail if api temporarily down so the dashboard
+  // remains usable.
+  let unreadCount = 0;
+  try {
+    const r = await apiFetch<notificationSchemas.NotificationListResponse>(
+      "/api/dashboard/notifications?limit=1",
+    );
+    unreadCount = r.unreadCount;
+  } catch {
+    // ignored
+  }
+
   return (
     <main className="container mx-auto max-w-4xl space-y-6 p-8">
       <div className="flex items-center justify-between border-b pb-4">
@@ -30,11 +44,24 @@ export default async function DashboardHome({ params }: Props) {
             Signed in as {session.user.name} ({session.user.role})
           </p>
         </div>
-        <form action={logout}>
-          <button type="submit" className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
-            Sign out
-          </button>
-        </form>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/${locale}/dashboard/notifications`}
+            className="relative rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            🔔 Notifications
+            {unreadCount > 0 && (
+              <span className="absolute -right-2 -top-2 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+          </Link>
+          <form action={logout}>
+            <button type="submit" className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
+              Sign out
+            </button>
+          </form>
+        </div>
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2">
@@ -55,6 +82,36 @@ export default async function DashboardHome({ params }: Props) {
           <h2 className="font-semibold">Imports</h2>
           <p className="text-sm text-muted-foreground">
             Connect a Kyero, Resale Online, or generic XML feed; the worker syncs on schedule.
+          </p>
+        </Link>
+
+        <Link
+          href={`/${locale}/dashboard/viewings`}
+          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+        >
+          <h2 className="font-semibold">Viewings</h2>
+          <p className="text-sm text-muted-foreground">
+            Requests to visit listings, with encrypted client info and chat threads per request.
+          </p>
+        </Link>
+
+        <Link
+          href={`/${locale}/dashboard/deals`}
+          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+        >
+          <h2 className="font-semibold">Deals</h2>
+          <p className="text-sm text-muted-foreground">
+            Commission handshakes between listing agent and introducer. Both must confirm.
+          </p>
+        </Link>
+
+        <Link
+          href={`/${locale}/dashboard/chat`}
+          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+        >
+          <h2 className="font-semibold">Chat</h2>
+          <p className="text-sm text-muted-foreground">
+            Live conversations with other agents — viewing-bound or direct.
           </p>
         </Link>
 

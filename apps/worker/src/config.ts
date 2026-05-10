@@ -38,6 +38,10 @@ const envSchema = z.object({
 
   // Resend (transactional email)
   RESEND_API_KEY: optionalString,
+  EMAIL_FROM: z.string().default("Inmolink <noreply@inmolink.local>"),
+
+  // Public-app base URL embedded in digest emails (link target).
+  WEB_BASE_URL: z.string().url().default("http://localhost:3000"),
 
   // Public-app base URL — embedded in sitemap <loc> elements + alternate
   // hreflang links. Defaults to the dev port; prod overrides via env.

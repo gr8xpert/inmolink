@@ -27,6 +27,7 @@ import { dealRoutes } from "./modules/deals/routes";
 import { importRoutes } from "./modules/imports/routes";
 import { dashboardInviteRoutes, publicInviteRoutes } from "./modules/invites/routes";
 import { meRoutes } from "./modules/me/routes";
+import { notificationRoutes } from "./modules/notifications/routes";
 import { propertyImageRoutes } from "./modules/properties/images/routes";
 import { propertyRoutes } from "./modules/properties/routes";
 import { publicLeadRoutes } from "./modules/public/lead-routes";
@@ -189,6 +190,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   });
   await app.register(dealRoutes, { prefix: "/api/dashboard/deals" });
   await app.register(chatRoutes, { prefix: "/api/dashboard/chat" });
+  await app.register(notificationRoutes, { prefix: "/api/dashboard/notifications" });
   await app.register(publicPropertyRoutes, { prefix: "/api/public", storage, search });
   await app.register(publicLocationRoutes, { prefix: "/api/public" });
   await app.register(publicProfileRoutes, { prefix: "/api/public", storage });

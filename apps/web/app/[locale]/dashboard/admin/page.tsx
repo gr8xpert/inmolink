@@ -91,6 +91,17 @@ export default async function AdminLandingPage({ params }: Props) {
             types so imports route correctly.
           </p>
         </Link>
+
+        <Link
+          href={`/${locale}/dashboard/admin/disputes`}
+          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
+        >
+          <h2 className="font-semibold">Disputes queue</h2>
+          <p className="text-sm text-muted-foreground">
+            Resolve deals where the listing agent and introducer disagree. Each resolution is
+            audit-logged.
+          </p>
+        </Link>
       </section>
 
       <section className="space-y-3 rounded-md border bg-muted/30 p-4">

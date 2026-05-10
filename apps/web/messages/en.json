@@ -303,5 +303,114 @@
       "uploading": "Uploading…",
       "error": "Upload failed."
     }
+  },
+  "viewings": {
+    "title": "Viewings",
+    "subtitle": "Requests sent and received for property visits. Client info is encrypted at rest.",
+    "back": "Dashboard",
+    "empty": "No viewing requests yet.",
+    "next": "Next page",
+    "with": "with {name}",
+    "client": "client {name}",
+    "scheduled": "Scheduled",
+    "role": { "all": "All", "owner": "I'm listing", "introducer": "I introduced" },
+    "status": {
+      "PENDING": "Pending",
+      "ACCEPTED": "Accepted",
+      "DECLINED": "Declined",
+      "RESCHEDULED": "Rescheduled",
+      "CANCELLED": "Cancelled",
+      "COMPLETED": "Completed",
+      "EXPIRED": "Expired"
+    },
+    "outcome": {
+      "NO_INTEREST": "No interest",
+      "INTERESTED": "Interested",
+      "OFFER_MADE": "Offer made",
+      "SOLD": "Sold",
+      "RENTED": "Rented"
+    },
+    "new": { "title": "New viewing request" },
+    "detail": {
+      "parties": "Parties",
+      "owner": "Listing agent",
+      "introducer": "Introducer",
+      "client": "Client (encrypted)",
+      "encryptedNote": "Visible to you and the listing agent only. AES-256-GCM at rest.",
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "whatsappHint": "(WhatsApp)",
+      "notes": "Notes",
+      "schedule": "Schedule",
+      "preferredDates": "Preferred dates",
+      "expires": "Request expires",
+      "outcome": "Outcome",
+      "openChat": "Open chat with {name}"
+    }
+  },
+  "deals": {
+    "title": "Deals",
+    "subtitle": "Commission handshakes between listing agent and introducer. Both parties must confirm.",
+    "back": "Dashboard",
+    "empty": "No deals yet.",
+    "next": "Next page",
+    "submitNew": "Submit new",
+    "status": {
+      "PENDING_BOTH": "Pending both",
+      "PENDING_OWNER": "Pending listing agent",
+      "PENDING_INTRODUCER": "Pending introducer",
+      "CONFIRMED": "Confirmed",
+      "DISPUTED": "Disputed",
+      "CANCELLED": "Cancelled"
+    },
+    "actions": {
+      "confirm": "Confirm",
+      "dispute": "Open dispute",
+      "cancel": "Cancel deal",
+      "resolve": "Resolve dispute",
+      "confirmOutcome": "Mark confirmed",
+      "cancelOutcome": "Mark cancelled"
+    },
+    "fields": {
+      "agreedPrice": "Agreed price",
+      "commissionPct": "Commission %",
+      "introducerSharePct": "Introducer share %",
+      "totalCommission": "Total commission",
+      "ownerAmount": "Listing agent amount",
+      "introducerAmount": "Introducer amount",
+      "closingDate": "Closing date"
+    }
+  },
+  "chat": {
+    "title": "Chat",
+    "subtitle": "Live conversations tied to viewing requests or direct messages.",
+    "back": "Dashboard",
+    "noThreads": "No conversations yet — accept a viewing request or message a colleague to start one.",
+    "send": "Send",
+    "writeMessage": "Write a message…",
+    "viewingPin": "From viewing request",
+    "openProfile": "View profile"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications.",
+    "markAllRead": "Mark all read",
+    "kinds": {
+      "VIEWING_REQUESTED": "New viewing request",
+      "VIEWING_ACCEPTED": "Viewing accepted",
+      "VIEWING_DECLINED": "Viewing declined",
+      "VIEWING_RESCHEDULED": "Viewing rescheduled",
+      "VIEWING_CANCELLED": "Viewing cancelled",
+      "VIEWING_EXPIRING_SOON": "Viewing expired",
+      "VIEWING_OUTCOME_SET": "Viewing outcome recorded",
+      "DEAL_SUBMITTED": "Deal awaiting your confirmation",
+      "DEAL_CONFIRMED": "Deal confirmed",
+      "DEAL_DISPUTED": "Deal disputed",
+      "DEAL_DISPUTE_RESOLVED": "Dispute resolved",
+      "CHAT_MESSAGE": "New chat message",
+      "LEAD_RECEIVED": "New lead",
+      "IMPORT_FAILED": "Feed import failed"
+    }
   }
 }

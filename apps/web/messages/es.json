@@ -307,5 +307,114 @@
       "uploading": "Subiendo…",
       "error": "Subida fallida."
     }
+  },
+  "viewings": {
+    "title": "Visitas",
+    "subtitle": "Solicitudes de visita enviadas y recibidas. La info del cliente está cifrada en reposo.",
+    "back": "Panel",
+    "empty": "Aún no hay solicitudes de visita.",
+    "next": "Página siguiente",
+    "with": "con {name}",
+    "client": "cliente {name}",
+    "scheduled": "Programada",
+    "role": { "all": "Todas", "owner": "Mi anuncio", "introducer": "Yo presenté" },
+    "status": {
+      "PENDING": "Pendiente",
+      "ACCEPTED": "Aceptada",
+      "DECLINED": "Rechazada",
+      "RESCHEDULED": "Reprogramada",
+      "CANCELLED": "Cancelada",
+      "COMPLETED": "Completada",
+      "EXPIRED": "Caducada"
+    },
+    "outcome": {
+      "NO_INTEREST": "Sin interés",
+      "INTERESTED": "Interesado",
+      "OFFER_MADE": "Oferta presentada",
+      "SOLD": "Vendida",
+      "RENTED": "Alquilada"
+    },
+    "new": { "title": "Nueva solicitud de visita" },
+    "detail": {
+      "parties": "Partes",
+      "owner": "Agente del anuncio",
+      "introducer": "Presentador",
+      "client": "Cliente (cifrado)",
+      "encryptedNote": "Visible solo para ti y el agente del anuncio. AES-256-GCM en reposo.",
+      "name": "Nombre",
+      "email": "Email",
+      "phone": "Teléfono",
+      "whatsappHint": "(WhatsApp)",
+      "notes": "Notas",
+      "schedule": "Agenda",
+      "preferredDates": "Fechas preferidas",
+      "expires": "La solicitud caduca",
+      "outcome": "Resultado",
+      "openChat": "Abrir chat con {name}"
+    }
+  },
+  "deals": {
+    "title": "Operaciones",
+    "subtitle": "Apretón de manos sobre comisiones entre el agente del anuncio y el presentador. Ambas partes deben confirmar.",
+    "back": "Panel",
+    "empty": "Aún no hay operaciones.",
+    "next": "Página siguiente",
+    "submitNew": "Enviar nueva",
+    "status": {
+      "PENDING_BOTH": "Pendiente ambos",
+      "PENDING_OWNER": "Pendiente agente del anuncio",
+      "PENDING_INTRODUCER": "Pendiente presentador",
+      "CONFIRMED": "Confirmada",
+      "DISPUTED": "En disputa",
+      "CANCELLED": "Cancelada"
+    },
+    "actions": {
+      "confirm": "Confirmar",
+      "dispute": "Abrir disputa",
+      "cancel": "Cancelar operación",
+      "resolve": "Resolver disputa",
+      "confirmOutcome": "Marcar confirmada",
+      "cancelOutcome": "Marcar cancelada"
+    },
+    "fields": {
+      "agreedPrice": "Precio acordado",
+      "commissionPct": "% comisión",
+      "introducerSharePct": "% participación presentador",
+      "totalCommission": "Comisión total",
+      "ownerAmount": "Importe agente",
+      "introducerAmount": "Importe presentador",
+      "closingDate": "Fecha de cierre"
+    }
+  },
+  "chat": {
+    "title": "Chat",
+    "subtitle": "Conversaciones en vivo asociadas a solicitudes de visita o mensajes directos.",
+    "back": "Panel",
+    "noThreads": "Aún no hay conversaciones — acepta una solicitud de visita o escribe a un compañero para empezar.",
+    "send": "Enviar",
+    "writeMessage": "Escribe un mensaje…",
+    "viewingPin": "Desde solicitud de visita",
+    "openProfile": "Ver perfil"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "empty": "No hay notificaciones.",
+    "markAllRead": "Marcar todo leído",
+    "kinds": {
+      "VIEWING_REQUESTED": "Nueva solicitud de visita",
+      "VIEWING_ACCEPTED": "Visita aceptada",
+      "VIEWING_DECLINED": "Visita rechazada",
+      "VIEWING_RESCHEDULED": "Visita reprogramada",
+      "VIEWING_CANCELLED": "Visita cancelada",
+      "VIEWING_EXPIRING_SOON": "Visita caducada",
+      "VIEWING_OUTCOME_SET": "Resultado registrado",
+      "DEAL_SUBMITTED": "Operación pendiente de confirmar",
+      "DEAL_CONFIRMED": "Operación confirmada",
+      "DEAL_DISPUTED": "Operación en disputa",
+      "DEAL_DISPUTE_RESOLVED": "Disputa resuelta",
+      "CHAT_MESSAGE": "Nuevo mensaje",
+      "LEAD_RECEIVED": "Nuevo lead",
+      "IMPORT_FAILED": "Falló la importación"
+    }
   }
 }

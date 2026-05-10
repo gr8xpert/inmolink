@@ -307,5 +307,114 @@
       "uploading": "Lade hoch…",
       "error": "Upload fehlgeschlagen."
     }
+  },
+  "viewings": {
+    "title": "Besichtigungen",
+    "subtitle": "Anfragen für Besichtigungen, gesendet und empfangen. Kundendaten sind im Ruhezustand verschlüsselt.",
+    "back": "Dashboard",
+    "empty": "Noch keine Besichtigungsanfragen.",
+    "next": "Nächste Seite",
+    "with": "mit {name}",
+    "client": "Kunde {name}",
+    "scheduled": "Geplant",
+    "role": { "all": "Alle", "owner": "Mein Listing", "introducer": "Ich habe vorgestellt" },
+    "status": {
+      "PENDING": "Ausstehend",
+      "ACCEPTED": "Akzeptiert",
+      "DECLINED": "Abgelehnt",
+      "RESCHEDULED": "Verschoben",
+      "CANCELLED": "Storniert",
+      "COMPLETED": "Abgeschlossen",
+      "EXPIRED": "Abgelaufen"
+    },
+    "outcome": {
+      "NO_INTEREST": "Kein Interesse",
+      "INTERESTED": "Interessiert",
+      "OFFER_MADE": "Angebot abgegeben",
+      "SOLD": "Verkauft",
+      "RENTED": "Vermietet"
+    },
+    "new": { "title": "Neue Besichtigungsanfrage" },
+    "detail": {
+      "parties": "Parteien",
+      "owner": "Listing-Agent",
+      "introducer": "Vermittler",
+      "client": "Kunde (verschlüsselt)",
+      "encryptedNote": "Nur für Sie und den Listing-Agenten sichtbar. AES-256-GCM im Ruhezustand.",
+      "name": "Name",
+      "email": "E-Mail",
+      "phone": "Telefon",
+      "whatsappHint": "(WhatsApp)",
+      "notes": "Notizen",
+      "schedule": "Termin",
+      "preferredDates": "Bevorzugte Termine",
+      "expires": "Anfrage läuft ab",
+      "outcome": "Ergebnis",
+      "openChat": "Chat mit {name} öffnen"
+    }
+  },
+  "deals": {
+    "title": "Deals",
+    "subtitle": "Provisionsbestätigung zwischen Listing-Agent und Vermittler. Beide Parteien müssen bestätigen.",
+    "back": "Dashboard",
+    "empty": "Noch keine Deals.",
+    "next": "Nächste Seite",
+    "submitNew": "Neuen einreichen",
+    "status": {
+      "PENDING_BOTH": "Beide ausstehend",
+      "PENDING_OWNER": "Listing-Agent ausstehend",
+      "PENDING_INTRODUCER": "Vermittler ausstehend",
+      "CONFIRMED": "Bestätigt",
+      "DISPUTED": "In Streit",
+      "CANCELLED": "Storniert"
+    },
+    "actions": {
+      "confirm": "Bestätigen",
+      "dispute": "Streit eröffnen",
+      "cancel": "Deal stornieren",
+      "resolve": "Streit auflösen",
+      "confirmOutcome": "Als bestätigt markieren",
+      "cancelOutcome": "Als storniert markieren"
+    },
+    "fields": {
+      "agreedPrice": "Vereinbarter Preis",
+      "commissionPct": "Provision %",
+      "introducerSharePct": "Vermittler-Anteil %",
+      "totalCommission": "Gesamtprovision",
+      "ownerAmount": "Betrag Listing-Agent",
+      "introducerAmount": "Betrag Vermittler",
+      "closingDate": "Abschlussdatum"
+    }
+  },
+  "chat": {
+    "title": "Chat",
+    "subtitle": "Live-Konversationen zu Besichtigungsanfragen oder Direktnachrichten.",
+    "back": "Dashboard",
+    "noThreads": "Noch keine Konversationen — akzeptieren Sie eine Besichtigungsanfrage oder schreiben Sie einer Kollegin/einem Kollegen.",
+    "send": "Senden",
+    "writeMessage": "Nachricht schreiben…",
+    "viewingPin": "Aus Besichtigungsanfrage",
+    "openProfile": "Profil ansehen"
+  },
+  "notifications": {
+    "title": "Benachrichtigungen",
+    "empty": "Keine Benachrichtigungen.",
+    "markAllRead": "Alle als gelesen markieren",
+    "kinds": {
+      "VIEWING_REQUESTED": "Neue Besichtigungsanfrage",
+      "VIEWING_ACCEPTED": "Besichtigung akzeptiert",
+      "VIEWING_DECLINED": "Besichtigung abgelehnt",
+      "VIEWING_RESCHEDULED": "Besichtigung verschoben",
+      "VIEWING_CANCELLED": "Besichtigung storniert",
+      "VIEWING_EXPIRING_SOON": "Besichtigung abgelaufen",
+      "VIEWING_OUTCOME_SET": "Ergebnis erfasst",
+      "DEAL_SUBMITTED": "Deal wartet auf Bestätigung",
+      "DEAL_CONFIRMED": "Deal bestätigt",
+      "DEAL_DISPUTED": "Deal in Streit",
+      "DEAL_DISPUTE_RESOLVED": "Streit aufgelöst",
+      "CHAT_MESSAGE": "Neue Chat-Nachricht",
+      "LEAD_RECEIVED": "Neuer Lead",
+      "IMPORT_FAILED": "Feed-Import fehlgeschlagen"
+    }
   }
 }

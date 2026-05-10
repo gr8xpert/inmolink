@@ -7,6 +7,7 @@ import { loadConfig } from "./config.js";
 import { makeFeedImportProcessor } from "./processors/feed-import/processor.js";
 import { makeImageVariantProcessor } from "./processors/image-variant/processor.js";
 import { makeMediaCleanupProcessor } from "./processors/media-cleanup/processor.js";
+import { makeNotificationDigestProcessor } from "./processors/notification-digest/processor.js";
 import { makeOutboxDrainProcessor } from "./processors/outbox-drain/processor.js";
 import { makeSitemapGenerateProcessor } from "./processors/sitemap-generate/processor.js";
 import { makeViewingExpireProcessor } from "./processors/viewing-expire/processor.js";
@@ -65,6 +66,12 @@ const sitemapGenerateProcessor = makeSitemapGenerateProcessor({
   publicBaseUrl: env.PUBLIC_BASE_URL,
 });
 const viewingExpireProcessor = makeViewingExpireProcessor({ logger });
+const notificationDigestProcessor = makeNotificationDigestProcessor({
+  logger,
+  resendApiKey: env.RESEND_API_KEY,
+  emailFrom: env.EMAIL_FROM,
+  webBaseUrl: env.WEB_BASE_URL,
+});
 
 // FEED_IMPORT shares Redis with the IMAGE_VARIANT queue — we hand the
 // processor a ref to the same Queue so freshly imported MediaObjects
@@ -84,6 +91,7 @@ function processorFor(queueName: QueueName): Processor {
   if (queueName === QUEUE_NAMES.SITEMAP_GENERATE) return sitemapGenerateProcessor;
   if (queueName === QUEUE_NAMES.FEED_IMPORT) return feedImportProcessor;
   if (queueName === QUEUE_NAMES.VIEWING_EXPIRE) return viewingExpireProcessor;
+  if (queueName === QUEUE_NAMES.NOTIFICATION_DIGEST) return notificationDigestProcessor;
   return placeholderProcessor;
 }
 
@@ -121,6 +129,14 @@ const SITEMAP_SCHEDULE_ID = "sitemap-generate-daily";
 const viewingExpireQueue = new Queue(QUEUE_NAMES.VIEWING_EXPIRE, { connection });
 const VIEWING_EXPIRE_SCHEDULE_PATTERN = "0 0 * * * *"; // top of every hour
 const VIEWING_EXPIRE_SCHEDULE_ID = "viewing-expire-hourly";
+
+/**
+ * NOTIFICATION_DIGEST Queue + scheduler. Hourly tick — drains pending
+ * notifications via email respecting per-user emailDigestFrequency. PLAN §11.6.
+ */
+const notificationDigestQueue = new Queue(QUEUE_NAMES.NOTIFICATION_DIGEST, { connection });
+const NOTIFICATION_DIGEST_SCHEDULE_PATTERN = "0 5 * * * *"; // hh:05 every hour (offset from viewing-expire)
+const NOTIFICATION_DIGEST_SCHEDULE_ID = "notification-digest-hourly";
 
 const workers: Worker[] = [];
 
@@ -229,6 +245,25 @@ logger.info(
   "Viewing-expire scheduler upserted",
 );
 
+await notificationDigestQueue.upsertJobScheduler(
+  NOTIFICATION_DIGEST_SCHEDULE_ID,
+  { pattern: NOTIFICATION_DIGEST_SCHEDULE_PATTERN },
+  {
+    name: "tick",
+    data: {},
+    opts: {
+      attempts: 2,
+      backoff: { type: "exponential", delay: 60_000 },
+      removeOnComplete: { count: 24 },
+      removeOnFail: { count: 50 },
+    },
+  },
+);
+logger.info(
+  { id: NOTIFICATION_DIGEST_SCHEDULE_ID, pattern: NOTIFICATION_DIGEST_SCHEDULE_PATTERN },
+  "Notification-digest scheduler upserted",
+);
+
 /**
  * Feed-import scheduler reconciliation (PLAN §11.5).
  *
@@ -281,6 +316,7 @@ const shutdown = async (signal: string): Promise<void> => {
   await feedImportQueue.close();
   await imageVariantQueueForImport.close();
   await viewingExpireQueue.close();
+  await notificationDigestQueue.close();
   await connection.quit();
   process.exit(0);
 };
