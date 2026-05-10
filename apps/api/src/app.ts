@@ -14,7 +14,7 @@ import {
 } from "fastify-type-provider-zod";
 import { Redis } from "ioredis";
 import type { Env } from "./config";
-import { closeQueues, getImageVariantQueue } from "./lib/queues";
+import { closeQueues, getFeedImportQueue, getImageVariantQueue } from "./lib/queues";
 import { adminFeatureRoutes } from "./modules/admin/features/routes";
 import { adminFeedTypeMapRoutes } from "./modules/admin/feed-type-maps/routes";
 import { adminLocationGroupRoutes } from "./modules/admin/location-groups/routes";
@@ -22,6 +22,7 @@ import { adminLocationRoutes } from "./modules/admin/locations/routes";
 import { adminPropertyTypeRoutes } from "./modules/admin/property-types/routes";
 import { adminSitemapRoutes } from "./modules/admin/sitemap-routes";
 import { agencyRoutes } from "./modules/agency/routes";
+import { importRoutes } from "./modules/imports/routes";
 import { dashboardInviteRoutes, publicInviteRoutes } from "./modules/invites/routes";
 import { meRoutes } from "./modules/me/routes";
 import { propertyImageRoutes } from "./modules/properties/images/routes";
@@ -144,6 +145,8 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
 
   // BullMQ producer for image-variant jobs (consumed by apps/worker).
   const imageVariantQueue = getImageVariantQueue(redis);
+  // BullMQ producer for feed-import jobs + scheduled runs (PLAN §11.5).
+  const feedImportQueue = getFeedImportQueue(redis);
 
   // Search adapter — Meilisearch v1.12 (PLAN §11.5). Wired into the public
   // search endpoint; gracefully degrades to Postgres ILIKE when Meili is
@@ -169,6 +172,11 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   await app.register(adminLocationGroupRoutes, { prefix: "/api/dashboard/admin" });
   await app.register(adminSitemapRoutes, { prefix: "/api/dashboard/admin" });
   await app.register(uploadRoutes, { prefix: "/api/uploads", storage, imageVariantQueue });
+  await app.register(importRoutes, {
+    prefix: "/api/dashboard/imports",
+    feedImportQueue,
+    encryptionKeyHex: env.ENCRYPTION_KEY,
+  });
   await app.register(publicPropertyRoutes, { prefix: "/api/public", storage, search });
   await app.register(publicLocationRoutes, { prefix: "/api/public" });
   await app.register(publicProfileRoutes, { prefix: "/api/public", storage });
