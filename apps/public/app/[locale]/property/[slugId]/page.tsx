@@ -1,5 +1,6 @@
 import { ApiError, publicApiFetch } from "@/lib/api";
 import { formatDate, formatMoney } from "@/lib/format";
+import { type SeoLocale, localeAlternatesByLocale } from "@/lib/seo";
 import type { publicPropertySchemas } from "@inmolink/shared";
 import { AgencyBadge } from "@inmolink/ui";
 import type { Metadata } from "next";
@@ -72,12 +73,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description =
     detail.translation.metaDescription ?? detail.translation.description.slice(0, 160);
   const baseUrl = process.env.NEXT_PUBLIC_PUBLIC_URL ?? "http://localhost:3002";
-  const canonical = `${baseUrl}/${locale}/property/${detail.translation.slug}-${detail.id}`;
+
+  // hreflang alternates — one per locale that has a real translation.
+  const pathByLocale: Partial<Record<SeoLocale, string>> = {};
+  for (const [loc, slug] of Object.entries(detail.alternateSlugs)) {
+    if (loc === "en" || loc === "es" || loc === "de" || loc === "fr") {
+      pathByLocale[loc] = `/property/${slug}-${detail.id}`;
+    }
+  }
+  const alternates = localeAlternatesByLocale({ currentLocale: locale, pathByLocale });
+  const canonical =
+    typeof alternates.canonical === "string"
+      ? alternates.canonical
+      : `${baseUrl}/${locale}/property/${detail.translation.slug}-${detail.id}`;
 
   return {
     title: detail.translation.metaTitle ?? detail.translation.title,
     description,
-    alternates: { canonical },
+    alternates,
     openGraph: {
       type: "website",
       locale,

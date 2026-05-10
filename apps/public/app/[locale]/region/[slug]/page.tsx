@@ -1,4 +1,5 @@
 import { ApiError, publicApiFetch } from "@/lib/api";
+import { localeAlternates } from "@/lib/seo";
 import type { publicLocationSchemas } from "@inmolink/shared";
 import type { Metadata } from "next";
 import { setRequestLocale } from "next-intl/server";
@@ -41,11 +42,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const group = await loadGroup(locale, slug);
   if (!group) return {};
 
-  const canonical = `${BASE_URL}/${locale}/region/${group.slug}`;
+  // Same caveat as /buy: alternate hreflang paths assume the slug is the
+  // same across locales. The api returns the slug for the current locale
+  // only; a future refactor can carry alternateSlugs the same way the
+  // property detail does.
+  const alternates = localeAlternates({
+    currentLocale: locale,
+    path: `/region/${group.slug}`,
+  });
+  const canonical =
+    typeof alternates.canonical === "string"
+      ? alternates.canonical
+      : `${BASE_URL}/${locale}/region/${group.slug}`;
   return {
     title: group.metaTitle ?? group.name,
     description: group.metaDescription ?? undefined,
-    alternates: { canonical },
+    alternates,
     openGraph: {
       type: "website",
       locale,

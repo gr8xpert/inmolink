@@ -58,6 +58,12 @@ export const publicPropertyDetailSchema = z.object({
   updatedAt: z.string().datetime(),
   translation: publicPropertyTranslationSchema,
   agency: publicAgencyBadgeSchema,
+  /**
+   * Slug per locale for *available* translations — used by the page to
+   * emit hreflang alternates without re-fetching for every locale. Locales
+   * with no translation are simply omitted.
+   */
+  alternateSlugs: z.record(z.string(), z.string()),
 });
 
 export const publicPropertyImageSchema = z.object({

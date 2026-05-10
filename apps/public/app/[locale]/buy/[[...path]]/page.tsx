@@ -1,4 +1,5 @@
 import { ApiError, publicApiFetch } from "@/lib/api";
+import { localeAlternates } from "@/lib/seo";
 import type { publicLocationSchemas } from "@inmolink/shared";
 import type { Metadata } from "next";
 import { setRequestLocale } from "next-intl/server";
@@ -50,11 +51,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const landing = await loadLanding(locale, path.join("/"));
   if (!landing) return {};
 
-  const canonical = `${BASE_URL}/${locale}${landing.path}`;
+  // hreflang alternates: same path used for every locale. This is correct
+  // when slugs match across locales (e.g. /buy/spain). It's *imperfect*
+  // when slugs translate (/buy/españa for the es locale) — the api would
+  // need to return per-locale paths to get those right. Tracking as a
+  // Sprint 4 polish; Google still gets the canonical right.
+  const alternates = localeAlternates({ currentLocale: locale, path: landing.path });
+  const canonical =
+    typeof alternates.canonical === "string"
+      ? alternates.canonical
+      : `${BASE_URL}/${locale}${landing.path}`;
   return {
     title: landing.metaTitle ?? landing.name,
     description: landing.metaDescription ?? undefined,
-    alternates: { canonical },
+    alternates,
     openGraph: {
       type: "website",
       locale,

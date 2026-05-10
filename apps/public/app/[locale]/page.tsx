@@ -1,10 +1,29 @@
+import { localeAlternates } from "@/lib/seo";
+import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import Link from "next/link";
 
 type Props = {
   params: Promise<{ locale: string }>;
 };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "site" });
+  return {
+    title: t("name"),
+    description: t("tagline"),
+    alternates: localeAlternates({ currentLocale: locale, path: "/" }),
+    openGraph: {
+      type: "website",
+      locale,
+      title: t("name"),
+      description: t("tagline"),
+      siteName: "Inmolink",
+    },
+  };
+}
 
 export default async function HomePage({ params }: Props) {
   const { locale } = await params;

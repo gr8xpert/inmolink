@@ -1,10 +1,28 @@
 import { publicApiFetch } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
+import { localeAlternates } from "@/lib/seo";
 import type { publicPropertySchemas, taxonomySchemas } from "@inmolink/shared";
 import { AgencyBadge } from "@inmolink/ui";
-import { setRequestLocale } from "next-intl/server";
+import type { Metadata } from "next";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import Link from "next/link";
 import { SearchFilters } from "./search-filters";
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "search" });
+  return {
+    title: t("placeholder"),
+    description: t("placeholder"),
+    alternates: localeAlternates({ currentLocale: locale, path: "/search" }),
+    openGraph: {
+      type: "website",
+      locale,
+      title: t("placeholder"),
+      siteName: "Inmolink",
+    },
+  };
+}
 
 /**
  * Public marketplace search/list page. Postgres-backed in v1; the

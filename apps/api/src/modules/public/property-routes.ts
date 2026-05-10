@@ -435,6 +435,9 @@ export async function publicPropertyRoutes(
           name: row.agency.name,
           logoUrl: row.agency.logoR2Key ? storage.publicUrl(row.agency.logoR2Key) : null,
         },
+        // Slug-by-locale for hreflang alternates on the public page.
+        // Only locales with a real translation are emitted.
+        alternateSlugs: Object.fromEntries(row.translations.map((t) => [t.locale, t.slug])),
       };
     },
   );
