@@ -176,6 +176,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
     prefix: "/api/dashboard/imports",
     feedImportQueue,
     encryptionKeyHex: env.ENCRYPTION_KEY,
+    storage,
   });
   await app.register(publicPropertyRoutes, { prefix: "/api/public", storage, search });
   await app.register(publicLocationRoutes, { prefix: "/api/public" });

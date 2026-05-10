@@ -740,11 +740,16 @@ model FeedConnection {
   ownerUserId String
   agencyId    String?
 
-  kind           FeedConnectorKind
-  feedUrl        String
-  credentialsEnc String? // AES-256-GCM (PLAN §9.3)
-  fieldMappings  Json? // GENERIC_XML mapping
-  defaults       Json?
+  kind            FeedConnectorKind
+  feedUrl         String
+  /// Set on one-off manual XML uploads (PLAN §11.5 "Manual XML upload
+  /// supported"). When non-null the worker reads the file from Storage
+  /// instead of HTTP-fetching feedUrl. feedUrl in that case carries a label
+  /// like "upload://<filename>" purely for display in the dashboard.
+  uploadedFileKey String?
+  credentialsEnc  String? // AES-256-GCM (PLAN §9.3)
+  fieldMappings   Json? // GENERIC_XML mapping
+  defaults        Json?
 
   syncEnabled   Boolean   @default(true)
   cronSchedule  String    @default("0 */6 * * *")

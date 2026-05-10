@@ -294,6 +294,18 @@
       "save": "Enregistrer les verrous",
       "saving": "Enregistrement…",
       "saved": "Verrous enregistrés."
+    },
+    "upload": {
+      "title": "Téléverser un fichier XML (ponctuel)",
+      "kind": "Format",
+      "file": "Fichier XML",
+      "fileHint": "Jusqu'à 10 Mo. Pour des flux plus volumineux, utilisez une connexion URL planifiée.",
+      "fileRequired": "Sélectionnez un fichier XML avant de téléverser.",
+      "fieldMappings": "Mappages de champs (XML générique uniquement)",
+      "fieldMappingsRequired": "Les mappages sont requis pour les téléversements XML génériques.",
+      "submit": "Téléverser + importer",
+      "uploading": "Téléversement…",
+      "error": "Échec du téléversement."
     }
   }
 }

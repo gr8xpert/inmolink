@@ -294,6 +294,18 @@
       "save": "Guardar bloqueos",
       "saving": "Guardando…",
       "saved": "Bloqueos guardados."
+    },
+    "upload": {
+      "title": "Subir un archivo XML (puntual)",
+      "kind": "Formato",
+      "file": "Archivo XML",
+      "fileHint": "Hasta 10 MB. Para feeds más grandes usa una conexión URL programada.",
+      "fileRequired": "Selecciona un archivo XML antes de subir.",
+      "fieldMappings": "Mapeos de campos (solo XML genérico)",
+      "fieldMappingsRequired": "Los mapeos son obligatorios para subidas de XML genérico.",
+      "submit": "Subir e importar",
+      "uploading": "Subiendo…",
+      "error": "Subida fallida."
     }
   }
 }

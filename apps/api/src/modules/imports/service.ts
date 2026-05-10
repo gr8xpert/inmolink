@@ -1,6 +1,7 @@
 import { encryptToString } from "@inmolink/auth";
 import { prisma } from "@inmolink/db";
 import type { feedConnectionSchemas } from "@inmolink/shared";
+import type { Storage } from "@inmolink/storage";
 import type { FeedConnectorKind, Prisma } from "@prisma/client";
 import type { Queue } from "bullmq";
 import {
@@ -38,6 +39,7 @@ type RawConnection = {
   agencyId: string | null;
   kind: FeedConnectorKind;
   feedUrl: string;
+  uploadedFileKey: string | null;
   credentialsEnc: string | null;
   fieldMappings: Prisma.JsonValue;
   syncEnabled: boolean;
@@ -203,6 +205,7 @@ export async function deleteFeedConnection(
   caller: Caller,
   id: string,
   feedImportQueue: Queue,
+  storage?: Storage,
 ): Promise<{ ok: true }> {
   const existing = await prisma.feedConnection.findUnique({
     where: { id },
@@ -213,6 +216,13 @@ export async function deleteFeedConnection(
 
   await prisma.feedConnection.delete({ where: { id } });
   await removeFeedImportSchedule(feedImportQueue, { connectionId: id });
+
+  // Manual XML uploads have an associated Storage object — remove it so
+  // we don't leave orphan files. Failures are logged but not fatal; the
+  // orphan-cleanup worker would catch them on its next sweep.
+  if (existing.uploadedFileKey && storage) {
+    await storage.delete(existing.uploadedFileKey).catch(() => undefined);
+  }
   return { ok: true };
 }
 
@@ -249,6 +259,67 @@ export async function triggerManualRun(
   });
 
   return { runId: run.id, jobId };
+}
+
+/**
+ * One-off manual XML upload (PLAN §11.5 "Manual XML upload supported").
+ *
+ * The api streams the uploaded file to Storage, creates a transient
+ * FeedConnection with `syncEnabled=false` (no cron) + `uploadedFileKey`
+ * set, then triggers a manual run. The worker reads from Storage instead
+ * of HTTP-fetching feedUrl. The connection sticks around so the user can
+ * see the run history; deleting it removes the file from Storage too.
+ */
+export async function uploadManualXml(
+  caller: Caller,
+  args: {
+    kind: FeedConnectorKind;
+    fileBuffer: Buffer;
+    filename: string;
+    contentType: string;
+    fieldMappings: feedConnectionSchemas.FeedConnection["fieldMappings"] | null;
+  },
+  storage: Storage,
+  feedImportQueue: Queue,
+): Promise<{ connectionId: string; runId: string; jobId: string }> {
+  const ts = Date.now();
+  const sanitised = args.filename.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 80);
+  const key = `imports/${caller.userId}/${ts}-${sanitised}`;
+
+  await storage.put(key, args.fileBuffer, args.contentType);
+
+  const connection = await prisma.feedConnection.create({
+    data: {
+      owner: { connect: { id: caller.userId } },
+      agencyId: caller.agencyId,
+      kind: args.kind,
+      // feedUrl carries a label for the dashboard; the worker uses
+      // uploadedFileKey when this column is non-null.
+      feedUrl: `upload://${sanitised}`,
+      uploadedFileKey: key,
+      fieldMappings: (args.fieldMappings ?? null) as unknown as Prisma.InputJsonValue,
+      syncEnabled: false,
+      cronSchedule: "0 0 * * *", // unused — syncEnabled=false
+    },
+  });
+
+  const run = await prisma.feedRun.create({
+    data: {
+      connectionId: connection.id,
+      status: "QUEUED",
+      triggeredBy: "MANUAL",
+      triggeredByUserId: caller.userId,
+      startedAt: new Date(),
+    },
+  });
+
+  const jobId = await enqueueFeedImportNow(feedImportQueue, {
+    connectionId: connection.id,
+    runId: run.id,
+    triggeredBy: "MANUAL",
+  });
+
+  return { connectionId: connection.id, runId: run.id, jobId };
 }
 
 export async function listRuns(

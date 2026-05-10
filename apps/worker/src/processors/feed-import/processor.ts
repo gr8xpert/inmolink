@@ -1,6 +1,14 @@
+import { Readable } from "node:stream";
 import { decryptFromString } from "@inmolink/auth";
 import { prisma } from "@inmolink/db";
-import { type FeedConnector, makeConnector } from "@inmolink/imports";
+import {
+  type FeedConnector,
+  type NormalizedListing,
+  makeConnector,
+  parseGenericXmlStream,
+  parseKyeroStream,
+  parseResaleOnlineStream,
+} from "@inmolink/imports";
 import { feedImportSchemas } from "@inmolink/shared";
 import type { Storage } from "@inmolink/storage";
 import type { FeedConnectorKind, FeedRunStatus, FeedRunTrigger } from "@prisma/client";
@@ -48,13 +56,22 @@ export function makeFeedImportProcessor(deps: {
     const data = feedImportSchemas.feedImportJobSchema.parse(job.data);
     const log = logger.child({ jobId: job.id, feedConnectionId: data.feedConnectionId });
 
-    // 1. Mutex
+    // 1. Mutex. CRON triggers require syncEnabled (the user disabling a
+    // feed must stop scheduled runs); MANUAL / RETRY triggers run regardless
+    // since the api created the FeedRun explicitly (e.g. one-off uploads
+    // live with syncEnabled=false from the start).
+    const lockWhere: { id: string; isLocked: boolean; syncEnabled?: boolean } = {
+      id: data.feedConnectionId,
+      isLocked: false,
+    };
+    if (data.triggeredBy === "CRON") lockWhere.syncEnabled = true;
+
     const lockResult = await prisma.feedConnection.updateMany({
-      where: { id: data.feedConnectionId, isLocked: false, syncEnabled: true },
+      where: lockWhere,
       data: { isLocked: true, lockedAt: new Date() },
     });
     if (lockResult.count === 0) {
-      log.warn("FeedConnection not lockable (already locked or syncEnabled=false), skipping");
+      log.warn("FeedConnection not lockable (already locked or sync off for cron), skipping");
       throw new Error("Feed connection unavailable for import");
     }
 
@@ -92,13 +109,18 @@ export function makeFeedImportProcessor(deps: {
       // 3. Connector + creds
       const credentials = decryptCredentialsOrEmpty(connection.credentialsEnc, encryptionKey);
 
-      const connector = pickConnector(connection.kind, connection.fieldMappings);
-
-      // 4. Stream
-      const iter = connector.fetch({
-        feedUrl: connection.feedUrl,
-        credentials,
-      });
+      // 4. Stream — either from storage (one-off manual XML upload) or HTTP.
+      const iter: AsyncIterable<NormalizedListing> = connection.uploadedFileKey
+        ? streamFromStorage({
+            storage,
+            kind: connection.kind,
+            fieldMappings: connection.fieldMappings,
+            uploadedFileKey: connection.uploadedFileKey,
+          })
+        : pickConnector(connection.kind, connection.fieldMappings).fetch({
+            feedUrl: connection.feedUrl,
+            credentials,
+          });
 
       for await (const listing of iter) {
         total++;
@@ -192,6 +214,41 @@ export function makeFeedImportProcessor(deps: {
       counts: { total, created, updated, skippedLocked, failed },
     };
   };
+}
+
+/**
+ * One-off manual XML upload path (PLAN §11.5). The api saved the file to
+ * Storage; the worker downloads its bytes once, wraps them in a Node
+ * Readable, and streams through the same connector parser the HTTP path
+ * uses. The buffer fits in memory because the dashboard caps manual
+ * uploads at 10 MB; periodic feeds 100+ MB stay on the HTTP path.
+ */
+function streamFromStorage(args: {
+  storage: Storage;
+  kind: FeedConnectorKind;
+  fieldMappings: unknown;
+  uploadedFileKey: string;
+}): AsyncIterable<NormalizedListing> {
+  return (async function* iter() {
+    const buf = await args.storage.download(args.uploadedFileKey);
+    const stream = Readable.from([buf]);
+    if (args.kind === "KYERO") {
+      yield* parseKyeroStream(stream);
+      return;
+    }
+    if (args.kind === "RESALE_ONLINE") {
+      yield* parseResaleOnlineStream(stream);
+      return;
+    }
+    // GENERIC_XML
+    const parsed = feedImportSchemas.genericXmlConfigSchema.safeParse(args.fieldMappings);
+    if (!parsed.success) {
+      throw new Error(
+        `GENERIC_XML manual upload requires valid fieldMappings; got ${parsed.error.message}`,
+      );
+    }
+    yield* parseGenericXmlStream(stream, parsed.data);
+  })();
 }
 
 function pickConnector(kind: FeedConnectorKind, fieldMappings: unknown): FeedConnector {

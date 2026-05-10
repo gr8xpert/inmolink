@@ -5,6 +5,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ImportsList } from "./imports-list";
+import { ManualUpload } from "./manual-upload";
 
 type Props = { params: Promise<{ locale: string }> };
 
@@ -44,6 +45,8 @@ export default async function ImportsListPage({ params }: Props) {
       </header>
 
       <ImportsList locale={locale} initial={list.items} />
+
+      <ManualUpload locale={locale} />
     </main>
   );
 }

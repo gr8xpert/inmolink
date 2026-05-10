@@ -294,6 +294,18 @@
       "save": "Sperren speichern",
       "saving": "Speichere…",
       "saved": "Sperren gespeichert."
+    },
+    "upload": {
+      "title": "XML-Datei hochladen (einmalig)",
+      "kind": "Format",
+      "file": "XML-Datei",
+      "fileHint": "Bis zu 10 MB. Für größere Feeds nutze eine geplante URL-Verbindung.",
+      "fileRequired": "Wähle eine XML-Datei aus, bevor du hochlädst.",
+      "fieldMappings": "Feld-Mappings (nur Generisches XML)",
+      "fieldMappingsRequired": "Feld-Mappings sind für generische XML-Uploads erforderlich.",
+      "submit": "Hochladen + importieren",
+      "uploading": "Lade hoch…",
+      "error": "Upload fehlgeschlagen."
     }
   }
 }

@@ -290,6 +290,18 @@
       "save": "Save locks",
       "saving": "Saving…",
       "saved": "Locks saved."
+    },
+    "upload": {
+      "title": "Upload an XML file (one-off)",
+      "kind": "Format",
+      "file": "XML file",
+      "fileHint": "Up to 10 MB. Larger feeds should use a scheduled URL connection instead.",
+      "fileRequired": "Pick an XML file before uploading.",
+      "fieldMappings": "Field mappings (Generic XML only)",
+      "fieldMappingsRequired": "Field mappings are required for Generic XML uploads.",
+      "submit": "Upload + import",
+      "uploading": "Uploading…",
+      "error": "Upload failed."
     }
   }
 }

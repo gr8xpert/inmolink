@@ -1,4 +1,5 @@
 import { feedConnectionSchemas } from "@inmolink/shared";
+import type { Storage } from "@inmolink/storage";
 import type { Queue } from "bullmq";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
@@ -13,6 +14,7 @@ import {
   listRuns,
   triggerManualRun,
   updateFeedConnection,
+  uploadManualXml,
 } from "./service";
 
 /**
@@ -23,10 +25,10 @@ import {
  */
 export async function importRoutes(
   app: FastifyInstance,
-  opts: { feedImportQueue: Queue; encryptionKeyHex: string },
+  opts: { feedImportQueue: Queue; encryptionKeyHex: string; storage: Storage },
 ): Promise<void> {
   const fastify = app.withTypeProvider<ZodTypeProvider>();
-  const { feedImportQueue, encryptionKeyHex } = opts;
+  const { feedImportQueue, encryptionKeyHex, storage } = opts;
 
   fastify.setErrorHandler((err, _req, reply) => {
     if (err instanceof NotFoundError) {
@@ -127,7 +129,79 @@ export async function importRoutes(
       },
     },
     async (request) => {
-      return deleteFeedConnection(callerOf(request), request.params.id, feedImportQueue);
+      return deleteFeedConnection(callerOf(request), request.params.id, feedImportQueue, storage);
+    },
+  );
+
+  // Manual one-off XML upload (PLAN §11.5). Multipart form: file + kind +
+  // optional fieldMappings JSON for GENERIC_XML.
+  fastify.post(
+    "/upload-xml",
+    {
+      schema: {
+        tags: ["imports"],
+        summary: "Manual XML upload — one-off import without persistent feed",
+        consumes: ["multipart/form-data"],
+        response: {
+          202: z.object({
+            connectionId: z.string(),
+            runId: z.string(),
+            jobId: z.string(),
+          }),
+        },
+      },
+    },
+    async (request, reply) => {
+      const caller = callerOf(request);
+      const data = await request.file({ limits: { fileSize: 10 * 1024 * 1024 } });
+      if (!data) {
+        throw app.httpErrors.badRequest("Missing file part");
+      }
+      const buf = await data.toBuffer();
+
+      const kindRaw = (data.fields.kind as { value?: string } | undefined)?.value ?? "";
+      const fieldMappingsRaw =
+        (data.fields.fieldMappings as { value?: string } | undefined)?.value ?? "";
+
+      const kindParsed = feedConnectionSchemas.feedConnectorKindSchema.safeParse(kindRaw);
+      if (!kindParsed.success) {
+        throw app.httpErrors.badRequest(`Invalid kind: ${kindRaw}`);
+      }
+
+      let fieldMappings: feedConnectionSchemas.FeedConnection["fieldMappings"] | null = null;
+      if (kindParsed.data === "GENERIC_XML") {
+        if (!fieldMappingsRaw) {
+          throw app.httpErrors.badRequest("fieldMappings required for GENERIC_XML");
+        }
+        try {
+          const json = JSON.parse(fieldMappingsRaw);
+          const parsed =
+            feedConnectionSchemas.feedConnectionCreateSchema.shape.fieldMappings.safeParse(json);
+          if (!parsed.success) {
+            throw app.httpErrors.badRequest(
+              parsed.error.issues[0]?.message ?? "Invalid fieldMappings",
+            );
+          }
+          fieldMappings = parsed.data ?? null;
+        } catch (err) {
+          if (err && typeof err === "object" && "statusCode" in err) throw err;
+          throw app.httpErrors.badRequest("fieldMappings is not valid JSON");
+        }
+      }
+
+      const r = await uploadManualXml(
+        caller,
+        {
+          kind: kindParsed.data,
+          fileBuffer: buf,
+          filename: data.filename ?? "upload.xml",
+          contentType: data.mimetype || "application/xml",
+          fieldMappings,
+        },
+        storage,
+        feedImportQueue,
+      );
+      return reply.code(202).send(r);
     },
   );
 
