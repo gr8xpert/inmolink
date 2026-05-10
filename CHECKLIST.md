@@ -264,14 +264,84 @@
 - [x] **Location re-parenting** shipped as 2.E.1 — `POST /locations/:id/move`, same-level only with cycle check. Cross-level moves with cascade re-leveling are deferred to a future iteration if a real use case appears (today's admin can solve the ~rare cross-level case by creating the target then deleting the source).
 - [x] **Custom SVG icon upload for PropertyType** shipped as 2.E.3 — `image/svg+xml` in upload allowlist (50 KB UI cap), sign+register pipeline reused, `iconPublicUrl` resolved by routes layer, render via `<img>` only.
 
-## Sprint 3 — Public marketplace MVP
+## Sprint 3 — Public marketplace MVP ✅ COMPLETE
 
-- [ ] Meilisearch outbox pattern (DB write → OutboxEvent → worker → reindex)
-- [ ] Per-locale Meilisearch indices
-- [ ] Location landing pages (4 levels + groups, all locales)
-- [ ] Sitemap generation worker (per-locale, segmented)
-- [ ] Anonymous lead form on property pages
-- [ ] robots.txt, hreflang, canonical, OG meta sweep
+### 3.A — Schema: Lead + LocationFAQ + repair migrations gitignore ✅ (commit `1205a97`)
+
+- [x] `Lead` model — source enum, status enum, propertyId/agencyId FKs (SetNull on delete), salted ipHash, turnstileVerified flag
+- [x] `LocationFAQ` model — per-location + per-locale Q&A, `@@unique(locationId, locale, position)`
+- [x] Reverse rels: `Property.leads`, `Agency.leads`, `Location.faqs`
+- [x] `.gitignore` repaired — re-include migrations under `*.sql` exclusion (prior migrations were never committed; fixed alongside the Sprint 3 migration)
+- [x] Migration: `20260510110428_sprint_3_leads_faq`
+
+### 3.B — Outbox writer: emit on Property mutations ✅ (commit `ce4757c`)
+
+- [x] `@inmolink/shared/schemas/outbox` — typed payloads for `search.property.upsert` + `search.property.delete` topics, with `reason` discriminator
+- [x] `apps/api/modules/outbox/service.ts` — `emitSearchPropertyUpsert/Delete(tx, payload)` requires a Prisma TransactionClient (atomic outbox + entity write)
+- [x] `properties/repository.ts` — create + soft-delete wrapped in `$transaction`; update emits at end with `feature_change` vs `update` reason
+
+### 3.C — @inmolink/search Meilisearch adapter ✅ (commit `ac6778f`)
+
+- [x] `configureIndex(locale) / configureAllIndices()` — idempotent bootstrap with searchableAttributes / filterableAttributes / sortableAttributes / `publishedAt:desc` custom rank rule / `pagination.maxTotalHits = 5000`
+- [x] `buildPropertyDocuments(p)` projection — pure function from Prisma row (with `propertyReindexInclude`) to per-locale search docs. Centralised indexable predicate (ACTIVE + PUBLIC) so worker / reindex / api stay aligned. `_geo` only when both lat + long present.
+- [x] Per-locale fallback (en → first available) so a French-only listing still surfaces in /en/search
+
+### 3.D — Worker: OUTBOX_DRAIN job + reindex script ✅ (commit `1b4eeb5`)
+
+- [x] `outbox-drain` BullMQ processor on the existing `SEARCH_REINDEX` queue; scheduler ticks every 5 s
+- [x] Topic dispatch — upsert: load row + project + upsertBatch; project returns [] (visibility flip) → delete; race-handled (deleted between emit + drain → delete)
+- [x] Failures set `status=FAILED` + bumped attempts + `errorLast`
+- [x] `scripts/reindex.ts` — full DR rebuild, cursor-paginated 500-row batches, `--dry-run` flag, `pnpm --filter @inmolink/worker reindex`
+
+### 3.E — Public search routes use Meilisearch ✅ (commit `e2ff99a`)
+
+- [x] `/api/public/properties` split: `q` present → Meilisearch with offset-based "search-cursor" (`o:` prefix), returns optional `facets`; `q` absent → Postgres + (createdAt, id) cursor (unchanged)
+- [x] Re-hydrate hits from Postgres for cover/agency data; visibility/status filters re-applied as defense-in-depth
+- [x] `publicPropertyListResponseSchema.facets` field added (optional)
+- [x] apps/api wires `MeilisearchAdapter` in `app.ts` and passes to the route plugin
+
+### 3.F — Location landing pages (4 levels + groups) ✅ (commit `26c19c1`)
+
+- [x] `@inmolink/shared/schemas/public-location` — landing + group-landing payload shapes with breadcrumb / children / faqs / totalProperties
+- [x] `GET /api/public/locations/landing?path=<slugs>&locale=<l>` — resolves up to 4 segments via (locale, slug); verifies parent chain
+- [x] `GET /api/public/location-groups/landing?slug=<s>&locale=<l>` — composes each member's canonical `/buy/...` path by walking parents in JS
+- [x] Descendant-inclusive property total (5 indexed queries max)
+- [x] `apps/public/[locale]/buy/[[...path]]/page.tsx` — optional catch-all (1–4 segments); BreadcrumbList + Place + (optional) FAQPage JSON-LD; ISR 600 s
+- [x] `apps/public/[locale]/region/[slug]/page.tsx` — group landing
+
+### 3.G — Sitemap worker + robots.txt ✅ (commit `6939145`)
+
+- [x] `SITEMAP_GENERATE` queue + daily 02:00 scheduler in `apps/worker`
+- [x] `sitemap-generate` processor — cursor-paginated stream over Property/Location/LocationGroup; per-locale segments capped at 50K URLs; `xhtml:link rel="alternate" hreflang` per locale + `x-default` → /en on every URL
+- [x] Output: `sitemaps/sitemap.xml` (index), `sitemap-properties-<loc>-NNNN.xml`, `sitemap-locations-<loc>.xml`, `sitemap-groups-<loc>.xml` — written to Storage
+- [x] `GET /api/public/sitemaps/:filename` — proxy with strict allowlist regex on filename
+- [x] `apps/public/sitemap.xml/route.ts` + `apps/public/sitemaps/[file]/route.ts` — proxy from api with edge cache; bare `/sitemap.xml` falls back to empty index on api outage
+- [x] `robots.txt` → reads `NEXT_PUBLIC_PUBLIC_URL` (env-aware)
+- [x] `PUBLIC_BASE_URL` worker env var
+
+### 3.H — Anonymous lead form ✅ (commit `3cec872`)
+
+- [x] `@inmolink/shared/schemas/lead` — `leadCreateSchema` with name + email|phone (.refine) + message + honeypot field
+- [x] `POST /api/public/leads` — 10/hour rate limit, honeypot returns fake-success, agency resolved server-side from propertyId, salted ipHash
+- [x] Returns 6-char user-facing reference (cuid suffix uppercased)
+- [x] `contact-form.tsx` Client Component on property detail — CSS-hidden honeypot, fetch posts to api directly (anonymous; no cookie forwarding)
+- [x] 4-locale messages.json `lead` namespace (en/es/de/fr)
+
+### 3.I — hreflang + canonical + OG sweep ✅ (commit `b6dcbb7`)
+
+- [x] `apps/public/src/lib/seo.ts` — `localeAlternates` (same-path) + `localeAlternatesByLocale` (per-locale slug variants)
+- [x] Home (`/[locale]/`) — generateMetadata + canonical + hreflang + OG
+- [x] Search (`/[locale]/search`) — generateMetadata + canonical + hreflang + OG
+- [x] Property detail — `publicPropertyDetailSchema.alternateSlugs` populated from translations; per-locale hreflang
+- [x] `/[locale]/buy/[[...path]]` + `/[locale]/region/[slug]` — same-path alternates (per-locale slug variants flagged as Sprint 4 polish)
+- [x] x-default → /en on every alternates record
+
+### Deferred to a follow-up
+
+- [ ] Per-locale slug variants for Location + LocationGroup landing pages (currently same-path) — needs `alternateSlugs` field on the landing API response, mirroring property detail
+- [ ] Sitemap viewer / debug UI in dashboard — manual-trigger button for "regenerate now"
+- [ ] LocationFAQ admin UI (schema + reads exist; admin CRUD UI not built)
+- [ ] Cloudflare Turnstile verification on lead submit (Sprint 4 — needs the platform Turnstile site key)
 
 ## Sprint 4 — Agencies + Profiles + 2FA + Settings
 
