@@ -456,6 +456,22 @@
       "PAUSED": "En pause"
     }
   },
+  "webhooks": {
+    "title": "Webhooks sortants",
+    "subtitle": "Recevez un POST signé chaque fois qu'un événement se produit dans votre agence.",
+    "addEndpoint": "Ajouter un endpoint",
+    "url": "URL",
+    "events": "Événements",
+    "secret": "Secret",
+    "description": "Description",
+    "test": "Tester",
+    "delete": "Supprimer",
+    "active": "Actif",
+    "paused": "En pause",
+    "deliveries": "Livraisons",
+    "replay": "Rejouer la livraison",
+    "attempts": "Tentatives"
+  },
   "tickets": {
     "title": "Tickets",
     "subtitle": "Demandes d'assistance pour bugs, facturation ou compte.",

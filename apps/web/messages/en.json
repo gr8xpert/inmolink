@@ -452,6 +452,22 @@
       "PAUSED": "Paused"
     }
   },
+  "webhooks": {
+    "title": "Outbound webhooks",
+    "subtitle": "Receive a signed POST every time something happens in your agency.",
+    "addEndpoint": "Add endpoint",
+    "url": "URL",
+    "events": "Events",
+    "secret": "Secret",
+    "description": "Description",
+    "test": "Test",
+    "delete": "Delete",
+    "active": "Active",
+    "paused": "Paused",
+    "deliveries": "Deliveries",
+    "replay": "Replay delivery",
+    "attempts": "Attempts"
+  },
   "tickets": {
     "title": "Tickets",
     "subtitle": "Support requests for bugs, billing, or account questions.",

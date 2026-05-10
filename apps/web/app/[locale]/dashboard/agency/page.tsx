@@ -83,6 +83,19 @@ export default async function AgencyDashboardPage({ params }: Props) {
           {t("team.invite")}
         </Link>
       </div>
+
+      <div className="rounded-md border bg-muted/30 p-4">
+        <h2 className="text-sm font-medium">Outbound webhooks</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          POST signed events (property / lead / viewing / deal / chat) to your own server.
+        </p>
+        <Link
+          href={`/${locale}/dashboard/agency/webhooks`}
+          className="mt-3 inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-background"
+        >
+          Manage endpoints
+        </Link>
+      </div>
     </main>
   );
 }

@@ -456,6 +456,22 @@
       "PAUSED": "Pausiert"
     }
   },
+  "webhooks": {
+    "title": "Ausgehende Webhooks",
+    "subtitle": "Erhalte signierte POST-Aufrufe für jedes Ereignis in deiner Agentur.",
+    "addEndpoint": "Endpoint hinzufügen",
+    "url": "URL",
+    "events": "Ereignisse",
+    "secret": "Geheimnis",
+    "description": "Beschreibung",
+    "test": "Testen",
+    "delete": "Löschen",
+    "active": "Aktiv",
+    "paused": "Pausiert",
+    "deliveries": "Zustellungen",
+    "replay": "Erneut zustellen",
+    "attempts": "Versuche"
+  },
   "tickets": {
     "title": "Tickets",
     "subtitle": "Support-Anfragen für Bugs, Abrechnung oder Konto.",

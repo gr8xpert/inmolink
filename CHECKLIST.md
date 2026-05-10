@@ -789,13 +789,62 @@
 - [ ] AGENCY_CREATED / ROLE_CHANGED audit hook on invite-accept (not yet wired; existing flow doesn't write the event)
 - [ ] IMPORT_CREDENTIALS_UPDATED hook on import CRUD (service signature refactor needed to plumb request)
 
-## Sprint 10 — Webhooks (out)
+## Sprint 10 — Webhooks (out) ✅ COMPLETE
 
-- [ ] WebhookEndpoint + WebhookEvent + WebhookDelivery + WebhookDeliveryAttempt schemas wired
-- [ ] Event emission hooks at every relevant point
-- [ ] Worker: deliver + retry (1m → 5m → 30m → 2h → 12h) + dead-letter
-- [ ] Agency endpoint config UI
-- [ ] Super-admin delivery view + manual replay
+### 10.A — Schemas + emit helper + endpoint CRUD ✅
+
+- [x] `webhookSchemas` namespace in `@inmolink/shared`
+- [x] `apps/api/src/lib/webhooks.ts` — `emitWebhookEvent(tx, args)` + `emitWebhookEventStandalone`
+- [x] `/api/dashboard/agency/webhooks` CRUD; secret AES-256-GCM-encrypted; plaintext returned once on create only
+- [x] `/api/dashboard/agency/webhooks/:id/test` enqueues a synthetic event for that endpoint
+
+### 10.B — Event emission hooks ✅
+
+- [x] PROPERTY_CREATED / UPDATED / DELETED in `properties/repository.ts`
+- [x] LEAD_CREATED in `public/lead-routes.ts`
+- [x] VIEWING_REQUESTED / ACCEPTED / DECLINED / COMPLETED in `viewings/service.ts`
+- [x] DEAL_CONFIRMED / DEAL_DISPUTED in `deals/service.ts`
+- [ ] *(deferred)* AGENT_INVITED / AGENT_JOINED / IMPORT_RUN_COMPLETED / IMPORT_RUN_FAILED / CHAT_MESSAGE_RECEIVED — each requires a service-level tx refactor; defer to v1.5 follow-up
+- [ ] *(deferred)* Introducer-agency-side delivery (currently only listing-agency emits — needs dedup to avoid double-firing if both subscribe)
+
+### 10.C — Worker delivery + retry/DLQ ✅
+
+- [x] `apps/worker/src/processors/webhook-deliver/processor.ts` — HMAC-SHA256 sign + POST + persist attempt
+- [x] `inmolink-signature: t=<unix>,v1=<hex>` header format
+- [x] Custom headers: `inmolink-event-id`, `inmolink-event-type`, `inmolink-delivery-id`
+- [x] 10s `AbortController` timeout; 4xx (non-408/429) → permanent failure; otherwise retry ladder
+- [x] Retry ladder: 1m → 5m → 30m → 2h → 12h → DEAD_LETTERED
+- [x] WEBHOOK_DISPATCHER scheduler ticks every 30s; deterministic jobId prevents double-enqueue
+- [x] Wired into worker.ts; queue close on graceful shutdown
+
+### 10.D — Super-admin viewer + replay ✅
+
+- [x] `/api/dashboard/admin/webhook-deliveries` cursor-paginated list with filters (super-admin)
+- [x] `/:id` detail returns payload + attempt history
+- [x] `POST /:id/replay` resets to PENDING + nextAttemptAt=now; AuditLog(WEBHOOK_REPLAYED)
+
+### 10.E — Web dashboard pages ✅
+
+- [x] `/[locale]/dashboard/agency/webhooks` — list + create form + Test/Delete per row
+- [x] Secret-revealed-once UX on create (emerald copy panel)
+- [x] `/[locale]/dashboard/admin/webhook-deliveries` list + filters + detail + Replay button
+- [x] Agency landing tile + admin landing tile
+
+### 10.F — i18n + docs ✅
+
+- [x] 4-locale `webhooks` namespace (en/es/de/fr)
+- [x] CHANGELOG entry
+- [x] CHECKLIST sync
+- [x] Memory state
+
+### Deferred to a follow-up
+
+- [ ] AGENT_INVITED / AGENT_JOINED / IMPORT_RUN_COMPLETED / IMPORT_RUN_FAILED / CHAT_MESSAGE_RECEIVED emission hooks — schema enum value exists; each requires a service-level transaction refactor
+- [ ] Introducer-agency-side webhook fanout for VIEWING_* and DEAL_* (currently only listing-agency)
+- [ ] Endpoint pause/resume button (delete + recreate works for v1)
+- [ ] Per-event delivery rate-limit (e.g. cap 100/min per endpoint to protect slow consumers)
+- [ ] Webhook signature spec doc page on the dashboard (HMAC verification example in 3 languages)
+- [ ] Super-admin delivery list ordering by event.createdAt instead of delivery PK (current uses `id desc` — ID is cuid so it's monotonic-ish but not strictly chronological under high concurrency)
 
 ## Sprint 11 — Export
 
