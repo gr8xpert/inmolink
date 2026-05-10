@@ -32,5 +32,12 @@
     "submitting": "Enviando…",
     "success": "Gracias — tu consulta ha sido enviada. Referencia:",
     "error": "Algo ha salido mal. Inténtalo de nuevo."
+  },
+  "publicAgency": {
+    "members": "Equipo",
+    "properties": "Listados",
+    "noProperties": "Aún no hay listados públicos.",
+    "contact": "Contacto",
+    "website": "Sitio web"
   }
 }

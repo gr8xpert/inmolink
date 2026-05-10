@@ -32,5 +32,12 @@
     "submitting": "Senden…",
     "success": "Danke — deine Anfrage wurde gesendet. Referenz:",
     "error": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
+  },
+  "publicAgency": {
+    "members": "Team",
+    "properties": "Angebote",
+    "noProperties": "Noch keine öffentlichen Angebote.",
+    "contact": "Kontakt",
+    "website": "Webseite"
   }
 }

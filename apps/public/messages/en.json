@@ -32,5 +32,12 @@
     "submitting": "Sending…",
     "success": "Thanks — your enquiry has been sent. Reference:",
     "error": "Something went wrong. Please try again."
+  },
+  "publicAgency": {
+    "members": "Team",
+    "properties": "Listings",
+    "noProperties": "No public listings yet.",
+    "contact": "Contact",
+    "website": "Website"
   }
 }

@@ -26,6 +26,7 @@ import { propertyImageRoutes } from "./modules/properties/images/routes";
 import { propertyRoutes } from "./modules/properties/routes";
 import { publicLeadRoutes } from "./modules/public/lead-routes";
 import { publicLocationRoutes } from "./modules/public/location-routes";
+import { publicProfileRoutes } from "./modules/public/profile-routes";
 import { publicPropertyRoutes } from "./modules/public/property-routes";
 import { publicSitemapRoutes } from "./modules/public/sitemap-routes";
 import { taxonomyRoutes } from "./modules/taxonomy/routes";
@@ -164,6 +165,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   await app.register(uploadRoutes, { prefix: "/api/uploads", storage, imageVariantQueue });
   await app.register(publicPropertyRoutes, { prefix: "/api/public", storage, search });
   await app.register(publicLocationRoutes, { prefix: "/api/public" });
+  await app.register(publicProfileRoutes, { prefix: "/api/public", storage });
   await app.register(publicSitemapRoutes, { prefix: "/api/public", storage });
   // ENCRYPTION_KEY doubles as the IP-hash salt — never write raw IPs to DB.
   await app.register(publicLeadRoutes, { prefix: "/api/public", ipSalt: env.ENCRYPTION_KEY });

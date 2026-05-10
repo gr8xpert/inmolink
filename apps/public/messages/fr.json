@@ -32,5 +32,12 @@
     "submitting": "Envoi…",
     "success": "Merci — votre demande a été envoyée. Référence :",
     "error": "Une erreur s'est produite. Veuillez réessayer."
+  },
+  "publicAgency": {
+    "members": "Équipe",
+    "properties": "Annonces",
+    "noProperties": "Pas encore d'annonces publiques.",
+    "contact": "Contact",
+    "website": "Site web"
   }
 }
