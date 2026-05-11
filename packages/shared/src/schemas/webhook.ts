@@ -115,3 +115,9 @@ export const webhookDeliveryListResponseSchema = z.object({
 export const webhookTestInputSchema = z.object({
   eventType: webhookEventTypeSchema.default("PROPERTY_CREATED"),
 });
+
+// ---- BullMQ webhook-deliver job payload ----
+export const webhookDeliverJobSchema = z.object({
+  deliveryId: z.string().min(1),
+});
+export type WebhookDeliverJobData = z.infer<typeof webhookDeliverJobSchema>;

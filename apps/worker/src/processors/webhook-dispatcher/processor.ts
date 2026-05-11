@@ -36,7 +36,7 @@ export function makeWebhookDispatcherProcessor(opts: Args): Processor {
           "deliver",
           { deliveryId: d.id },
           {
-            jobId: `wh-deliver:${d.id}`,
+            jobId: `wh-deliver-${d.id}`,
             attempts: 1, // application-level retry; we manage scheduling
             removeOnComplete: { count: 200 },
             removeOnFail: { count: 500 },

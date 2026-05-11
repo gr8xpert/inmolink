@@ -100,7 +100,7 @@ export async function billingRoutes(app: FastifyInstance, opts: BillingRoutesOpt
       },
     },
     async (request) => {
-      return updateBillingDetails(request.requireUser(), request.body, request.query.agencyId);
+      return updateBillingDetails(request.requireUser(), request.body, ctx, request.query.agencyId);
     },
   );
 
@@ -145,8 +145,12 @@ export async function billingRoutes(app: FastifyInstance, opts: BillingRoutesOpt
 /**
  * Super-admin manual grant + agency list. Mounted at /api/dashboard/admin/billing.
  */
-export async function adminBillingRoutes(app: FastifyInstance): Promise<void> {
+export async function adminBillingRoutes(
+  app: FastifyInstance,
+  opts: BillingRoutesOpts,
+): Promise<void> {
   const fastify = app.withTypeProvider<ZodTypeProvider>();
+  const ctx = opts;
 
   fastify.setErrorHandler((err, _req, reply) => {
     if (err instanceof ForbiddenError) {
@@ -190,7 +194,7 @@ export async function adminBillingRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request) => {
       request.requireSuperAdmin();
-      return grantPlan(request.requireUser(), request.body);
+      return grantPlan(request.requireUser(), request.body, ctx);
     },
   );
 
@@ -206,7 +210,7 @@ export async function adminBillingRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request) => {
       request.requireSuperAdmin();
-      return revokePlan(request.requireUser(), request.body);
+      return revokePlan(request.requireUser(), request.body, ctx);
     },
   );
 }

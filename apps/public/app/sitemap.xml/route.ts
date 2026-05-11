@@ -8,9 +8,11 @@
  * stale-while-revalidate keeps crawls warm even during regeneration.
  */
 
+import { env } from "@/env";
+
 export const revalidate = 3600;
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const API_BASE = env.NEXT_PUBLIC_API_URL;
 
 export async function GET(): Promise<Response> {
   // We can't use publicApiFetch — it parses JSON. Stream the raw XML.

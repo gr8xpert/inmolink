@@ -67,7 +67,12 @@ export class LocalFsStorage implements Storage {
     key: string;
     mimeType: string;
     bytes: number;
+    sha256Hex?: string;
   }): Promise<SignedUploadUrl> {
+    // local-fs dev backend doesn't enforce the checksum (the dev upload
+    // route re-verifies bytes on /register anyway). Field accepted for
+    // interface parity with R2Storage.
+    void args.sha256Hex;
     const expiresAtMs = Date.now() + this.ttl * 1000;
     const token = this.signToken(args.key, expiresAtMs);
     const uploadUrl = `${this.cfg.publicBaseUrl.replace(/\/$/, "")}/api/_local-storage/upload?key=${encodeURIComponent(args.key)}&exp=${expiresAtMs}&token=${token}`;

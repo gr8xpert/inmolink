@@ -1,9 +1,10 @@
 "use client";
 
+import { env } from "@/env";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const API_BASE = env.NEXT_PUBLIC_API_URL;
 
 export function MarkAllReadButton({ locale: _locale }: { locale: string }) {
   const router = useRouter();

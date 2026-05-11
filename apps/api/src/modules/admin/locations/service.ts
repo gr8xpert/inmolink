@@ -6,7 +6,7 @@ import {
   InvalidHierarchyError,
   NotFoundError,
   assertReorderSetMatch,
-} from "../_shared/taxonomy.js";
+} from "../_shared/taxonomy";
 
 /**
  * Super-admin curation for Location (4-level tree).
@@ -30,7 +30,7 @@ import {
 
 const { VALID_CHILD_LEVEL } = adminLocationSchemas;
 
-export { ConflictError, InvalidHierarchyError, NotFoundError } from "../_shared/taxonomy.js";
+export { ConflictError, InvalidHierarchyError, NotFoundError } from "../_shared/taxonomy";
 
 const LOCATION_SELECT = {
   id: true,

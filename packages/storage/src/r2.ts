@@ -50,6 +50,7 @@ export class R2Storage implements Storage {
     key: string;
     mimeType: string;
     bytes: number;
+    sha256Hex?: string;
   }): Promise<SignedUploadUrl> {
     // Not setting ContentLength on the PUT — locking it would force the
     // browser to send exactly that many bytes (brittle under proxies /
@@ -57,23 +58,37 @@ export class R2Storage implements Storage {
     // The `bytes` arg is kept on the interface for storage backends that
     // do enforce it (LocalFsStorage uses it for early sanity checks).
     void args.bytes;
+
+    // S3 Additional Checksums (supported by R2): binding the SHA-256 into
+    // the signature means R2's edge recomputes the hash during PUT and
+    // 400s if the body doesn't match — no oversized-garbage upload, no
+    // orphan blob. #018.
+    const checksumBase64 = args.sha256Hex
+      ? Buffer.from(args.sha256Hex, "hex").toString("base64")
+      : undefined;
+
     const cmd = new PutObjectCommand({
       Bucket: this.cfg.bucket,
       Key: args.key,
       ContentType: args.mimeType,
+      ...(checksumBase64 ? { ChecksumSHA256: checksumBase64, ChecksumAlgorithm: "SHA256" } : {}),
     });
     // Bind content-type into the signature so the browser can't swap MIME at
     // upload time (e.g. uploading `.exe` against an `image/jpeg` URL). Without
     // this the SDK signs only `host` + `x-amz-*` headers by default.
+    const signableHeaders = new Set(["content-type"]);
+    if (checksumBase64) signableHeaders.add("x-amz-checksum-sha256");
     const uploadUrl = await getSignedUrl(this.client, cmd, {
       expiresIn: this.ttl,
-      signableHeaders: new Set(["content-type"]),
+      signableHeaders,
     });
+    const requiredHeaders: Record<string, string> = { "content-type": args.mimeType };
+    if (checksumBase64) requiredHeaders["x-amz-checksum-sha256"] = checksumBase64;
     return {
       uploadUrl,
       key: args.key,
       expiresAt: new Date(Date.now() + this.ttl * 1000),
-      requiredHeaders: { "content-type": args.mimeType },
+      requiredHeaders,
     };
   }
 

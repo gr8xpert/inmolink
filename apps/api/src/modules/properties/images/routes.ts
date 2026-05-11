@@ -8,7 +8,7 @@ import {
   deleteImageForUser,
   listImagesForUser,
   patchImageForUser,
-} from "./service.js";
+} from "./service";
 
 /**
  * PropertyImage routes. Mounted under the same prefix as propertyRoutes

@@ -9,7 +9,7 @@ import {
 import type { Prisma } from "@prisma/client";
 import type { Job } from "bullmq";
 import type { Logger } from "pino";
-import { generateVariant, variantContentType } from "./pipeline.js";
+import { generateVariant, variantContentType } from "./pipeline";
 
 /**
  * IMAGE_VARIANT job processor. PLAN §5 / §5.1 / ADR 0002.

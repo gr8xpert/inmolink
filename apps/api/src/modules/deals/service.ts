@@ -2,7 +2,7 @@ import { prisma } from "@inmolink/db";
 import type { dealSchemas } from "@inmolink/shared";
 import { Prisma } from "@prisma/client";
 import { emitWebhookEvent } from "../../lib/webhooks";
-import { createNotification } from "../notifications/service.js";
+import { createNotification } from "../notifications/service";
 
 /**
  * Deal handshake (PLAN §11.6 + §1 row 21).

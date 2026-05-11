@@ -255,7 +255,6 @@ async function main(): Promise<void> {
 
 main()
   .catch((err) => {
-    // biome-ignore lint/suspicious/noConsoleLog: seed script
     console.error(err);
     process.exit(1);
   })

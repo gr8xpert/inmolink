@@ -4,7 +4,7 @@ import type { Queue } from "bullmq";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
-import { requireFeature } from "../billing/plan-tier";
+import { PlanRequiredError, requireFeature } from "../billing/plan-tier";
 import {
   ForbiddenError,
   GoneError,
@@ -35,17 +35,12 @@ export async function exportRoutes(app: FastifyInstance, opts: ExportRoutesOpts)
     if (err instanceof GoneError) {
       return reply.code(410).send({ statusCode: 410, code: err.code, message: err.message });
     }
-    if (
-      err &&
-      typeof err === "object" &&
-      "code" in err &&
-      (err as { code: string }).code === "PLAN_REQUIRED"
-    ) {
+    if (err instanceof PlanRequiredError) {
       return reply.code(403).send({
         statusCode: 403,
         code: "PLAN_REQUIRED",
-        requiredTier: "PRO",
-        message: (err as { message?: string }).message ?? "Paid plan required",
+        requiredTier: err.requiredTier,
+        message: err.message,
       });
     }
     throw err;

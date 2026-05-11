@@ -70,3 +70,9 @@ export const exportListResponseSchema = z.object({
   items: z.array(exportSchema),
   nextCursor: z.string().nullable(),
 });
+
+// ---- BullMQ EXPORT_GENERATE job payload ----
+export const exportGenerateJobSchema = z.object({
+  exportId: z.string().min(1),
+});
+export type ExportGenerateJobData = z.infer<typeof exportGenerateJobSchema>;

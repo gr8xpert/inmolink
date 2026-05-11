@@ -1,10 +1,11 @@
 "use client";
 
+import { env } from "@/env";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const API_BASE = env.NEXT_PUBLIC_API_URL;
 
 type Kind = "KYERO" | "RESALE_ONLINE" | "GENERIC_XML";
 

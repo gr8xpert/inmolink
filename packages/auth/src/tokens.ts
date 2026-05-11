@@ -20,7 +20,7 @@ export type TrackingTokenKind = "open" | "click" | "unsubscribe";
 export type TrackingTokenPayload = {
   k: TrackingTokenKind;
   r: string; // recipientId
-  c?: string; // optional click target hash for click tokens
+  u?: string; // signed destination URL — required for click tokens to prevent open-redirect abuse
 };
 
 function b64urlEncode(buf: Buffer): string {

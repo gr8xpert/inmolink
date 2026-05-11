@@ -54,7 +54,12 @@ pnpm db:generate
 pnpm db:migrate:dev    # creates the schema in your local Postgres
 pnpm db:seed           # plans + super-admin agency-of-one
 
-# 5. Start everything in dev mode (turbo runs all apps in parallel)
+# 5. (Optional, one-time) Download the Chrome binary Puppeteer uses for
+# PDF generation. Skip if you never plan to test the brochure / portfolio
+# export feature locally; the CSV export and everything else work without it.
+pnpm --filter @inmolink/pdf exec puppeteer browsers install chrome
+
+# 6. Start everything in dev mode (turbo runs all apps in parallel)
 pnpm dev
 ```
 

@@ -89,12 +89,19 @@ export async function localStorageRoutes(
       const data = await local.readFile(key);
       const range = request.headers.range;
 
+      // Helmet's default Cross-Origin-Resource-Policy is `same-origin`,
+      // which blocks <img>/<video> embedding from a different port (web
+      // :3000 → api :3001 in dev). R2 serves under its own CDN domain in
+      // prod, so this only matters for the dev local-fs route.
+      reply.header("cross-origin-resource-policy", "cross-origin");
+      reply.header("content-type", sniffContentType(data));
+
       if (range) {
         // Minimal Range support — useful for <video> playback.
         const match = /^bytes=(\d+)-(\d+)?$/.exec(range);
         if (match) {
-          const start = Number.parseInt(match[1]!, 10);
-          const end = match[2] ? Number.parseInt(match[2]!, 10) : data.byteLength - 1;
+          const start = Number.parseInt(match[1] ?? "0", 10);
+          const end = match[2] ? Number.parseInt(match[2], 10) : data.byteLength - 1;
           if (start < 0 || end >= data.byteLength || start > end) {
             return reply.code(416).header("content-range", `bytes */${data.byteLength}`).send();
           }
@@ -109,4 +116,51 @@ export async function localStorageRoutes(
       return reply.header("accept-ranges", "bytes").send(data);
     },
   );
+}
+
+/**
+ * Magic-byte sniffer for the dev local-fs serve route. Storage keys are
+ * content-addressed hashes with no extension, so we can't infer the type
+ * from the URL. Production goes direct to R2 with content-type stored at
+ * upload time — this sniffer only runs in dev.
+ */
+function sniffContentType(data: Buffer): string {
+  if (data.length < 12) return "application/octet-stream";
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47) {
+    return "image/png";
+  }
+  // JPEG: FF D8 FF
+  if (data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) {
+    return "image/jpeg";
+  }
+  // GIF: 47 49 46 38
+  if (data[0] === 0x47 && data[1] === 0x49 && data[2] === 0x46 && data[3] === 0x38) {
+    return "image/gif";
+  }
+  // WebP: bytes 8-11 = "WEBP"
+  if (
+    data[0] === 0x52 &&
+    data[1] === 0x49 &&
+    data[2] === 0x46 &&
+    data[3] === 0x46 &&
+    data[8] === 0x57 &&
+    data[9] === 0x45 &&
+    data[10] === 0x42 &&
+    data[11] === 0x50
+  ) {
+    return "image/webp";
+  }
+  // AVIF / HEIC: bytes 4-7 = "ftyp", bytes 8-11 = brand
+  if (data[4] === 0x66 && data[5] === 0x74 && data[6] === 0x79 && data[7] === 0x70) {
+    const brand = data.subarray(8, 12).toString("ascii");
+    if (brand === "avif") return "image/avif";
+    if (brand === "heic" || brand === "heix" || brand === "mif1") return "image/heic";
+    if (brand === "mp42" || brand === "isom" || brand === "M4V ") return "video/mp4";
+  }
+  // PDF: %PDF
+  if (data[0] === 0x25 && data[1] === 0x50 && data[2] === 0x44 && data[3] === 0x46) {
+    return "application/pdf";
+  }
+  return "application/octet-stream";
 }

@@ -1,7 +1,7 @@
 import { prisma } from "@inmolink/db";
 import type { adminLocationGroupSchemas } from "@inmolink/shared";
 import type { Prisma } from "@prisma/client";
-import { ConflictError, NotFoundError, assertReorderSetMatch } from "../_shared/taxonomy.js";
+import { ConflictError, NotFoundError, assertReorderSetMatch } from "../_shared/taxonomy";
 
 /**
  * Super-admin curation for LocationGroup + LocationGroupMember.
@@ -15,7 +15,7 @@ import { ConflictError, NotFoundError, assertReorderSetMatch } from "../_shared/
  * swap-with-occupant idiom used elsewhere.
  */
 
-export { ConflictError, NotFoundError } from "../_shared/taxonomy.js";
+export { ConflictError, NotFoundError } from "../_shared/taxonomy";
 
 const GROUP_INCLUDE = {
   translations: {

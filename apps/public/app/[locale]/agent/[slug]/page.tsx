@@ -1,5 +1,7 @@
+import { env } from "@/env";
 import { ApiError, publicApiFetch } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
+import { safeJsonLd } from "@/lib/json-ld";
 import { localeAlternates } from "@/lib/seo";
 import type { publicProfileSchemas } from "@inmolink/shared";
 import type { Metadata } from "next";
@@ -60,7 +62,7 @@ export default async function AgentPage({ params }: Props) {
 
   const t = await getTranslations({ locale, namespace: "publicAgency" });
   const fullName = `${detail.firstName} ${detail.lastName}`;
-  const baseUrl = process.env.NEXT_PUBLIC_PUBLIC_URL ?? "";
+  const baseUrl = env.NEXT_PUBLIC_PUBLIC_URL;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -82,8 +84,8 @@ export default async function AgentPage({ params }: Props) {
     <main className="container mx-auto max-w-4xl space-y-10 p-6 pt-12">
       <script
         type="application/ld+json"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD injection requires raw string.
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD requires raw HTML; safeJsonLd escapes script-breakout chars
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
 
       <header className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">

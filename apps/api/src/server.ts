@@ -30,7 +30,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  // biome-ignore lint/suspicious/noConsoleLog: bootstrap error before logger
   console.error("Fatal startup error:", err);
   process.exit(1);
 });

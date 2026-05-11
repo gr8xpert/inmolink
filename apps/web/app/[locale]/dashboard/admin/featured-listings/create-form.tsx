@@ -3,8 +3,15 @@
 import { useActionState } from "react";
 import { createFeaturedAction } from "./actions";
 
+/** YYYY-MM-DD for the native <input type="date"> default value. */
+function isoDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
 export function CreateFeaturedForm({ locale }: { locale: string }) {
   const [state, action, pending] = useActionState(createFeaturedAction, null);
+  const today = new Date();
+  const in30Days = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
   return (
     <form action={action} className="mt-3 space-y-3">
       <input type="hidden" name="locale" value={locale} />
@@ -23,12 +30,24 @@ export function CreateFeaturedForm({ locale }: { locale: string }) {
           </select>
         </label>
         <label className="text-xs">
-          Starts at
-          <input name="startsAt" type="datetime-local" required className="input mt-1 w-full" />
+          Starts on
+          <input
+            name="startsAt"
+            type="date"
+            required
+            defaultValue={isoDate(today)}
+            className="input mt-1 w-full"
+          />
         </label>
         <label className="text-xs">
-          Ends at
-          <input name="endsAt" type="datetime-local" required className="input mt-1 w-full" />
+          Ends on
+          <input
+            name="endsAt"
+            type="date"
+            required
+            defaultValue={isoDate(in30Days)}
+            className="input mt-1 w-full"
+          />
         </label>
         <label className="text-xs">
           Position

@@ -18,7 +18,7 @@ import {
   suggestTypeIcon,
   updateGroup,
   updateType,
-} from "./service.js";
+} from "./service";
 
 /**
  * Super-admin taxonomy curation — PropertyTypeGroup + PropertyType.

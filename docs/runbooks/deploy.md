@@ -74,6 +74,19 @@ sudo cp infra/nginx/inmolink.conf /etc/nginx/sites-available/inmolink
 sudo ln -sf /etc/nginx/sites-available/inmolink /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d inmolink.eu -d www.inmolink.eu -d api.inmolink.eu -d app.inmolink.eu
+
+# Chromium for Puppeteer PDF brochures/portfolio (Sprint 11). Two options:
+#
+# Option A — system Chromium (recommended for prod). Smaller, distro-patched.
+sudo apt install -y chromium-browser fonts-liberation fonts-noto-color-emoji libnss3 libatk-bridge2.0-0 libdrm2 libxkbcommon0 libgbm1 libasound2
+# Then set in apps/worker/.env on the VPS:
+#   PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+#   PUPPETEER_SKIP_DOWNLOAD=true
+#
+# Option B — Puppeteer's bundled Chrome (matches dev environment exactly).
+# Run after `pnpm install` in the App deploy step below:
+#   pnpm --filter @inmolink/pdf exec puppeteer browsers install chrome
+# ~150 MB download; binary lands in /home/inmolink/.cache/puppeteer/.
 ```
 
 ## App deploy

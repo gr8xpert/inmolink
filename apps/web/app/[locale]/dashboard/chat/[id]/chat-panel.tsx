@@ -1,10 +1,11 @@
 "use client";
 
+import { env } from "@/env";
 import type { chatSchemas } from "@inmolink/shared";
 import { useEffect, useRef, useState } from "react";
 import { type Socket, io } from "socket.io-client";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const API_BASE = env.NEXT_PUBLIC_API_URL;
 
 type Props = {
   threadId: string;

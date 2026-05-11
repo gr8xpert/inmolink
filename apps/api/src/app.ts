@@ -21,6 +21,7 @@ import {
   getFeedImportQueue,
   getImageVariantQueue,
 } from "./lib/queues";
+import { BillingDisabledError } from "./lib/stripe";
 import { adminFeatureRoutes } from "./modules/admin/features/routes";
 import { adminFeedTypeMapRoutes } from "./modules/admin/feed-type-maps/routes";
 import { adminLocationGroupRoutes } from "./modules/admin/location-groups/routes";
@@ -29,6 +30,7 @@ import { adminPropertyTypeRoutes } from "./modules/admin/property-types/routes";
 import { adminSitemapRoutes } from "./modules/admin/sitemap-routes";
 import { agencyRoutes } from "./modules/agency/routes";
 import { auditLogRoutes } from "./modules/audit/routes";
+import { PlanRequiredError } from "./modules/billing/plan-tier";
 import { adminBillingRoutes, billingRoutes } from "./modules/billing/routes";
 import { stripeWebhookRoutes } from "./modules/billing/webhook";
 import { chatRoutes } from "./modules/chat/routes";
@@ -161,6 +163,30 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   // so subsequently-registered route plugins inherit them.
   installAuth(app, { secret: env.AUTH_SECRET });
 
+  // Root-scope fallback error handler for cross-cutting domain errors.
+  // Per-plugin setErrorHandler blocks override this; plugins must `throw err`
+  // for anything they don't handle so this catches PlanRequiredError +
+  // BillingDisabledError from every route that doesn't install its own.
+  app.setErrorHandler((err, req, reply) => {
+    if (err instanceof PlanRequiredError) {
+      return reply.code(403).send({
+        statusCode: 403,
+        code: "PLAN_REQUIRED",
+        message: err.message,
+        requiredTier: err.requiredTier,
+      });
+    }
+    if (err instanceof BillingDisabledError) {
+      return reply.code(503).send({
+        statusCode: 503,
+        code: "BILLING_DISABLED",
+        message: err.message,
+      });
+    }
+    req.log.error({ err }, "unhandled");
+    throw err;
+  });
+
   // Storage backend (R2 in prod, LocalFsStorage in dev when R2 vars empty)
   const storage = createStorage(env);
   app.log.info({ kind: storage.kind }, "Storage backend selected");
@@ -251,11 +277,15 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
     },
   };
   await app.register(billingRoutes, { prefix: "/api/dashboard/billing", ...billingCtx });
-  await app.register(adminBillingRoutes, { prefix: "/api/dashboard/admin/billing" });
+  await app.register(adminBillingRoutes, {
+    prefix: "/api/dashboard/admin/billing",
+    ...billingCtx,
+  });
   await app.register(stripeWebhookRoutes, {
     prefix: "/api/billing/webhooks",
     stripeSecretKey: env.STRIPE_SECRET_KEY,
     stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET,
+    prices: billingCtx.prices,
   });
 
   // Marketing — Sprint 8. PRO-gated; the route plugin enforces feature
@@ -313,6 +343,8 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
 declare module "fastify" {
   interface FastifyInstance {
     redis: Redis;
-    io: import("./realtime/io").AppIOServer;
+    // Decorated from an onReady hook, so it is undefined between route
+    // registration and Socket.io install (a narrow startup window).
+    io?: import("./realtime/io").AppIOServer;
   }
 }

@@ -1,4 +1,6 @@
+import { env } from "@/env";
 import { ApiError, publicApiFetch } from "@/lib/api";
+import { safeJsonLd } from "@/lib/json-ld";
 import { localeAlternates } from "@/lib/seo";
 import type { publicLocationSchemas } from "@inmolink/shared";
 import type { Metadata } from "next";
@@ -23,7 +25,7 @@ type Props = {
 
 type Landing = publicLocationSchemas.PublicLocationGroupLanding;
 
-const BASE_URL = process.env.NEXT_PUBLIC_PUBLIC_URL ?? "http://localhost:3002";
+const BASE_URL = env.NEXT_PUBLIC_PUBLIC_URL;
 
 async function loadGroup(locale: string, slug: string): Promise<Landing | null> {
   try {
@@ -91,8 +93,8 @@ export default async function LocationGroupLandingPage({ params }: Props) {
     <main className="container mx-auto max-w-5xl space-y-8 p-6">
       <script
         type="application/ld+json"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: trusted server-built JSON-LD
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD requires raw HTML; safeJsonLd escapes script-breakout chars
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbLd) }}
       />
 
       <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">

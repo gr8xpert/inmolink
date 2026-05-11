@@ -1,8 +1,8 @@
 import { prisma } from "@inmolink/db";
 import type { chatSchemas } from "@inmolink/shared";
 import type { Prisma } from "@prisma/client";
-import type { AppIOServer } from "../../realtime/io.js";
-import { createNotification } from "../notifications/service.js";
+import type { AppIOServer } from "../../realtime/io";
+import { createNotification } from "../notifications/service";
 
 /**
  * Chat service (PLAN §11.6).

@@ -1,5 +1,7 @@
+import { env } from "@/env";
 import { ApiError, publicApiFetch } from "@/lib/api";
 import { formatDate, formatMoney } from "@/lib/format";
+import { safeJsonLd } from "@/lib/json-ld";
 import { type SeoLocale, localeAlternatesByLocale } from "@/lib/seo";
 import type { publicPropertySchemas } from "@inmolink/shared";
 import { AgencyBadge } from "@inmolink/ui";
@@ -72,7 +74,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const cover = images.images.find((i) => i.isCover) ?? images.images[0] ?? null;
   const description =
     detail.translation.metaDescription ?? detail.translation.description.slice(0, 160);
-  const baseUrl = process.env.NEXT_PUBLIC_PUBLIC_URL ?? "http://localhost:3002";
+  const baseUrl = env.NEXT_PUBLIC_PUBLIC_URL;
 
   // hreflang alternates — one per locale that has a real translation.
   const pathByLocale: Partial<Record<SeoLocale, string>> = {};
@@ -136,7 +138,7 @@ export default async function PublicPropertyDetailPage({ params }: Props) {
   const cover = images.images.find((i) => i.isCover) ?? images.images[0] ?? null;
   const gallery = images.images.filter((i) => i.id !== cover?.id);
 
-  const baseUrl = process.env.NEXT_PUBLIC_PUBLIC_URL ?? "http://localhost:3002";
+  const baseUrl = env.NEXT_PUBLIC_PUBLIC_URL;
   const canonicalUrl = `${baseUrl}/${locale}/property/${canonicalSlugId}`;
 
   // RealEstateListing JSON-LD per schema.org. Crawlers like Google use
@@ -169,8 +171,8 @@ export default async function PublicPropertyDetailPage({ params }: Props) {
     <main className="container mx-auto max-w-5xl space-y-8 p-6">
       <script
         type="application/ld+json"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: trusted server-built JSON-LD
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD requires raw HTML; safeJsonLd escapes script-breakout chars
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(ld) }}
       />
 
       <header className="space-y-2">
@@ -194,7 +196,6 @@ export default async function PublicPropertyDetailPage({ params }: Props) {
             alt={cover.altText ?? detail.translation.title}
             className="block h-auto w-full object-cover"
             // First-paint hero — let the browser prioritise it.
-            // biome-ignore lint/a11y/useAltText: alt is provided above
             // @ts-expect-error fetchpriority is valid HTML, types missing
             fetchpriority="high"
           />

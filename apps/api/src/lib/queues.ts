@@ -67,8 +67,9 @@ export async function enqueueSitemapNow(queue: Queue, requestedBy: string): Prom
   const job = await queue.add(
     "manual",
     { trigger: "manual", requestedBy, requestedAt: new Date().toISOString() },
-    // Coalesce concurrent manual triggers — same key → one job.
-    { jobId: `sitemap:manual:${Math.floor(Date.now() / 60_000)}` },
+    // Coalesce concurrent manual triggers — same key → one job. Separator
+    // is `-` not `:` (BullMQ v5 rejects custom job IDs containing `:`).
+    { jobId: `sitemap-manual-${Math.floor(Date.now() / 60_000)}` },
   );
   return job.id ?? "";
 }
@@ -142,8 +143,9 @@ export async function enqueueFeedImportNow(
       runId: args.runId,
       triggeredBy: args.triggeredBy,
     },
-    // Coalesce duplicate clicks within the same minute.
-    { jobId: `feed-import:manual:${args.connectionId}:${Math.floor(Date.now() / 60_000)}` },
+    // Coalesce duplicate clicks within the same minute. BullMQ v5 rejects
+    // `:` in custom job IDs; using `-` instead.
+    { jobId: `feed-import-manual-${args.connectionId}-${Math.floor(Date.now() / 60_000)}` },
   );
   return job.id ?? "";
 }

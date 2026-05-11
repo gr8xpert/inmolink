@@ -12,6 +12,180 @@ Real bugs we hit and the root cause + fix. **Newest at the top.**
 
 ---
 
+## 2026-05-11 — Profile form Save does nothing (no API call, no error visible)
+
+**Symptom**: on `/dashboard/settings/profile`, the form renders, the user edits fields and clicks "Save changes", and nothing happens. No success/error toast, no API request hits the server (`/api/dashboard/me/profile` PATCH never appears in the access log). The user thinks the form is broken.
+
+**Root cause**: the EN translation `settings.profile.slugHint` was `"Used in your public agent URL: /agent/<slug>"`. next-intl uses ICU MessageFormat under the hood, which treats `<tag>...</tag>` as rich-text formatting. The bare `<slug>` is parsed as an *opening tag with no closing tag*, so the parser throws `INVALID_MESSAGE: UNCLOSED_TAG`. The error surfaces during render of the slug Field at `profile-form.tsx:93:38`. Next.js dev mode catches it as an error boundary, which freezes that subtree — the rest of the form keeps rendering, but `formState` is corrupted enough that `handleSubmit` doesn't fire `onSubmit`. Same pattern in 8 places (slugHint × en/es/de/fr × agent/agency forms).
+
+**Fix**: replaced `/agent/<slug>` and `/agency/<slug>` with `/agent/[slug]` and `/agency/[slug]` in all four locale message files (`apps/web/messages/{en,es,de,fr}.json`). `[slug]` is conventional URL-routing notation and not parsed by ICU. Same brackets are used by Next.js's own `app/[locale]/...` segment syntax, so visual consistency is a bonus.
+
+**Prevention**: never put bare `<word>` in a next-intl translated string. If a tag-like literal is needed, escape via ICU apostrophes (`'<'slug'>'`) or — better — use a different placeholder convention. Lint candidate: scan every `messages/*.json` value for `<[a-z][a-z_-]*>` not followed by `</…>` and fail CI.
+
+**Side note**: the original user-visible symptom ("Save does nothing") was deeply misleading — it took finding the dev-mode error trace in the api log to spot the underlying ICU parse error. A real client-side error overlay (Next.js error overlay must have been suppressed or wasn't escalating this render error) would have surfaced the cause immediately.
+
+---
+
+## 2026-05-11 — Featured listing cards on public homepage rendered without a thumbnail
+
+**Symptom**: featured-listings admin curates a property → public homepage shows the property card with title/price/agency badge but **no image**. `/api/public/featured-listings` returns `coverImageHash: null` even when the property has uploaded images and worker-generated variants on disk.
+
+**Root cause**: `attachPropertyImages` in `apps/api/src/modules/properties/images/service.ts` only marks a `PropertyImage` row as `isCover: true` when the client explicitly requests it (`req.images[*].isCover === true`). The upload widget (`apps/web/.../image-uploader.tsx` line 209) only sends `{ mediaObjectId }` with no cover hint. Result: every uploaded image lands with `isCover: false`, so the property has no cover at all. The featured projection in `featured-service.ts:166` filters by `isCover: true` → finds nothing → returns `coverImageHash: null` → the homepage card has no `src`.
+
+**Fix**: `apps/api/src/modules/properties/images/service.ts` — count existing covers before the transaction; if zero AND the client didn't request one, set the first attached image as cover. Self-healing for any future upload via this codepath (manual uploads, imports, etc.). Existing data needs a one-off SQL flip: `UPDATE "PropertyImage" SET "isCover" = true WHERE id IN (SELECT DISTINCT ON ("propertyId") id FROM "PropertyImage" WHERE "propertyId" IN (SELECT id FROM "Property" WHERE id NOT IN (SELECT "propertyId" FROM "PropertyImage" WHERE "isCover" = true)) ORDER BY "propertyId", "position", "createdAt")` — though for our local-only data we just flipped Test Sprint 1's first image manually.
+
+**Prevention**: this is two pieces of code making opposite assumptions. The widget thought "the server will figure out cover". The server thought "the client will tell us". Future-proof by either (a) keeping today's auto-promote logic and adding a vitest to lock it in, or (b) shifting the policy to the client and forbidding `isCover: false` on first image. Today's fix is the safer of the two — server-authoritative, works for any new caller (import pipeline, future bulk-upload tools).
+
+---
+
+## 2026-05-11 — Public search returns HTTP 500 on empty Meilisearch index
+
+**Symptom**: `/api/public/properties?q=...` returns `{"statusCode":500,"message":"Index \`properties_en\` not found."}` on a fresh deployment with zero PUBLIC properties — the Meilisearch index for that locale doesn't exist yet because the worker creates it lazily on the first upsert via OUTBOX_DRAIN.
+
+**Root cause**: `MeilisearchAdapter.search()` in `packages/search/src/meilisearch-adapter.ts` propagated any `MeiliSearchApiError` as a 500. The `index_not_found` case is normal at boot and on locales with no published properties — should not surface as a server error to anonymous users.
+
+**Fix**: catch + match `err.cause?.code === "index_not_found"` and return an empty `SearchResult` (`hits: [], totalHits: 0`). Any other Meilisearch error still bubbles. Note: the SDK puts the actionable code under `err.cause.code`, not `err.code` — discovered while debugging.
+
+**Prevention**: same pattern applies to any external service that creates resources lazily — the API layer should distinguish "service down" (500) from "resource not yet populated" (empty result). Worth adding a vitest case that searches against a fresh Meili and asserts `{hits: []}`.
+
+---
+
+## 2026-05-11 — Auto-slug stops updating after the first keystroke
+
+**Symptom**: in every locale-translated admin form (locations, location groups, property types), typing into the Name field auto-fills the Slug correctly for the first character only. From the second keystroke onward the slug freezes at the first letter while the name keeps growing — e.g. typing "Marbella" yields `name="Marbella", slug="m"`.
+
+**Root cause**: the auto-slug expression was:
+
+```js
+slug: t[loc].slug || slugify(e.target.value),
+```
+
+After the first keystroke, `t[loc].slug` becomes truthy (e.g. `"m"`), so `||` short-circuits to the existing slug and skips the new `slugify(...)` call. The comment claimed "Auto-slug only if slug is blank" — which is exactly what the code does, but the intent was "keep auto-syncing the slug until the user manually edits the slug field". Those aren't the same.
+
+**Fix**: switched to a "current slug equals the auto-slug of the previous name" check across all 4 sites (locations, location-groups, property-types — two forms in property-types):
+
+```js
+slug:
+  t[loc].slug === slugify(t[loc].name)
+    ? slugify(e.target.value)
+    : t[loc].slug,
+```
+
+This keeps re-deriving the slug as the user types in Name, but stops the moment the slug diverges from `slugify(name)` — i.e. the user typed a custom slug. Pure, no extra state, no `touched` flag.
+
+**Edge case**: if a user types a slug that *happens* to equal `slugify(name)` and then keeps typing in Name, the slug will follow Name. That's fine — they had no manual override yet.
+
+**Prevention**: this is a class-of-bug — anywhere we conditionally derive one field from another via `||`, the same trap exists. Worth a unit test for the slug-auto-sync helper if we ever extract it into shared util.
+
+---
+
+## 2026-05-11 — Admin forms render 4 copies of every locale-translated input
+
+**Symptom**: on every admin curation form that supports the en/es/de/fr locales (property types, features, locations, location groups, property create/edit), the locale tabs render correctly but the NAME/SLUG (or title/description) input pairs render **all four locales at once** stacked vertically, instead of swapping based on the active tab. User can't tell which row maps to which locale — typing into what looks like the "EN" row may actually be writing to ES/DE/FR state, so the EN translation submits empty. Explains the user-reported "slug field doesn't take value fully" — they were filling the wrong row.
+
+**Root cause**: 7 components used the HTML `hidden` attribute paired with a Tailwind display class on the same element:
+
+```jsx
+<div hidden={activeTab !== loc} className="grid gap-2 sm:grid-cols-2">
+```
+
+The Tailwind `grid` (and `space-y-*` / `flex` / etc.) utilities set `display: grid` (etc.) via a CSS rule with specificity (0,1,0). The HTML `hidden` attribute's `display: none` comes from a user-agent stylesheet with lower specificity, so the className **wins** and the element stays visible.
+
+This is a well-documented Tailwind footgun — see the official Tailwind docs note on `hidden` interacting with other display utilities. Affected files (all in `apps/web/app/[locale]/dashboard/`):
+- `admin/property-types/admin-property-types.tsx:361, 675` (with `grid`)
+- `admin/locations/admin-locations.tsx:673` (with `grid`)
+- `admin/location-groups/admin-location-groups.tsx:420` (with `grid`)
+- `admin/features/admin-features.tsx:317, 511` (no `display` class — these two were technically fine, but fixed for consistency)
+- `properties/_components/property-form.tsx:397` (with `space-y-3` — `space-y-*` does NOT set display, so this one was probably already working, but fixed for consistency)
+
+**Fix**: replaced `hidden={...}` with `style={... ? { display: "none" } : undefined}` everywhere. Inline `style` has specificity (1,0,0,0) which beats any className. Single-line diff per site; preserves the existing className intact.
+
+**Prevention**: lint rule to forbid the combination of `hidden={...}` and a `display: *` Tailwind utility on the same element. Or replace the pattern entirely with conditional rendering (`activeTab === loc && <Pane />`) — also kills the bug, simpler JSX, but loses field state when switching tabs. We chose `style.display` because the inputs are controlled (state lives in React, not DOM), so the trade-off doesn't bite us here.
+
+---
+
+## 2026-05-11 — Property detail page renders twice (open — defer to frontend pass)
+
+**Symptom**: on `/[locale]/dashboard/properties/[id]`, the page header (`#id` + title + Edit / All-properties buttons) and full detail grid (price, transaction, bedrooms, etc.) appear **twice** in vertical sequence — first instance shows "No images attached", second instance shows the actual image-manager with uploaded images. Persists across hard refresh.
+
+**Source verified clean**:
+- `apps/web/app/[locale]/dashboard/properties/[id]/page.tsx` has exactly one `<header>` + one detail `<section>` + one ImageManager + one ImageUploader.
+- Only layout in the tree is `app/[locale]/layout.tsx` — no parallel routes, no template.tsx, no `@`-slots.
+- API access logs show single GET pairs per pageview (one detail + one images), not doubled.
+
+**Hypotheses to test next**:
+1. Some component below the page (e.g. the dashboard sidebar, breadcrumb, or a `not-found` boundary) is rendering a second copy of the property header. Need to inspect the rendered DOM in DevTools and count `<h1>Test Sprint 1</h1>` occurrences.
+2. The screencapture tool is stitching together two render states (less likely — user confirms duplication is visible without the tool).
+3. A React error boundary catching mid-render and re-rendering the children, leaving stale DOM. Less likely with Server Components but worth ruling out by checking the React error overlay.
+
+**Workaround**: none — purely cosmetic. Backend is correct (single fetch per pageview); image pipeline is correct (DB rows + variants + file system intact). User can ignore the duplicate block.
+
+**Status**: deferred to the frontend hardening pass. Tag: `B.S1-defer`.
+
+---
+
+## 2026-05-11 — Image thumbnails render as broken icons in dashboard (dev mode)
+
+**Symptom**: after uploading an image to a property in dev, the image-manager renders a black square with a broken-image icon. The image-variant pipeline ran (worker log shows variants generated, `MediaVariant` rows exist, files on disk under `tmp/r2-local/variants/...`), and the `/api/_local-storage/serve?key=...` endpoint returns HTTP 200 with the full bytes when hit directly with curl — but the browser refuses to load it.
+
+**Root cause**: two compounding problems on the dev-only `/_local-storage/serve` route:
+
+1. **Cross-Origin-Resource-Policy: same-origin** (Helmet default). The dashboard runs at `http://localhost:3000` and the api at `http://localhost:3001` — different ports → different origins. Modern browsers honour CORP and block embedding of cross-origin responses unless the server opts in with `cross-origin` (or `same-site`). The dev `<img src="http://localhost:3001/api/_local-storage/serve?...">` was being blocked at the rendering stage. R2's CDN domain in production has its own CORP config, so this only ever bites in dev.
+
+2. **content-type always `application/octet-stream`**. Storage keys are content-addressed hashes (no extension), so the route has no way to know the mime type from the URL alone. Browsers do mime-sniffing for `<img>`, so a PNG would still display when CORP allowed it — but combining the octet-stream content-type with `X-Content-Type-Options: nosniff` (also a Helmet default) means strict browsers refuse to treat the response as an image even when CORP is open.
+
+**Fix**: `apps/api/src/routes/local-storage.ts` — the `/serve` handler now (a) sets `Cross-Origin-Resource-Policy: cross-origin` per-response (overriding Helmet's default for this dev-only route), and (b) sniffs magic bytes from the response buffer to set an accurate `content-type` (PNG, JPEG, GIF, WebP, AVIF, HEIC, PDF, MP4 — falls back to octet-stream for anything else). Production R2 is unaffected — content-type is stored on the object at upload time and served straight from R2.
+
+**Prevention**: this route is dev-only and not regression-tested via vitest (would need a Fastify e2e harness). The fix is small and self-contained, so the simplest safeguard is the next time a dev mounts a different image format that we don't recognise, the worst case is "thumbnail renders without optimisation" rather than "broken icon". If we expand supported formats, extend `sniffContentType()` accordingly. In any case, image rendering should be re-verified as part of the next Phase B smoke after S1 changes.
+
+---
+
+## 2026-05-11 — Image upload + worker schedulers crash with "Custom Id cannot contain :"
+
+**Symptom**: First image upload on a property fails with HTTP 500 from `POST /api/uploads/register`. Server log: `Error: Custom Id cannot contain :`. The widget shows "Error" badge on the file row. Same error would have hit `webhook-dispatcher`, `campaign-dispatcher`, export queue, manual sitemap regenerate, and manual feed-import re-run the moment any of them tried to enqueue real work (none had pending data yet in our session).
+
+**Root cause**: BullMQ v5 (we run `^5.34.0` in both `apps/api` and `apps/worker`) **rejects** custom `jobId` values containing `:`, because `:` is the internal Redis key separator and would collide with BullMQ's own keyspace. We had 7 sites building deterministic job IDs with `:` as a separator (image variants, exports, sitemap manual, feed-import manual, email recipients in both api and worker dispatchers, webhook deliveries). All would fail the moment they were exercised. The bug had been silent because no traffic had reached the queues until this manual smoke.
+
+The image variant helper lives in `packages/shared` (`schemas/media.ts::imageVariantJobId`); the other 6 are inline template literals in their respective producers. We carried the `:` pattern from BullMQ v3/v4 docs without checking the v5 changelog.
+
+**Fix**: replaced `:` with `-` everywhere a custom jobId is constructed. Format remains deterministic so BullMQ dedup still works:
+- `packages/shared/src/schemas/media.ts:71` — `iv-${hash}-${size}-${format}-v${ver}`
+- `apps/api/src/lib/queues.ts:72,148` — `sitemap-manual-${ts}` / `feed-import-manual-${id}-${ts}`
+- `apps/api/src/modules/exports/service.ts:168` — `export-${id}`
+- `apps/api/src/modules/marketing/campaign-service.ts:313` — `email-recipient-${id}`
+- `apps/worker/src/processors/campaign-dispatcher/processor.ts:100` — same
+- `apps/worker/src/processors/webhook-dispatcher/processor.ts:39` — `wh-deliver-${id}`
+
+`feedImportSchedulerId()` (`feed-import:scheduler:<id>`) is **not** affected — it's passed to `upsertJobScheduler()`, not as `opts.jobId` on `queue.add()`. The `:` restriction only applies to user-provided custom job IDs.
+
+**Prevention**: add a lint rule or unit test for `/jobId\s*:\s*[`"']?[^,}]*:/` against the `apps/**` and `packages/**` source trees. Long-term, centralise jobId construction behind a typed `makeJobId(parts: string[])` helper in `packages/shared` that joins on `-` and rejects `:` in inputs — kills the whole class at the source.
+
+---
+
+## 2026-05-11 — `apps/public` 500s on `/en` with `NEXT_PUBLIC_TURNSTILE_SITE_KEY: String must contain at least 1 character(s)`
+
+**Symptom**: Fresh local `pnpm dev` boots all four apps, but every request to the public marketplace returns HTTP 500. Stack trace points at `apps/public/src/env.ts` Zod schema rejecting `NEXT_PUBLIC_TURNSTILE_SITE_KEY` even though `.env.example` documents it as optional ("when unset, leads submit without verification").
+
+**Root cause**: `apps/public/.env` ships `NEXT_PUBLIC_TURNSTILE_SITE_KEY=` (empty string) by default. Zod's `z.string().min(1).optional()` accepts `undefined` but rejects `""` — `.optional()` is not the same as "treat empty string as absent". The schema was correct in intent but wrong in practice for any `.env` file that declared the var with an empty value.
+
+**Fix**: `apps/public/src/env.ts` — coerce empty strings to `undefined` before passing to `safeParse` via a `nonEmpty()` helper.
+
+**Prevention**: same pattern should apply to every `NEXT_PUBLIC_*` (and ideally every) env var that's documented optional but might be declared empty in `.env`. Worth a follow-up sweep across `apps/{api,web,worker}/src/config.ts` to verify their Zod schemas do the same. Long-term, the cleanest move is a shared `optionalString()` Zod helper in `@inmolink/shared`.
+
+---
+
+## 2026-05-11 — Meilisearch container stuck `unhealthy` despite serving healthy responses
+
+**Symptom**: `docker ps` shows `inmolink-meilisearch ... (unhealthy)`, but `curl http://localhost:7700/health` returns `{"status":"available"}` HTTP 200. App connectivity works; only docker's container-level healthcheck fails.
+
+**Root cause**: docker-compose.yml ran the healthcheck via `wget --spider 'http://localhost:7700/health'`. BusyBox wget inside the Meilisearch image resolves `localhost` to IPv6 `[::1]:7700`, but Meilisearch binds IPv4-only on `0.0.0.0:7700`. The TCP connect refuses; healthcheck fails with `wget: can't connect to remote host: Connection refused`.
+
+**Fix**: changed the healthcheck URL to `http://127.0.0.1:7700/health` in `docker-compose.yml`. Forces IPv4. Container flipped to `healthy` within 5s of recreate.
+
+**Prevention**: never use `localhost` inside container healthchecks when the service bind is IPv4-only. Always use `127.0.0.1` explicitly (or `[::1]` if the service also listens on IPv6). Affects any BusyBox/Alpine-based image — they default to IPv6-first resolution.
+
+---
+
 ## 2026-05-09 — `prisma generate` fails with EPERM rename on `query_engine-windows.dll.node`
 
 **Symptom**: `pnpm --filter @inmolink/db db:generate` (or any operation that triggers `prisma generate`, including `prisma migrate dev`) fails on Windows with:

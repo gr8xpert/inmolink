@@ -358,7 +358,11 @@ function GroupForm({
       )}
       <LocaleTabs activeTab={activeTab} setActiveTab={setActiveTab} />
       {LOCALES.map((loc) => (
-        <div key={loc} hidden={activeTab !== loc} className="grid gap-2 sm:grid-cols-2">
+        <div
+          key={loc}
+          className="grid gap-2 sm:grid-cols-2"
+          style={activeTab !== loc ? { display: "none" } : undefined}
+        >
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-xs uppercase text-muted-foreground">Name</span>
             <input
@@ -369,8 +373,10 @@ function GroupForm({
                   ...t,
                   [loc]: {
                     name: e.target.value,
-                    // Auto-slug only if slug is blank.
-                    slug: t[loc].slug || slugify(e.target.value),
+                    // Auto-slug as long as the user hasn't manually edited
+                    // it (current slug still matches what we last derived).
+                    slug:
+                      t[loc].slug === slugify(t[loc].name) ? slugify(e.target.value) : t[loc].slug,
                   },
                 }))
               }
@@ -672,7 +678,11 @@ function TypeForm({
       )}
       <LocaleTabs activeTab={activeTab} setActiveTab={setActiveTab} />
       {LOCALES.map((loc) => (
-        <div key={loc} hidden={activeTab !== loc} className="grid gap-2 sm:grid-cols-2">
+        <div
+          key={loc}
+          className="grid gap-2 sm:grid-cols-2"
+          style={activeTab !== loc ? { display: "none" } : undefined}
+        >
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-xs uppercase text-muted-foreground">Name</span>
             <input
@@ -681,7 +691,11 @@ function TypeForm({
               onChange={(e) =>
                 setTranslations((t) => ({
                   ...t,
-                  [loc]: { name: e.target.value, slug: t[loc].slug || slugify(e.target.value) },
+                  [loc]: {
+                    name: e.target.value,
+                    slug:
+                      t[loc].slug === slugify(t[loc].name) ? slugify(e.target.value) : t[loc].slug,
+                  },
                 }))
               }
             />

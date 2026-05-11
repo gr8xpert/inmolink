@@ -17,7 +17,7 @@ import {
   suggestFeatureIcon,
   updateFeature,
   updateGroup,
-} from "./service.js";
+} from "./service";
 
 /**
  * Super-admin taxonomy curation — FeatureGroup + Feature. Same shape as

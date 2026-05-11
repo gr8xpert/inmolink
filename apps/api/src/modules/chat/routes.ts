@@ -107,7 +107,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       // app.io may be undefined if Socket.io hasn't booted yet (extremely
       // narrow window during start-up); fall back to REST-only delivery.
-      const io = (app as unknown as { io?: import("../../realtime/io").AppIOServer }).io ?? null;
+      const io = app.io ?? null;
       const m = await postMessage(callerOf(request), request.params.threadId, request.body, io);
       return reply.code(201).send(m);
     },

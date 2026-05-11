@@ -3,7 +3,7 @@ import type { uploadSchemas } from "@inmolink/shared";
 import { type Storage, StorageObjectMissingError, keyFromHash } from "@inmolink/storage";
 import type { Prisma } from "@prisma/client";
 import type { Queue } from "bullmq";
-import { enqueueEagerImageVariants } from "../../lib/queues.js";
+import { enqueueEagerImageVariants } from "../../lib/queues";
 
 /**
  * Two-step upload flow with content-addressable dedup. PLAN §5.1 / ADR 0002.
@@ -69,6 +69,9 @@ export async function signUploads(
       key,
       mimeType: file.mimeType,
       bytes: file.bytes,
+      // Bind hash into the R2 signature so the storage edge enforces it —
+      // prevents oversized-garbage uploads against a valid signed URL (#018).
+      sha256Hex: file.hash,
     });
     results.push({
       hash: file.hash,

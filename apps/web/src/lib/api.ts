@@ -1,3 +1,4 @@
+import { env } from "@/env";
 import { headers } from "next/headers";
 
 /**
@@ -21,7 +22,7 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const API_BASE = env.NEXT_PUBLIC_API_URL;
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const incoming = await headers();

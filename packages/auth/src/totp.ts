@@ -78,13 +78,16 @@ function computeCode(secret: Buffer, counter: number): string {
   buf.writeUInt32BE(high, 0);
   buf.writeUInt32BE(low, 4);
   const hmac = createHmac("sha1", secret).update(buf).digest();
-  // Dynamic truncation per RFC 4226 §5.3.
-  const offset = hmac[hmac.length - 1]! & 0x0f;
+  // Dynamic truncation per RFC 4226 §5.3. Buffer of HMAC-SHA1 output is
+  // always 20 bytes, so offset + 0..3 are guaranteed in-range — narrow via
+  // explicit length check rather than non-null assertions.
+  if (hmac.length < 20) throw new Error("hmac too short");
+  const offset = (hmac[19] ?? 0) & 0x0f;
   const code =
-    ((hmac[offset]! & 0x7f) << 24) |
-    ((hmac[offset + 1]! & 0xff) << 16) |
-    ((hmac[offset + 2]! & 0xff) << 8) |
-    (hmac[offset + 3]! & 0xff);
+    (((hmac[offset] ?? 0) & 0x7f) << 24) |
+    (((hmac[offset + 1] ?? 0) & 0xff) << 16) |
+    (((hmac[offset + 2] ?? 0) & 0xff) << 8) |
+    ((hmac[offset + 3] ?? 0) & 0xff);
   return String(code % 10 ** DIGITS).padStart(DIGITS, "0");
 }
 

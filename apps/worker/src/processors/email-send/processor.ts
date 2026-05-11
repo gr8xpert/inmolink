@@ -1,5 +1,6 @@
 import { decryptFromString, signTrackingToken } from "@inmolink/auth";
 import { prisma } from "@inmolink/db";
+import { marketingSchemas } from "@inmolink/shared";
 import type { Job, Processor } from "bullmq";
 import nodemailer, { type Transporter } from "nodemailer";
 import type pino from "pino";
@@ -28,6 +29,44 @@ type Args = {
   apiBaseUrl: string;
   logger: pino.Logger;
 };
+
+/**
+ * Per-worker SMTP transport pool (#017). Hoisted to module scope so the
+ * shutdown handler in worker.ts can call {@link closeEmailTransports} to
+ * drain SMTP sockets cleanly on SIGTERM.
+ *
+ * Bounded LRU via insertion-order Map: when size reaches MAX, the oldest
+ * entry is closed + evicted before inserting the new one. Stale-config
+ * eviction (key rotation, DKIM rotation) is currently bounded by worker
+ * restart cadence + this LRU; tighter eviction (Redis pub-sub on PATCH or
+ * keying by `updatedAt`) is a v1.5 follow-up.
+ */
+const TRANSPORTER_CACHE_MAX = 200;
+const transporterCache = new Map<string, Transporter>();
+
+function evictOldestTransporter(): void {
+  const first = transporterCache.keys().next();
+  if (first.done) return;
+  const key = first.value;
+  const t = transporterCache.get(key);
+  transporterCache.delete(key);
+  try {
+    t?.close();
+  } catch {
+    // Ignore — best-effort cleanup
+  }
+}
+
+export function closeEmailTransports(): void {
+  for (const [key, t] of transporterCache) {
+    try {
+      t.close();
+    } catch {
+      // Best-effort — server may already have dropped the socket
+    }
+    transporterCache.delete(key);
+  }
+}
 
 type Recipient = {
   id: string;
@@ -64,14 +103,8 @@ type EmailCfg = {
 const TAG_RE = /\{\{\s*([a-zA-Z][a-zA-Z0-9._]*)\s*\}\}/g;
 
 export function makeEmailSendProcessor(opts: Args): Processor {
-  // Per-agency transport pool: opening one TCP connection per recipient
-  // would burn round-trips. Cache one Transporter per agencyEmailConfig.id
-  // for the lifetime of the worker process — nodemailer's pool option
-  // re-uses the underlying socket.
-  const transporterCache = new Map<string, Transporter>();
-
   return async function emailSendProcessor(job: Job): Promise<void> {
-    const data = job.data as { recipientId: string };
+    const data = marketingSchemas.emailSendJobSchema.parse(job.data);
     const recipient = (await prisma.emailCampaignRecipient.findUnique({
       where: { id: data.recipientId },
       select: { id: true, campaignId: true, email: true, name: true, context: true, status: true },
@@ -191,7 +224,12 @@ export function makeEmailSendProcessor(opts: Args): Processor {
     }
 
     let transport = transporterCache.get(cfg.id);
-    if (!transport) {
+    if (transport) {
+      // Touch LRU position so freshly-used entries don't get evicted.
+      transporterCache.delete(cfg.id);
+      transporterCache.set(cfg.id, transport);
+    } else {
+      if (transporterCache.size >= TRANSPORTER_CACHE_MAX) evictOldestTransporter();
       transport = createTransport(cfg, opts.encryptionKey);
       transporterCache.set(cfg.id, transport);
     }
@@ -336,8 +374,10 @@ function rewriteClickLinks(
     ) {
       return match;
     }
-    const tok = signTrackingToken({ k: "click", r: recipientId }, secret);
-    const wrapped = `${apiBaseUrl}/api/email/c/${tok}?u=${encodeURIComponent(url)}`;
+    // Bind the destination URL into the HMAC payload so /c/:tok can't be
+    // weaponised as an open redirect (#015).
+    const tok = signTrackingToken({ k: "click", r: recipientId, u: url }, secret);
+    const wrapped = `${apiBaseUrl}/api/email/c/${tok}`;
     return `href="${wrapped}"`;
   });
 }

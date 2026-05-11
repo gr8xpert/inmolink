@@ -41,6 +41,8 @@ declare module "next-auth/jwt" {
   }
 }
 
+const IS_PROD = process.env.NODE_ENV === "production";
+
 export const authConfig = {
   session: {
     strategy: "jwt",
@@ -48,6 +50,20 @@ export const authConfig = {
   },
   pages: {
     signIn: "/sign-in",
+  },
+  // Pinned cookie config (defense-in-depth — Auth.js v5 defaults match
+  // these today, but explicit pinning prevents an upstream default change
+  // from silently weakening the session cookie).
+  cookies: {
+    sessionToken: {
+      name: IS_PROD ? "__Secure-authjs.session-token" : "authjs.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: IS_PROD,
+        path: "/",
+      },
+    },
   },
   // Providers added in auth.ts (Node runtime). Empty here so middleware can
   // still call `auth()` to read the JWT cookie without invoking authorize.

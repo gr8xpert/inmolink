@@ -62,6 +62,7 @@ export function Combobox({
 
   // Reset highlight when the visible filter set changes (length is a
   // sufficient proxy and avoids re-running on identity-only diffs).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional length-only dep
   useEffect(() => {
     setActiveIdx(0);
   }, [filtered.length]);

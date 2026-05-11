@@ -32,6 +32,7 @@
  * `localeFromAttr` is set on the mapping (e.g. `<text lang="en">…`).
  */
 
+import { Readable } from "node:stream";
 import { LOCALES, type Locale } from "@inmolink/shared";
 import sax from "sax";
 import type {
@@ -150,9 +151,7 @@ async function* parseGenericFromUrl(
   if (!res.ok || !res.body) {
     throw new Error(`Generic XML fetch failed: ${res.status} ${res.statusText}`);
   }
-  // biome-ignore lint/suspicious/noExplicitAny: Readable.fromWeb is loosely typed across Node versions
-  const { Readable } = require("node:stream") as any;
-  const node = Readable.fromWeb(res.body);
+  const node = Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]);
   yield* parseGenericXmlStream(node, config, input.signal);
 }
 

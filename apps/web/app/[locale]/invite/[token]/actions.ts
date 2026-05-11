@@ -1,5 +1,6 @@
 "use server";
 
+import { env } from "@/env";
 import { ApiError, apiFetch } from "@/lib/api";
 import { signIn } from "@inmolink/auth";
 import type { inviteSchemas } from "@inmolink/shared";
@@ -8,7 +9,7 @@ type Result =
   | { ok: true; userId: string; agencyId: string }
   | { ok: false; status?: number; error: string };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const API_BASE = env.NEXT_PUBLIC_API_URL;
 
 /**
  * Anonymous accept — creates a new User account from the invite. The api

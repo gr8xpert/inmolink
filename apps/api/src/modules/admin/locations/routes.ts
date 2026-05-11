@@ -10,7 +10,7 @@ import {
   reorderAllLocations,
   reorderLocation,
   updateLocation,
-} from "./service.js";
+} from "./service";
 
 /**
  * Super-admin Location curation. 4-level tree (COUNTRY → REGION → CITY

@@ -7,6 +7,8 @@
  * Detail pages set ~5 min; SSR-error / not-found bypasses the cache.
  */
 
+import { env } from "@/env";
+
 export class ApiError extends Error {
   readonly status: number;
   readonly body: unknown;
@@ -18,7 +20,7 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const API_BASE = env.NEXT_PUBLIC_API_URL;
 
 export async function publicApiFetch<T>(
   path: string,

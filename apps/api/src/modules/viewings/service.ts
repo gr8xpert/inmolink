@@ -4,7 +4,7 @@ import type { viewingRequestSchemas } from "@inmolink/shared";
 import type { Storage } from "@inmolink/storage";
 import type { Prisma, ViewingStatus } from "@prisma/client";
 import { emitWebhookEvent } from "../../lib/webhooks";
-import { createNotification } from "../notifications/service.js";
+import { createNotification } from "../notifications/service";
 
 /**
  * ViewingRequest workflow (PLAN §11.6).

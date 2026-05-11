@@ -2,7 +2,7 @@ import { suggestIcon } from "@inmolink/ai";
 import { prisma } from "@inmolink/db";
 import type { adminFeatureSchemas } from "@inmolink/shared";
 import type { Prisma } from "@prisma/client";
-import { ConflictError, NotFoundError, assertReorderSetMatch } from "../_shared/taxonomy.js";
+import { ConflictError, NotFoundError, assertReorderSetMatch } from "../_shared/taxonomy";
 
 /**
  * Super-admin curation for FeatureGroup + Feature. Mirror of admin/
@@ -13,7 +13,7 @@ import { ConflictError, NotFoundError, assertReorderSetMatch } from "../_shared/
  * reassign or set isActive=false to retire.
  */
 
-export { ConflictError, NotFoundError } from "../_shared/taxonomy.js";
+export { ConflictError, NotFoundError } from "../_shared/taxonomy";
 
 // Amenity-focused Lucide subset — different from PropertyType's catalog.
 const FEATURE_ICON_CATALOG = [

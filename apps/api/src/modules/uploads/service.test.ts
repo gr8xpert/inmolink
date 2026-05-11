@@ -91,6 +91,7 @@ describe("signUploads", () => {
       key: `media/bb/bb/${HASH_B}`,
       mimeType: "image/jpeg",
       bytes: 2000,
+      sha256Hex: HASH_B,
     });
   });
 

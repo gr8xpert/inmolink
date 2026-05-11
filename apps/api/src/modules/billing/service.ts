@@ -165,6 +165,7 @@ export async function listInvoices(
 export async function updateBillingDetails(
   user: AuthenticatedUser,
   input: billingSchemas.BillingDetailsInput,
+  ctx: CtxOpts,
   queryAgencyId: string | undefined,
 ): Promise<billingSchemas.BillingSummary> {
   const agencyId = resolveAgencyId(user, queryAgencyId);
@@ -179,22 +180,7 @@ export async function updateBillingDetails(
       taxIdValidated: false,
     },
   });
-  return getSummary(user, makeReadOnlyCtx(), queryAgencyId);
-}
-
-// Used when summary needs to be re-fetched but we only have access to flags
-function makeReadOnlyCtx(): CtxOpts {
-  return {
-    stripeSecretKey: process.env.STRIPE_SECRET_KEY,
-    stripeTaxEnabled: process.env.STRIPE_TAX_ENABLED === "true",
-    publicBaseUrl: process.env.PUBLIC_BASE_URL ?? "http://localhost:3000",
-    prices: {
-      proMonthlyEur: process.env.STRIPE_PRICE_PRO_MONTHLY_EUR,
-      proYearlyEur: process.env.STRIPE_PRICE_PRO_YEARLY_EUR,
-      proMonthlyGbp: process.env.STRIPE_PRICE_PRO_MONTHLY_GBP,
-      proYearlyGbp: process.env.STRIPE_PRICE_PRO_YEARLY_GBP,
-    },
-  };
+  return getSummary(user, ctx, queryAgencyId);
 }
 
 /**
@@ -315,6 +301,7 @@ export async function createPortalSession(
 export async function grantPlan(
   actor: AuthenticatedUser,
   input: billingSchemas.ManualGrantInput,
+  ctx: CtxOpts,
 ): Promise<billingSchemas.BillingSummary> {
   if (actor.role !== "SUPER_ADMIN") throw new ForbiddenError("Super-admin only");
   const agency = await prisma.agency.findUnique({
@@ -362,12 +349,13 @@ export async function grantPlan(
     }),
   ]);
 
-  return getSummary(actor, makeReadOnlyCtx(), input.agencyId);
+  return getSummary(actor, ctx, input.agencyId);
 }
 
 export async function revokePlan(
   actor: AuthenticatedUser,
   input: billingSchemas.ManualGrantRevokeInput,
+  ctx: CtxOpts,
 ): Promise<billingSchemas.BillingSummary> {
   if (actor.role !== "SUPER_ADMIN") throw new ForbiddenError("Super-admin only");
   await prisma.$transaction([
@@ -393,7 +381,7 @@ export async function revokePlan(
       },
     }),
   ]);
-  return getSummary(actor, makeReadOnlyCtx(), input.agencyId);
+  return getSummary(actor, ctx, input.agencyId);
 }
 
 export async function listAgenciesForAdmin(

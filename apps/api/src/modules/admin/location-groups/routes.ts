@@ -13,7 +13,7 @@ import {
   reorderGroup,
   reorderMember,
   updateGroup,
-} from "./service.js";
+} from "./service";
 
 /**
  * Super-admin LocationGroup curation. Group CRUD mirrors 2.C.1's

@@ -1,6 +1,6 @@
 import path from "node:path";
 import { LocalFsStorage, R2Storage, type Storage } from "@inmolink/storage";
-import type { Env } from "./config.js";
+import type { Env } from "./config";
 
 /**
  * Mirrors apps/api/src/storage.ts so the worker can read source originals

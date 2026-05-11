@@ -1,4 +1,6 @@
+import { env } from "@/env";
 import { ApiError, publicApiFetch } from "@/lib/api";
+import { safeJsonLd } from "@/lib/json-ld";
 import { localeAlternates } from "@/lib/seo";
 import type { publicLocationSchemas } from "@inmolink/shared";
 import type { Metadata } from "next";
@@ -31,7 +33,7 @@ type Props = {
 
 type Landing = publicLocationSchemas.PublicLocationLanding;
 
-const BASE_URL = process.env.NEXT_PUBLIC_PUBLIC_URL ?? "http://localhost:3002";
+const BASE_URL = env.NEXT_PUBLIC_PUBLIC_URL;
 
 async function loadLanding(locale: string, path: string): Promise<Landing | null> {
   try {
@@ -154,19 +156,19 @@ export default async function BuyLandingPage({ params }: Props) {
     <main className="container mx-auto max-w-5xl space-y-8 p-6">
       <script
         type="application/ld+json"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: trusted server-built JSON-LD
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD requires raw HTML; safeJsonLd escapes script-breakout chars
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbLd) }}
       />
       <script
         type="application/ld+json"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: trusted server-built JSON-LD
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(placeLd) }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD requires raw HTML; safeJsonLd escapes script-breakout chars
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(placeLd) }}
       />
       {faqLd && (
         <script
           type="application/ld+json"
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: trusted server-built JSON-LD
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }}
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD requires raw HTML; safeJsonLd escapes script-breakout chars
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(faqLd) }}
         />
       )}
 

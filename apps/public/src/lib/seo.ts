@@ -1,3 +1,4 @@
+import { env } from "@/env";
 import type { Metadata } from "next";
 
 /**
@@ -17,7 +18,7 @@ import type { Metadata } from "next";
 export const LOCALES = ["en", "es", "de", "fr"] as const;
 export type SeoLocale = (typeof LOCALES)[number];
 
-const BASE_URL = process.env.NEXT_PUBLIC_PUBLIC_URL ?? "http://localhost:3002";
+const BASE_URL = env.NEXT_PUBLIC_PUBLIC_URL;
 
 /**
  * Returns the same path for every locale (e.g. /search, /, /property/...id).

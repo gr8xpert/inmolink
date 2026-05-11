@@ -97,7 +97,7 @@ export function makeCampaignDispatcherProcessor(opts: Args): Processor {
               "campaign-recipient",
               { recipientId: r.id, kind: "campaign" },
               {
-                jobId: `email-recipient:${r.id}`,
+                jobId: `email-recipient-${r.id}`,
                 attempts: 3,
                 backoff: { type: "exponential", delay: 30_000 },
                 removeOnComplete: { count: 200 },

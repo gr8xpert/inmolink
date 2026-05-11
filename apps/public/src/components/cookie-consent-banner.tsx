@@ -1,41 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-const COOKIE_NAME = "inmolink-consent";
-const STORAGE_KEY = "inmolink-consent";
+import { type ConsentChoice, readConsent, recordConsent } from "../lib/consent";
 
 /**
  * Cookie consent banner.
  *
  * v1 stays minimal — we only ship strictly-necessary cookies, so the
  * banner offers Accept (records the choice) and Reject (records the
- * choice and confirms only strictly-necessary stays). Both options write
- * the same cookie + localStorage flag because, today, both yield the
- * same runtime behaviour. When we add analytics/advertising the banner
- * can branch.
+ * choice and confirms only strictly-necessary stays). The persistence + gate
+ * checks live in `../lib/consent.ts`; any future analytics script must call
+ * `hasAnalyticsConsent()` from there before loading (see #019).
  */
 export function CookieConsentBanner({ locale }: { locale: string }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    try {
-      if (localStorage.getItem(STORAGE_KEY)) return;
-    } catch {
-      // privacy mode disables localStorage; fall back to cookie probe
-    }
-    if (document.cookie.includes(`${COOKIE_NAME}=`)) return;
-    setVisible(true);
+    if (readConsent() === null) setVisible(true);
   }, []);
 
-  function record(choice: "accept" | "reject"): void {
-    const oneYear = 365 * 24 * 60 * 60;
-    document.cookie = `${COOKIE_NAME}=${choice}; path=/; max-age=${oneYear}; samesite=lax`;
-    try {
-      localStorage.setItem(STORAGE_KEY, choice);
-    } catch {
-      // ignored
-    }
+  function record(choice: ConsentChoice): void {
+    recordConsent(choice);
     setVisible(false);
   }
 

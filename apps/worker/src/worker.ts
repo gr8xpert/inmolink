@@ -1,24 +1,25 @@
 import { prisma } from "@inmolink/db";
+import { closeBrowser } from "@inmolink/pdf";
 import { MeilisearchAdapter } from "@inmolink/search";
 import { type Job, type Processor, Queue, Worker } from "bullmq";
 import { Redis } from "ioredis";
 import pino from "pino";
-import { loadConfig } from "./config.js";
-import { makeCampaignDispatcherProcessor } from "./processors/campaign-dispatcher/processor.js";
-import { makeEmailSendProcessor } from "./processors/email-send/processor.js";
-import { makeExportCleanupProcessor } from "./processors/export-cleanup/processor.js";
-import { makeExportGenerateProcessor } from "./processors/export-generate/processor.js";
-import { makeFeedImportProcessor } from "./processors/feed-import/processor.js";
-import { makeImageVariantProcessor } from "./processors/image-variant/processor.js";
-import { makeMediaCleanupProcessor } from "./processors/media-cleanup/processor.js";
-import { makeNotificationDigestProcessor } from "./processors/notification-digest/processor.js";
-import { makeOutboxDrainProcessor } from "./processors/outbox-drain/processor.js";
-import { makeSitemapGenerateProcessor } from "./processors/sitemap-generate/processor.js";
-import { makeViewingExpireProcessor } from "./processors/viewing-expire/processor.js";
-import { makeWebhookDeliverProcessor } from "./processors/webhook-deliver/processor.js";
-import { makeWebhookDispatcherProcessor } from "./processors/webhook-dispatcher/processor.js";
-import { QUEUE_NAMES, type QueueName } from "./queues.js";
-import { createStorage } from "./storage.js";
+import { loadConfig } from "./config";
+import { makeCampaignDispatcherProcessor } from "./processors/campaign-dispatcher/processor";
+import { closeEmailTransports, makeEmailSendProcessor } from "./processors/email-send/processor";
+import { makeExportCleanupProcessor } from "./processors/export-cleanup/processor";
+import { makeExportGenerateProcessor } from "./processors/export-generate/processor";
+import { makeFeedImportProcessor } from "./processors/feed-import/processor";
+import { makeImageVariantProcessor } from "./processors/image-variant/processor";
+import { makeMediaCleanupProcessor } from "./processors/media-cleanup/processor";
+import { makeNotificationDigestProcessor } from "./processors/notification-digest/processor";
+import { makeOutboxDrainProcessor } from "./processors/outbox-drain/processor";
+import { makeSitemapGenerateProcessor } from "./processors/sitemap-generate/processor";
+import { makeViewingExpireProcessor } from "./processors/viewing-expire/processor";
+import { makeWebhookDeliverProcessor } from "./processors/webhook-deliver/processor";
+import { makeWebhookDispatcherProcessor } from "./processors/webhook-dispatcher/processor";
+import { QUEUE_NAMES, type QueueName } from "./queues";
+import { createStorage } from "./storage";
 
 const env = loadConfig();
 
@@ -447,6 +448,11 @@ const shutdown = async (signal: string): Promise<void> => {
   await webhookDispatcherQueue.close();
   await webhookDeliverQueue.close();
   await exportCleanupQueue.close();
+  // Close cached SMTP transports + Puppeteer browser before Redis disconnect
+  // so any in-flight FD release happens with the queues already drained
+  // (#016, #017).
+  closeEmailTransports();
+  await closeBrowser().catch((err) => logger.warn({ err }, "closeBrowser failed"));
   await connection.quit();
   process.exit(0);
 };

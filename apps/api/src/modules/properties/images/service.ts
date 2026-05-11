@@ -1,15 +1,15 @@
 import { prisma } from "@inmolink/db";
 import type { propertyImageSchemas } from "@inmolink/shared";
 import type { Storage } from "@inmolink/storage";
-import type { AuthenticatedUser } from "../../../plugins/auth.js";
-import { getPropertyById } from "../repository.js";
-import { ForbiddenError, NotFoundError } from "../service.js";
+import type { AuthenticatedUser } from "../../../plugins/auth";
+import { getPropertyById } from "../repository";
+import { ForbiddenError, NotFoundError } from "../service";
 import {
   findImageById,
   getMaxImagePosition,
   listImagesForProperty,
   toImageDto,
-} from "./repository.js";
+} from "./repository";
 
 /**
  * PropertyImage attach / patch / delete service. Slice E.
@@ -82,6 +82,14 @@ export async function attachImagesForUser(
 
   const wantsCover = req.images.some((i) => i.isCover === true);
   const startPosition = (await getMaxImagePosition(propertyId)) + 1;
+  // If the property currently has no cover and the client didn't pick one,
+  // auto-promote the first image being attached. Without this every upload
+  // leaves the property cover-less and the public/featured projection (which
+  // joins `images where isCover: true`) returns no thumbnail.
+  const existingCoverCount = await prisma.propertyImage.count({
+    where: { propertyId, isCover: true },
+  });
+  const autoPromoteFirst = !wantsCover && existingCoverCount === 0;
 
   // Single transaction: create all PropertyImage rows + bump each
   // MediaObject refCount + clear orphan-grace + (if a cover is supplied)
@@ -103,7 +111,7 @@ export async function attachImagesForUser(
           mediaObjectId: item.mediaObjectId,
           altText: item.altText ?? null,
           position: item.position ?? startPosition + idx,
-          isCover: item.isCover ?? false,
+          isCover: item.isCover ?? (autoPromoteFirst && idx === 0),
         },
       });
       await tx.mediaObject.update({

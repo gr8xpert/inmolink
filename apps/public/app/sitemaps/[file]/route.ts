@@ -9,9 +9,11 @@
  * the same shape before talking to Storage.
  */
 
+import { env } from "@/env";
+
 export const revalidate = 3600;
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const API_BASE = env.NEXT_PUBLIC_API_URL;
 const FILENAME_RE = /^sitemap(-(properties|locations|groups)-(en|es|de|fr)(-\d{4})?)?\.xml$/;
 
 type Params = { params: Promise<{ file: string }> };

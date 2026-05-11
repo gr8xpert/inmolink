@@ -1,5 +1,7 @@
+import { env } from "@/env";
 import { ApiError, publicApiFetch } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
+import { safeJsonLd } from "@/lib/json-ld";
 import { localeAlternates } from "@/lib/seo";
 import type { publicProfileSchemas } from "@inmolink/shared";
 import type { Metadata } from "next";
@@ -72,7 +74,7 @@ export default async function AgencyPage({ params }: Props) {
     "@context": "https://schema.org",
     "@type": "RealEstateAgent",
     name: detail.name,
-    url: `${process.env.NEXT_PUBLIC_PUBLIC_URL ?? ""}/${locale}/agency/${detail.slug}`,
+    url: `${env.NEXT_PUBLIC_PUBLIC_URL}/${locale}/agency/${detail.slug}`,
     image: detail.logoPublicUrl ?? detail.bannerPublicUrl ?? undefined,
     email: detail.email ?? undefined,
     telephone: detail.phone ?? undefined,
@@ -90,7 +92,7 @@ export default async function AgencyPage({ params }: Props) {
     member: detail.members.map((m) => ({
       "@type": "Person",
       name: `${m.firstName} ${m.lastName}`,
-      url: `${process.env.NEXT_PUBLIC_PUBLIC_URL ?? ""}/${locale}/agent/${m.slug}`,
+      url: `${env.NEXT_PUBLIC_PUBLIC_URL}/${locale}/agent/${m.slug}`,
       image: m.photoPublicUrl ?? undefined,
     })),
   };
@@ -99,8 +101,8 @@ export default async function AgencyPage({ params }: Props) {
     <main className="min-h-screen">
       <script
         type="application/ld+json"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD injection requires raw string.
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD requires raw HTML; safeJsonLd escapes script-breakout chars
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
 
       <section className="relative">

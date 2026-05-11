@@ -17,6 +17,7 @@
  * - empty `<distances/>` self-closed — safely ignored
  */
 
+import { Readable } from "node:stream";
 import { LOCALES, type Locale } from "@inmolink/shared";
 import sax from "sax";
 import type { FeatureName, FeedConnector, FeedFetchInput, NormalizedListing } from "../connector";
@@ -71,9 +72,7 @@ async function* parseKyeroFromUrl(input: FeedFetchInput): AsyncIterable<Normaliz
 // Convert a fetch Response.body (web ReadableStream) into a Node Readable.
 // Using Node 18+'s built-in Readable.fromWeb avoids extra deps.
 function webStreamToNode(stream: ReadableStream<Uint8Array>): NodeJS.ReadableStream {
-  // biome-ignore lint/suspicious/noExplicitAny: Readable.fromWeb is typed loosely across Node versions
-  const { Readable } = require("node:stream") as any;
-  return Readable.fromWeb(stream);
+  return Readable.fromWeb(stream as Parameters<typeof Readable.fromWeb>[0]);
 }
 
 /**

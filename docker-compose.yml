@@ -84,11 +84,11 @@ services:
     ports:
       - "7700:7700"
     healthcheck:
-      # Meilisearch's image has busybox wget where --spider exits non-zero on
-      # 200 OK. Using --no-verbose + explicit exit code per their docs.
+      # BusyBox wget in the Meili image resolves `localhost` to IPv6 [::1] but
+      # Meili binds 0.0.0.0 (IPv4) only — use 127.0.0.1 explicitly.
       test:
         - "CMD-SHELL"
-        - "wget --no-verbose --tries=1 --spider 'http://localhost:7700/health' || exit 1"
+        - "wget --no-verbose --tries=1 --spider 'http://127.0.0.1:7700/health' || exit 1"
       interval: 5s
       timeout: 3s
       retries: 10

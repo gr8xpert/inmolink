@@ -142,13 +142,26 @@ export class MeilisearchAdapter implements SearchAdapter {
       price_desc: ["priceCents:desc"],
     };
 
-    const result = await index.search<PropertySearchDocument>(query.q ?? "", {
-      filter: filters,
-      sort: query.sort ? sortMap[query.sort] : undefined,
-      limit: query.limit ?? 24,
-      offset: query.offset ?? 0,
-      facets: ["transactionType", "propertyTypeId", "locationId", "bedrooms", "features"],
-    });
+    let result: Awaited<ReturnType<typeof index.search<PropertySearchDocument>>>;
+    try {
+      result = await index.search<PropertySearchDocument>(query.q ?? "", {
+        filter: filters,
+        sort: query.sort ? sortMap[query.sort] : undefined,
+        limit: query.limit ?? 24,
+        offset: query.offset ?? 0,
+        facets: ["transactionType", "propertyTypeId", "locationId", "bedrooms", "features"],
+      });
+    } catch (err: unknown) {
+      // Index doesn't exist yet (no PUBLIC properties have been indexed for
+      // this locale). Treat as empty search rather than 500ing the public
+      // marketplace — the worker creates the index on first upsert. The
+      // Meilisearch SDK nests the actionable code under `err.cause.code`.
+      const code = (err as { cause?: { code?: string } })?.cause?.code;
+      if (code === "index_not_found") {
+        return { hits: [], totalHits: 0, facets: undefined, processingTimeMs: 0 };
+      }
+      throw err;
+    }
 
     return {
       hits: result.hits,

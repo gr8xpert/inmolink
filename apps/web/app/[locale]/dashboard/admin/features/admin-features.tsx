@@ -314,7 +314,7 @@ function GroupForm({
       )}
       <LocaleTabs activeTab={activeTab} setActiveTab={setActiveTab} />
       {LOCALES.map((loc) => (
-        <div key={loc} hidden={activeTab !== loc}>
+        <div key={loc} style={activeTab !== loc ? { display: "none" } : undefined}>
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-xs uppercase text-muted-foreground">Name ({loc})</span>
             <input
@@ -508,7 +508,7 @@ function FeatureForm({
       )}
       <LocaleTabs activeTab={activeTab} setActiveTab={setActiveTab} />
       {LOCALES.map((loc) => (
-        <div key={loc} hidden={activeTab !== loc}>
+        <div key={loc} style={activeTab !== loc ? { display: "none" } : undefined}>
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-xs uppercase text-muted-foreground">Name ({loc})</span>
             <input

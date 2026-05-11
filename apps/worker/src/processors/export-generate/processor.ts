@@ -1,10 +1,11 @@
 import { prisma } from "@inmolink/db";
 import { renderPdf } from "@inmolink/pdf";
+import { exportSchemas } from "@inmolink/shared";
 import type { Storage } from "@inmolink/storage";
 import type { Prisma } from "@prisma/client";
 import type { Job, Processor } from "bullmq";
 import type pino from "pino";
-import { PORTFOLIO_TEMPLATE, PROPERTY_BROCHURE_TEMPLATE } from "./templates.js";
+import { PORTFOLIO_TEMPLATE, PROPERTY_BROCHURE_TEMPLATE } from "./templates";
 
 /**
  * EXPORT_GENERATE processor (PLAN §11.11).
@@ -42,7 +43,7 @@ type Filters = {
 
 export function makeExportGenerateProcessor(opts: Args): Processor {
   return async function exportGenerateProcessor(job: Job): Promise<void> {
-    const { exportId } = job.data as { exportId: string };
+    const { exportId } = exportSchemas.exportGenerateJobSchema.parse(job.data);
     const exportRow = await prisma.export.findUnique({ where: { id: exportId } });
     if (!exportRow) {
       opts.logger.warn({ exportId }, "EXPORT_GENERATE: row not found");

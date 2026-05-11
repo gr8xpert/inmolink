@@ -61,6 +61,9 @@ export type ImageVariantJob = z.infer<typeof imageVariantJobSchema>;
 /**
  * Stable jobId used for BullMQ deduplication. Same logical work → same id →
  * BullMQ silently drops the duplicate add().
+ *
+ * Separator is `-` (not `:`) — BullMQ v5 rejects custom job IDs containing
+ * `:` because Redis uses it as the internal key separator.
  */
 export function imageVariantJobId(args: {
   sourceHash: string;
@@ -68,5 +71,5 @@ export function imageVariantJobId(args: {
   format: VariantFormat;
   pipelineVersion: number;
 }): string {
-  return `iv:${args.sourceHash}:${args.sizeName}:${args.format}:v${args.pipelineVersion}`;
+  return `iv-${args.sourceHash}-${args.sizeName}-${args.format}-v${args.pipelineVersion}`;
 }

@@ -1,3 +1,4 @@
+import { env } from "@/env";
 import { publicApiFetch } from "@/lib/api";
 import { localeAlternates } from "@/lib/seo";
 import type { marketingSchemas } from "@inmolink/shared";
@@ -82,7 +83,7 @@ function Home({
                 <div className="aspect-[4/3] overflow-hidden rounded-t-lg bg-muted">
                   {p.coverImageHash ? (
                     <img
-                      src={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}/api/_local-storage/serve/media/${p.coverImageHash.slice(0, 2)}/${p.coverImageHash.slice(2, 4)}/${p.coverImageHash}`}
+                      src={`${env.NEXT_PUBLIC_API_URL}/api/_local-storage/serve?key=${encodeURIComponent(`media/${p.coverImageHash.slice(0, 2)}/${p.coverImageHash.slice(2, 4)}/${p.coverImageHash}`)}`}
                       alt={p.title}
                       className="h-full w-full object-cover transition group-hover:scale-105"
                     />

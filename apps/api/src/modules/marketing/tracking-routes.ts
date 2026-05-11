@@ -52,15 +52,17 @@ export async function emailTrackingRoutes(app: FastifyInstance, opts: TrackingOp
       schema: {
         tags: ["email-tracking"],
         params: z.object({ tok: z.string().min(1) }),
-        querystring: z.object({ u: z.string().url() }),
       },
     },
     async (request, reply) => {
       const payload = verifyTrackingToken(request.params.tok, opts.hmacSecretHex);
-      if (payload?.k === "click") {
-        await stampClick(payload.r).catch(() => undefined);
+      // Destination URL must come from the signed payload — accepting a
+      // query-string `u` would turn this into an open redirect (#015).
+      if (!payload || payload.k !== "click" || !payload.u) {
+        return reply.code(404).type("text/html").send(notFoundHtml());
       }
-      return reply.redirect(request.query.u, 302);
+      await stampClick(payload.r).catch(() => undefined);
+      return reply.redirect(payload.u, 302);
     },
   );
 

@@ -20,14 +20,25 @@ export async function createFeaturedAction(
   if (!propertyId || !startsAt || !endsAt) {
     return { ok: false, error: "propertyId, startsAt, endsAt required" };
   }
+  // <input type="date"> yields YYYY-MM-DD; <input type="datetime-local"> yields
+  // YYYY-MM-DDTHH:MM. Normalize either to a full ISO instant: start of day UTC
+  // for startsAt, end of day UTC for endsAt.
+  const toIso = (raw: string, kind: "start" | "end"): string => {
+    const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw);
+    if (dateOnly) {
+      const suffix = kind === "start" ? "T00:00:00.000Z" : "T23:59:59.999Z";
+      return new Date(`${raw}${suffix}`).toISOString();
+    }
+    return new Date(raw).toISOString();
+  };
   try {
     await apiFetch("/api/dashboard/admin/featured-listings", {
       method: "POST",
       body: JSON.stringify({
         propertyId,
         surface,
-        startsAt: new Date(startsAt).toISOString(),
-        endsAt: new Date(endsAt).toISOString(),
+        startsAt: toIso(startsAt, "start"),
+        endsAt: toIso(endsAt, "end"),
         position,
         source: "PLAN_INCLUDED",
       }),

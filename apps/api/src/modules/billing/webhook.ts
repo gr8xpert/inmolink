@@ -6,6 +6,12 @@ import { getStripeClient, processStripeEvent } from "../../lib/stripe";
 type WebhookOpts = {
   stripeSecretKey: string | undefined;
   stripeWebhookSecret: string | undefined;
+  prices: {
+    proMonthlyEur?: string;
+    proYearlyEur?: string;
+    proMonthlyGbp?: string;
+    proYearlyGbp?: string;
+  };
 };
 
 /**
@@ -28,6 +34,12 @@ export async function stripeWebhookRoutes(app: FastifyInstance, opts: WebhookOpt
   const secretKey = opts.stripeSecretKey;
   const webhookSecret = opts.stripeWebhookSecret;
   const stripe = getStripeClient(secretKey);
+  const proPriceIds = [
+    opts.prices.proMonthlyEur,
+    opts.prices.proYearlyEur,
+    opts.prices.proMonthlyGbp,
+    opts.prices.proYearlyGbp,
+  ].filter((p): p is string => Boolean(p));
 
   // Capture raw body — required for stripe.webhooks.constructEvent.
   // Scoped to this encapsulated plugin context so other routes still get
@@ -51,7 +63,7 @@ export async function stripeWebhookRoutes(app: FastifyInstance, opts: WebhookOpt
     }
 
     const result = await processStripeEvent(event, async () => {
-      await dispatchEvent(event, request.log);
+      await dispatchEvent(event, request.log, proPriceIds);
     });
 
     return reply.code(200).send({ received: true, processed: result.processed });
@@ -62,14 +74,18 @@ export async function stripeWebhookRoutes(app: FastifyInstance, opts: WebhookOpt
 
 type Logger = { info: (...args: unknown[]) => void; warn: (...args: unknown[]) => void };
 
-async function dispatchEvent(event: Stripe.Event, log: Logger): Promise<void> {
+async function dispatchEvent(
+  event: Stripe.Event,
+  log: Logger,
+  proPriceIds: readonly string[],
+): Promise<void> {
   switch (event.type) {
     case "checkout.session.completed":
       await onCheckoutCompleted(event.data.object as Stripe.Checkout.Session, log);
       return;
     case "customer.subscription.created":
     case "customer.subscription.updated":
-      await onSubscriptionUpsert(event.data.object as Stripe.Subscription, log);
+      await onSubscriptionUpsert(event.data.object as Stripe.Subscription, log, proPriceIds);
       return;
     case "customer.subscription.deleted":
       await onSubscriptionDeleted(event.data.object as Stripe.Subscription, log);
@@ -89,15 +105,12 @@ async function dispatchEvent(event: Stripe.Event, log: Logger): Promise<void> {
   }
 }
 
-function planTierFromPriceId(priceId: string | null | undefined): "FREE" | "PRO" {
+function planTierFromPriceId(
+  priceId: string | null | undefined,
+  proPriceIds: readonly string[],
+): "FREE" | "PRO" {
   if (!priceId) return "FREE";
-  const proPrices = [
-    process.env.STRIPE_PRICE_PRO_MONTHLY_EUR,
-    process.env.STRIPE_PRICE_PRO_YEARLY_EUR,
-    process.env.STRIPE_PRICE_PRO_MONTHLY_GBP,
-    process.env.STRIPE_PRICE_PRO_YEARLY_GBP,
-  ].filter(Boolean) as string[];
-  return proPrices.includes(priceId) ? "PRO" : "FREE";
+  return proPriceIds.includes(priceId) ? "PRO" : "FREE";
 }
 
 function billingCycleFromInterval(
@@ -148,12 +161,16 @@ async function onCheckoutCompleted(session: Stripe.Checkout.Session, log: Logger
   }
 }
 
-async function onSubscriptionUpsert(sub: Stripe.Subscription, log: Logger): Promise<void> {
+async function onSubscriptionUpsert(
+  sub: Stripe.Subscription,
+  log: Logger,
+  proPriceIds: readonly string[],
+): Promise<void> {
   const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
   const priceId = sub.items.data[0]?.price.id ?? null;
   const interval = sub.items.data[0]?.price.recurring?.interval;
   const currency = (sub.items.data[0]?.price.currency ?? sub.currency)?.toUpperCase() ?? null;
-  const planTier = planTierFromPriceId(priceId);
+  const planTier = planTierFromPriceId(priceId, proPriceIds);
   const { status } = statusFromStripe(sub.status);
 
   // Stripe's subscription.current_period_* fields live on the first

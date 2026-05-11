@@ -2,7 +2,7 @@ import { suggestIcon } from "@inmolink/ai";
 import { prisma } from "@inmolink/db";
 import type { adminPropertyTypeSchemas } from "@inmolink/shared";
 import type { Prisma } from "@prisma/client";
-import { ConflictError, NotFoundError, assertReorderSetMatch } from "../_shared/taxonomy.js";
+import { ConflictError, NotFoundError, assertReorderSetMatch } from "../_shared/taxonomy";
 
 /**
  * Super-admin curation for PropertyTypeGroup + PropertyType.
@@ -19,7 +19,7 @@ import { ConflictError, NotFoundError, assertReorderSetMatch } from "../_shared/
  * read filter applied by /api/dashboard/property-types).
  */
 
-export { ConflictError, NotFoundError } from "../_shared/taxonomy.js";
+export { ConflictError, NotFoundError } from "../_shared/taxonomy";
 
 const SUGGEST_ICON_CATALOG = [
   "building",

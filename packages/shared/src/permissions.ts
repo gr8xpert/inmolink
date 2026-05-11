@@ -19,6 +19,7 @@ export const PAID_FEATURES = [
   "feature:marketing.smtp",
   "feature:marketing.customDomain",
   "feature:featured.listings",
+  "feature:webhooks",
 ] as const;
 export type PaidFeature = (typeof PAID_FEATURES)[number];
 

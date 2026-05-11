@@ -6,7 +6,7 @@ import {
   propertyReindexInclude,
 } from "@inmolink/search";
 import pino from "pino";
-import { loadConfig } from "../src/config.js";
+import { loadConfig } from "../src/config";
 
 /**
  * Full reindex script — disaster recovery + first-boot.
@@ -95,7 +95,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  // biome-ignore lint/suspicious/noConsole: top-level script needs visible failure
   console.error(err);
   process.exit(1);
 });

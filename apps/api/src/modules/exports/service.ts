@@ -165,7 +165,7 @@ export async function createExport(
     "generate",
     { exportId: created.id },
     {
-      jobId: `export:${created.id}`,
+      jobId: `export-${created.id}`,
       attempts: 1, // surface failures via Export.status; BullMQ retry would skew the row
       removeOnComplete: { count: 100 },
       removeOnFail: { count: 200 },

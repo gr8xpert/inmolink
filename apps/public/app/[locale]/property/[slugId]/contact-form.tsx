@@ -1,5 +1,6 @@
 "use client";
 
+import { env } from "@/env";
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 
 declare global {
@@ -51,8 +52,8 @@ type Props = {
   };
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
-const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
+const API_BASE = env.NEXT_PUBLIC_API_URL;
+const TURNSTILE_SITE_KEY = env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
 export function ContactAgencyForm({ propertyId, locale, labels }: Props) {
   const [submitting, setSubmitting] = useState(false);

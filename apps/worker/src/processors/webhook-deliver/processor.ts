@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { decryptFromString } from "@inmolink/auth";
 import { prisma } from "@inmolink/db";
+import { webhookSchemas } from "@inmolink/shared";
 import type { Job, Processor } from "bullmq";
 import type pino from "pino";
 
@@ -39,7 +40,7 @@ export const MAX_ATTEMPTS = RETRY_DELAYS_MS.length + 1;
 
 export function makeWebhookDeliverProcessor(opts: Args): Processor {
   return async function webhookDeliverProcessor(job: Job): Promise<void> {
-    const { deliveryId } = job.data as { deliveryId: string };
+    const { deliveryId } = webhookSchemas.webhookDeliverJobSchema.parse(job.data);
 
     const delivery = await prisma.webhookDelivery.findUnique({
       where: { id: deliveryId },

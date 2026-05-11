@@ -14,8 +14,8 @@ import type { Storage } from "@inmolink/storage";
 import type { FeedConnectorKind, FeedRunStatus, FeedRunTrigger } from "@prisma/client";
 import type { Job, Queue } from "bullmq";
 import type { Logger } from "pino";
-import { downloadAndDedupImage } from "./image-attach.js";
-import { upsertPropertyFromListing } from "./upsert-property.js";
+import { downloadAndDedupImage } from "./image-attach";
+import { upsertPropertyFromListing } from "./upsert-property";
 
 /**
  * FEED_IMPORT job processor (PLAN §11.5).

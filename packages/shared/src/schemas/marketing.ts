@@ -300,3 +300,9 @@ export type PublicFeaturedPropertyCard = z.infer<typeof publicFeaturedPropertyCa
 export const publicFeaturedListResponseSchema = z.object({
   items: z.array(publicFeaturedPropertyCardSchema),
 });
+
+// ---- BullMQ EMAIL_SEND job payload ----
+export const emailSendJobSchema = z.object({
+  recipientId: z.string().min(1),
+});
+export type EmailSendJobData = z.infer<typeof emailSendJobSchema>;

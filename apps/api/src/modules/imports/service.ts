@@ -8,7 +8,7 @@ import {
   enqueueFeedImportNow,
   removeFeedImportSchedule,
   upsertFeedImportSchedule,
-} from "../../lib/queues.js";
+} from "../../lib/queues";
 
 /**
  * FeedConnection CRUD + manual-run (PLAN §11.5). Owner-scoped — agents

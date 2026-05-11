@@ -394,7 +394,11 @@ export function PropertyForm(props: Props) {
           </div>
 
           {LOCALES.map((loc) => (
-            <div key={loc} hidden={activeTab !== loc} className="space-y-3">
+            <div
+              key={loc}
+              className="space-y-3"
+              style={activeTab !== loc ? { display: "none" } : undefined}
+            >
               <Field
                 label="Title"
                 error={form.formState.errors.translations?.[loc]?.title?.message}

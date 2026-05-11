@@ -2,6 +2,7 @@ import { webhookSchemas } from "@inmolink/shared";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
+import { requireFeature } from "../billing/plan-tier";
 import {
   ForbiddenError,
   NotFoundError,
@@ -68,6 +69,7 @@ export async function webhookRoutes(app: FastifyInstance, opts: WebhookRoutesOpt
       },
     },
     async (request) => {
+      await requireFeature(request, "feature:webhooks");
       return createEndpoint(
         request.requireUser(),
         request.body,
@@ -89,6 +91,7 @@ export async function webhookRoutes(app: FastifyInstance, opts: WebhookRoutesOpt
       },
     },
     async (request) => {
+      await requireFeature(request, "feature:webhooks");
       return updateEndpoint(
         request.requireUser(),
         request.params.id,
@@ -110,6 +113,7 @@ export async function webhookRoutes(app: FastifyInstance, opts: WebhookRoutesOpt
       },
     },
     async (request) => {
+      await requireFeature(request, "feature:webhooks");
       await deleteEndpoint(request.requireUser(), request.params.id, request.query.agencyId);
       return { ok: true as const };
     },
@@ -127,6 +131,7 @@ export async function webhookRoutes(app: FastifyInstance, opts: WebhookRoutesOpt
       },
     },
     async (request) => {
+      await requireFeature(request, "feature:webhooks");
       return emitTestEvent(
         request.requireUser(),
         request.params.id,

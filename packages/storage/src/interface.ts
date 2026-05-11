@@ -41,11 +41,15 @@ export interface Storage {
    * @param key  storage key (use keyFromHash())
    * @param mimeType  MIME type the browser will send
    * @param bytes  total bytes (used for some backends to validate)
+   * @param sha256Hex  optional content hash bound into the signature so the
+   *   storage edge rejects body bytes that don't match (#018 storage-DoS
+   *   defense). R2 supports S3 Additional Checksums (`x-amz-checksum-sha256`).
    */
   createUploadUrl(args: {
     key: string;
     mimeType: string;
     bytes: number;
+    sha256Hex?: string;
   }): Promise<SignedUploadUrl>;
 
   /**

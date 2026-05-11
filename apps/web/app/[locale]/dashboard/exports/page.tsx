@@ -1,3 +1,4 @@
+import { env } from "@/env";
 import { ApiError, apiFetch } from "@/lib/api";
 import { auth } from "@inmolink/auth";
 import type { exportSchemas } from "@inmolink/shared";
@@ -5,6 +6,7 @@ import { setRequestLocale } from "next-intl/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { deleteExportAction } from "./actions";
+import { ExportsAutoRefresh } from "./auto-refresh";
 import { ExportCreateForm } from "./create-form";
 
 type Props = {
@@ -19,7 +21,7 @@ const STATUS_BADGE: Record<exportSchemas.ExportStatus, string> = {
   FAILED: "bg-red-100 text-red-900",
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const API_BASE = env.NEXT_PUBLIC_API_URL;
 
 function formatBytes(b: number | null): string {
   if (!b) return "—";
@@ -62,8 +64,11 @@ export default async function ExportsPage({ params, searchParams }: Props) {
     listError = err instanceof ApiError ? err.message : "Failed to load";
   }
 
+  const hasInflight = data.items.some((e) => e.status === "QUEUED" || e.status === "RUNNING");
+
   return (
     <main className="container mx-auto max-w-5xl space-y-6 p-8">
+      <ExportsAutoRefresh hasInflight={hasInflight} />
       <header className="flex items-center justify-between border-b pb-4">
         <div>
           <h1 className="text-2xl font-bold">Exports</h1>
