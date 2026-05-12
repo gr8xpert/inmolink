@@ -7,6 +7,12 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 
+// Bench-overridable cap; defaults to 120 req/min like the prior hardcoded
+// value. Set PUBLIC_LIST_RATE_LIMIT_MAX during k6 runs to bypass scraper
+// protection when one IP issues all the load (PLAN §11.12).
+const PUBLIC_LIST_RATE_LIMIT_MAX = Number(process.env.PUBLIC_LIST_RATE_LIMIT_MAX ?? 120);
+const PUBLIC_LIST_RATE_LIMIT_WINDOW = process.env.PUBLIC_LIST_RATE_LIMIT_WINDOW ?? "1 minute";
+
 /** Opaque cursor over (createdAt, id). Mirrors apps/api dashboard list. */
 function encodeCursor(c: { createdAt: Date; id: string }): string {
   return Buffer.from(`${c.createdAt.toISOString()}|${c.id}`, "utf8").toString("base64url");
@@ -90,7 +96,9 @@ export async function publicPropertyRoutes(
         response: { 200: publicPropertySchemas.publicPropertyListResponseSchema },
       },
       // Public surface — keep tight even though there's no auth penalty.
-      config: { rateLimit: { max: 120, timeWindow: "1 minute" } },
+      config: {
+        rateLimit: { max: PUBLIC_LIST_RATE_LIMIT_MAX, timeWindow: PUBLIC_LIST_RATE_LIMIT_WINDOW },
+      },
     },
     async (request) => {
       const q = request.query;
@@ -353,7 +361,9 @@ export async function publicPropertyRoutes(
         response: { 200: publicPropertySchemas.publicPropertyDetailSchema },
       },
       // Tighter than dashboard — public surface, scrape defence.
-      config: { rateLimit: { max: 120, timeWindow: "1 minute" } },
+      config: {
+        rateLimit: { max: PUBLIC_LIST_RATE_LIMIT_MAX, timeWindow: PUBLIC_LIST_RATE_LIMIT_WINDOW },
+      },
     },
     async (request) => {
       const { id } = request.params;

@@ -12,6 +12,44 @@ Real bugs we hit and the root cause + fix. **Newest at the top.**
 
 ---
 
+## 2026-05-11 — Phase C bench cluster: `seed:bulk` broken, response 500s, k6 hits scrape cap
+
+Four chained issues surfaced once the load bench actually started exercising the public surface against synthetic data. Documented as one entry because they were a single debugging arc.
+
+**Symptom A**: `pnpm --filter @inmolink/worker seed:bulk -- --agencies 10 --properties 1000` failed before a single property was inserted with `Unknown argument 'slug'` on `prisma.propertyType.findFirst({ where: { slug: "house" } })`.
+
+**Root cause A**: `slug` lives on `PropertyTypeTranslation`, not the parent `PropertyType`. The script was written against an outdated schema mental model. `LocationTranslation` has the same shape — it just happened to be queried by `level: "CITY"` so it didn't hit the same error.
+
+**Fix A**: Look up by translation: `prisma.propertyTypeTranslation.findFirst({ where: { slug: "house", locale: "en" }, select: { typeId: true } })`, then construct `{ id: typeTranslation.typeId }` as the FK target.
+
+**Symptom B**: With the seed running, `curl /api/public/properties?limit=2` still returned an empty list.
+
+**Root cause B**: Bulk seed defaulted `visibility: "SHARED"` (visible cross-agency, not on the public marketplace). The public route filters to `visibility: "PUBLIC"` — synthetic rows were correctly excluded.
+
+**Fix B**: Bulk seed now writes `"PUBLIC"`. Existing synthetic rows patched with `UPDATE "Property" SET visibility='PUBLIC' WHERE "ownerAgencyId" IN (SELECT id FROM "Agency" WHERE slug LIKE 'synthetic-agency-%')`.
+
+**Symptom C**: With visibility fixed, the same `curl` returned HTTP 500 `FST_ERR_RESPONSE_SERIALIZATION` — "Response doesn't match the schema".
+
+**Root cause C**: `publicPropertyListItemSchema` enforces `priceType: z.enum(["fixed", "poa", "from"])` — lowercase. The schema.prisma column is plain `String` (Prisma comment: `// 'fixed' | 'poa' | 'from'`), so the database accepted the bulk seed's `"FIXED"`. The string-typed column lost the case discipline that an actual Prisma enum would have caught at write time.
+
+**Fix C**: Bulk seed writes `"fixed"`. Existing rows patched: `UPDATE "Property" SET "priceType"='fixed' WHERE "priceType"='FIXED'`.
+
+**Symptom D**: With C fixed, the k6 public run reported `search 200` failing 93%, `http_req_failed: 75%`.
+
+**Root cause D**: `/api/public/properties` has its own per-route rate limit (`config.rateLimit = { max: 120, timeWindow: "1 minute" }`) for scrape defence. At 50 VUs / one IP issuing ~20 search req/s, the test cleared 120 in the first 6 s and then 429'd for the remaining 5 minutes. Latency on the green 7 % was fine (p95 ~ 35 ms) — the limiter was doing exactly its job, just at a value too tight for a one-IP bench.
+
+**Fix D**: Parameterised the cap via `PUBLIC_LIST_RATE_LIMIT_MAX` + `PUBLIC_LIST_RATE_LIMIT_WINDOW` env vars. Reads `process.env` directly inside `apps/api/src/modules/public/property-routes.ts` rather than threading through `config.ts`, since this is a bench-time knob, not load-bearing config. Default unchanged at 120 — prod stays exactly as it was. Bench raised it to 100000.
+
+**Symptom E**: `tools/k6/public.js` `search` iterations threw `ReferenceError: URLSearchParams is not defined`.
+
+**Root cause E**: k6 runs scripts in Goja (Go-implemented ES5.1+), which doesn't ship `URLSearchParams`. The script was authored against Node/browser globals.
+
+**Fix E**: Replaced with a manual `qs()` helper inside `public.js` that `encodeURIComponent`s and joins with `&`.
+
+**Prevention**: (1) Run `seed:bulk` in CI smoke against a throwaway PG — catches A/B/C in CI before they bite a bench. (2) Promote `priceType` to an actual Prisma enum so the typecheck catches uppercase at write time (deferred — touches Property model and existing data). (3) Note in `tools/k6/README.md` that one-IP benches need `PUBLIC_LIST_RATE_LIMIT_MAX` raised. (4) k6 scripts shouldn't depend on browser globals — already documented.
+
+---
+
 ## 2026-05-11 — Profile form Save does nothing (no API call, no error visible)
 
 **Symptom**: on `/dashboard/settings/profile`, the form renders, the user edits fields and clicks "Save changes", and nothing happens. No success/error toast, no API request hits the server (`/api/dashboard/me/profile` PATCH never appears in the access log). The user thinks the form is broken.

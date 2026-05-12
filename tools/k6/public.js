@@ -47,6 +47,16 @@ function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+// k6's Goja runtime has no URLSearchParams — build the query string manually.
+function qs(params) {
+  const parts = [];
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null || v === "") continue;
+    parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+  }
+  return parts.join("&");
+}
+
 export default function () {
   const r = Math.random();
 
@@ -54,12 +64,8 @@ export default function () {
     group("public-search", () => {
       const q = pick(QUERY_TERMS);
       const tx = pick(TX_TYPES);
-      const qs = new URLSearchParams({
-        ...(q ? { q } : {}),
-        transactionType: tx,
-        limit: "20",
-      });
-      const res = http.get(`${API}/api/public/properties?${qs.toString()}`, {
+      const query = qs({ q, transactionType: tx, limit: "20" });
+      const res = http.get(`${API}/api/public/properties?${query}`, {
         tags: { name: "public-search" },
       });
       check(res, { "search 200": (r) => r.status === 200 }) || errorRate.add(1);

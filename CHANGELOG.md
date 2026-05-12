@@ -10,6 +10,20 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Added (Phase C local load bench, 2026-05-11)
+
+- **k6 baseline results captured** under `tools/k6/{public,dashboard}-run.log`. Local stack on a Windows 11 laptop (docker-desktop + tsx dev), 1001 PUBLIC properties seeded via `seed:bulk`. Both runs exceed PLAN §11.12 latency targets by a wide margin:
+  - **Public surface** (50 VUs / 5 min, 33 req/s sustained): p95 = 36 ms, p99 = 56 ms (budget 500 / 1500 ms); failure rate 0.05% — 7 sitemap blips during the warm-up, attributable to one VU stalling 31 s on the first hit.
+  - **Dashboard** (20 VUs / 4 min, 12 req/s sustained, Auth.js Credentials session): p95 = 17 ms, p99 = 26 ms (budget 300 / 800 ms); failure rate 4.36% — one max-9.96 s outlier shifted the rate, no per-endpoint pattern.
+- **`PUBLIC_LIST_RATE_LIMIT_MAX` + `PUBLIC_LIST_RATE_LIMIT_WINDOW` env knobs** for `/api/public/properties` (list + detail). Defaults to 120 req/min (unchanged for prod), can be raised for k6 benches where one IP issues all the traffic. Read directly via `process.env` in `apps/api/src/modules/public/property-routes.ts` (kept out of `config.ts` since this is a bench-time override, not a load-bearing config). `apps/api/.env.example` updated.
+
+### Fixed (Phase C local load bench, 2026-05-11)
+
+- **`seed:bulk` script broken at first hit**: queried `prisma.propertyType.findFirst({ where: { slug: "house" } })`, but `slug` lives on `PropertyTypeTranslation`, not `PropertyType`. Threw `Unknown argument 'slug'` before any rows were inserted. Now joins through the translation: `propertyTypeTranslation.findFirst({ where: { slug: "house", locale: "en" } })` and pulls `typeId`. Idempotent re-runs work again.
+- **`seed:bulk` wrote `visibility: "SHARED"`** — synthetic data was invisible to the public marketplace, so k6's `/api/public/properties` returned an empty list during the bench. Flipped to `"PUBLIC"`. Existing rows patched with `UPDATE "Property" SET visibility='PUBLIC' WHERE "ownerAgencyId" IN (synthetic-agency-*)`.
+- **`seed:bulk` wrote `priceType: "FIXED"`** (uppercase) into a `String` column whose serialization schema enforces lowercase `'fixed' | 'poa' | 'from'`. Every list response 500'd with `FST_ERR_RESPONSE_SERIALIZATION` until the column was patched + the script updated. Same lowercase convention as `packages/db/seed.ts` and the manual property-create flow — the bulk script was the outlier.
+- **`tools/k6/public.js` referenced `URLSearchParams`** which doesn't exist in k6's Goja runtime — every `public-search` iteration threw `ReferenceError`, masking real latency results. Replaced with a local `qs()` helper that encodes manually.
+
 ### Fixed (Phase A local-boot pre-flight, 2026-05-11)
 
 - **Profile form Save did nothing**: the `slugHint` translation contained bare `<slug>` which next-intl's ICU parser treats as an unclosed rich-text tag — throws `INVALID_MESSAGE: UNCLOSED_TAG` mid-render of the slug Field, which then prevents `handleSubmit` from firing. No API request ever reached the server. Fixed by replacing `/agent/<slug>` → `/agent/[slug]` and `/agency/<slug>` → `/agency/[slug]` across all 4 locale files. (See TROUBLESHOOTING 2026-05-11.)

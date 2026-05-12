@@ -54,15 +54,20 @@ async function main(): Promise<void> {
 
   // Need a property type + location to attach to. Fail fast if seed.ts
   // hasn't been run yet (the lookup catalogs are required FK targets).
-  const [propertyType, location] = await Promise.all([
-    prisma.propertyType.findFirst({ where: { slug: "house" } }),
+  // Slug lives on the translation row, not the parent — look it up there.
+  const [typeTranslation, location] = await Promise.all([
+    prisma.propertyTypeTranslation.findFirst({
+      where: { slug: "house", locale: "en" },
+      select: { typeId: true },
+    }),
     prisma.location.findFirst({ where: { level: "CITY" } }),
   ]);
-  if (!propertyType || !location) {
+  if (!typeTranslation || !location) {
     throw new Error(
       "Run `pnpm --filter @inmolink/db db:seed` first to populate PropertyType + Location.",
     );
   }
+  const propertyType = { id: typeTranslation.typeId };
 
   const sharedPassword = await hashPassword("synthetic-bench-2026");
 
@@ -147,12 +152,12 @@ async function main(): Promise<void> {
         ownerAgencyId: agency.id,
         source: "MANUAL" as const,
         status: "ACTIVE" as const,
-        visibility: "SHARED" as const,
+        visibility: "PUBLIC" as const,
         publishedAt: new Date(),
         transactionType: "SALE" as const,
         priceCents: BigInt(faker.number.int({ min: 100_000, max: 5_000_000 }) * 100),
         currency: "EUR",
-        priceType: "FIXED" as const,
+        priceType: "fixed" as const,
         bedrooms: faker.number.int({ min: 1, max: 6 }),
         bathrooms: faker.number.int({ min: 1, max: 4 }),
         areaM2: faker.number.int({ min: 50, max: 600 }),
