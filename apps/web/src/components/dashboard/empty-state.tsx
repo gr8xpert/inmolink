@@ -26,7 +26,7 @@ export function EmptyState({ icon: Icon, title, description, cta, className }: P
       {cta ? (
         <Link
           href={cta.href}
-          className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90"
+          className="mt-2 inline-flex items-center gap-1.5 bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90 hover:shadow-[0_6px_16px_rgba(37,99,235,0.25)] active:scale-[0.97]"
         >
           {cta.label}
         </Link>

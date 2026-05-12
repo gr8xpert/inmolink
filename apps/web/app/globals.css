@@ -4,10 +4,8 @@
 
 /*
  * Light dashboard palette — Sprint 12 visual overhaul.
- * Indigo primary on slate canvas. Sidebar is a soft slate surface with
- * dark text + a filled-blue active state. No auto dark-mode flip — the
- * dashboard is light-only by design; if dark mode is wanted later, gate
- * it behind a `.dark` class toggle, not the OS media query.
+ * Flat-edged cards (radius 0), soft blue-gradient canvas, gradient surface
+ * fills, indigo primary, slate sidebar. Dashboard is light-only by design.
  */
 :root {
   /* Canvas */
@@ -32,7 +30,7 @@
   --sidebar-foreground: 222 47% 11%;
   --sidebar-muted: 220 9% 46%;
   --sidebar-active: 224 76% 48%;
-  --sidebar-hover: 220 14% 94%;
+  --sidebar-hover: 220 30% 95%;
   --sidebar-border: 220 13% 91%;
 
   /* States */
@@ -46,25 +44,143 @@
   --info-soft: 217 91% 95%;
 
   /* Borders + rings */
-  --border: 220 13% 91%;
+  --border: 220 22% 90%;
   --input: 220 13% 91%;
   --ring: 224 76% 48%;
-  --radius: 0.625rem;
+  --radius: 0;
+
+  /* Gradients — exposed as vars so .surface and body share the same recipe. */
+  --bg-gradient: linear-gradient(
+      135deg,
+      hsl(217 90% 97%) 0%,
+      hsl(220 60% 98%) 35%,
+      hsl(225 80% 96%) 100%
+    ), radial-gradient(ellipse 80% 60% at 0% 0%, hsl(217 95% 94% / 0.55) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 50% at 100% 100%, hsl(224 85% 93% / 0.5) 0%, transparent 60%);
+
+  --surface-gradient: linear-gradient(
+    160deg,
+    hsl(0 0% 100%) 0%,
+    hsl(220 50% 99.3%) 55%,
+    hsl(217 70% 98%) 100%
+  );
+
+  --sidebar-gradient: linear-gradient(
+    180deg,
+    hsl(220 50% 99%) 0%,
+    hsl(220 40% 98%) 60%,
+    hsl(217 60% 97%) 100%
+  );
+}
+
+html,
+body {
+  min-height: 100%;
 }
 
 body {
-  background-color: hsl(var(--background));
   color: hsl(var(--foreground));
+  background-color: hsl(var(--background));
+  background-image: var(--bg-gradient);
+  background-attachment: fixed;
 }
 
 @layer components {
-  /* Form input — matches the new outline, focus ring uses --ring. */
+  /* Form input — flat edges, focus ring uses --ring. */
   .input {
-    @apply w-full rounded-md border border-input bg-card px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply w-full border border-input bg-card px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
-  /* Reusable surface — every list/detail/form card uses this. */
+  /* Reusable surface — flat, soft border, gradient fill, subtle elevation. */
   .surface {
-    @apply rounded-xl border border-border bg-card shadow-sm;
+    @apply border border-border shadow-[0_1px_2px_rgba(15,23,42,0.04),0_1px_8px_rgba(15,23,42,0.04)] transition-[transform,box-shadow,border-color] duration-200;
+    background-color: hsl(var(--card));
+    background-image: var(--surface-gradient);
+  }
+
+  .surface-interactive {
+    @apply hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_10px_28px_rgba(37,99,235,0.12),0_2px_6px_rgba(15,23,42,0.05)];
+  }
+
+  /* Sidebar — picks up a softer gradient than the main canvas so it reads
+     as its own surface even with no hard border. */
+  .surface-sidebar {
+    background-image: var(--sidebar-gradient);
+  }
+}
+
+@layer utilities {
+  /* Entry animations — applied on dashboard cards + page chunks. */
+  .animate-fade-in-up {
+    animation: fade-in-up 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .animate-fade-in {
+    animation: fade-in 360ms ease-out both;
+  }
+  .animate-slide-in-left {
+    animation: slide-in-left 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Staggered delays so card rows cascade in. */
+  .stagger-1 {
+    animation-delay: 40ms;
+  }
+  .stagger-2 {
+    animation-delay: 90ms;
+  }
+  .stagger-3 {
+    animation-delay: 140ms;
+  }
+  .stagger-4 {
+    animation-delay: 190ms;
+  }
+  .stagger-5 {
+    animation-delay: 240ms;
+  }
+  .stagger-6 {
+    animation-delay: 290ms;
+  }
+}
+
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-left {
+  0% {
+    opacity: 0;
+    transform: translate3d(-12px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up,
+  .animate-fade-in,
+  .animate-slide-in-left {
+    animation: none !important;
+  }
+  .surface,
+  .surface-interactive {
+    transition: none !important;
   }
 }

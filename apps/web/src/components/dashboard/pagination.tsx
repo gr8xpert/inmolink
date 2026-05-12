@@ -85,10 +85,10 @@ function PageButton({
   rel?: string;
 }) {
   const className = cn(
-    "inline-flex h-8 min-w-8 items-center justify-center rounded-md border px-2 text-sm font-medium transition",
+    "inline-flex h-8 min-w-8 items-center justify-center border px-2 text-sm font-medium transition-all duration-200",
     active
       ? "border-primary bg-primary text-primary-foreground shadow-sm"
-      : "border-border bg-card text-foreground hover:bg-muted",
+      : "border-border bg-card text-foreground hover:bg-muted hover:border-primary/30",
     disabled && !active && "cursor-not-allowed opacity-40 hover:bg-card",
   );
 

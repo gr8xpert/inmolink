@@ -208,6 +208,9 @@ importers:
       '@inmolink/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      lucide-react:
+        specifier: ^0.468.0
+        version: 0.468.0(react@19.2.6)
       next:
         specifier: ^15.1.0
         version: 15.5.18(react-dom@19.2.6(react@19.2.6))(react@19.2.6)

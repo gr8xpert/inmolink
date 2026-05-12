@@ -37,7 +37,7 @@ export function MobileNav({ locale, groups, agencyName }: Props) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Open menu"
-        className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
+        className="inline-flex h-9 w-9 items-center justify-center  text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
       >
         <Menu className="h-5 w-5" />
       </button>
@@ -54,11 +54,11 @@ export function MobileNav({ locale, groups, agencyName }: Props) {
           <aside
             aria-modal="true"
             aria-label="Sidebar"
-            className="absolute inset-y-0 left-0 flex w-72 flex-col bg-sidebar shadow-xl"
+            className="surface-sidebar absolute inset-y-0 left-0 flex w-72 flex-col shadow-2xl"
           >
             <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-5">
               <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <div className="flex h-9 w-9 items-center justify-center bg-primary text-primary-foreground shadow-sm">
                   <Building2 className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
@@ -72,7 +72,7 @@ export function MobileNav({ locale, groups, agencyName }: Props) {
                 type="button"
                 aria-label="Close menu"
                 onClick={() => setOpen(false)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-sidebar-muted hover:bg-sidebar-hover"
+                className="inline-flex h-8 w-8 items-center justify-center  text-sidebar-muted hover:bg-sidebar-hover"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -119,10 +119,10 @@ function MobileLink({
       <Link
         href={`/${locale}${item.href}`}
         className={cn(
-          "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+          "flex items-center gap-3 px-3 py-1.5 text-[13px] transition-all duration-200",
           active
             ? "bg-sidebar-active text-primary-foreground shadow-sm"
-            : "text-sidebar-foreground hover:bg-sidebar-hover",
+            : "text-sidebar-foreground hover:bg-sidebar-hover hover:translate-x-0.5",
         )}
       >
         <Icon className={cn("h-4 w-4 shrink-0", active ? "" : "text-sidebar-muted")} />

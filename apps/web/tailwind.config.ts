@@ -53,9 +53,33 @@ export default {
         ring: "hsl(var(--ring))",
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        none: "0",
+        sm: "0",
+        DEFAULT: "0",
+        md: "0",
+        lg: "0",
+        xl: "0",
+        "2xl": "0",
+        "3xl": "0",
+        full: "9999px",
+      },
+      boxShadow: {
+        card: "0 1px 2px rgba(15,23,42,0.04), 0 1px 8px rgba(15,23,42,0.04)",
+        "card-hover": "0 8px 24px rgba(37,99,235,0.10), 0 2px 6px rgba(15,23,42,0.05)",
+      },
+      keyframes: {
+        "fade-in-up": {
+          "0%": { opacity: "0", transform: "translate3d(0,10px,0)" },
+          "100%": { opacity: "1", transform: "translate3d(0,0,0)" },
+        },
+        "fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+      },
+      animation: {
+        "fade-in-up": "fade-in-up 420ms cubic-bezier(0.22,1,0.36,1) both",
+        "fade-in": "fade-in 360ms ease-out both",
       },
     },
   },

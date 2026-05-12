@@ -81,45 +81,53 @@ export default async function DashboardHome({ params }: Props) {
         actions={
           <Link
             href={`/${locale}/dashboard/properties/new`}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90"
+            className="inline-flex items-center gap-1.5 bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90 hover:shadow-[0_6px_16px_rgba(37,99,235,0.25)] active:scale-[0.97]"
           >
             + New property
           </Link>
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Total properties"
-          value={totalProperties}
-          hint={`${activeProperties} public + active`}
-          icon={HomeIcon}
-          tone="primary"
-        />
-        <StatCard
-          label="Active listings"
-          value={activeProperties}
-          hint="Public + accepting enquiries"
-          icon={HomeIcon}
-          tone="success"
-        />
-        <StatCard
-          label="Pending viewings"
-          value={pendingViewings}
-          hint="Awaiting your response"
-          icon={CalendarCheck}
-          tone="warning"
-        />
-        <StatCard
-          label="Deals this month"
-          value={monthDeals}
-          hint="Confirmed + commission earned"
-          icon={Handshake}
-          tone="info"
-        />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="stagger-1">
+          <StatCard
+            label="Total properties"
+            value={totalProperties}
+            hint={`${activeProperties} public + active`}
+            icon={HomeIcon}
+            tone="primary"
+          />
+        </div>
+        <div className="stagger-2">
+          <StatCard
+            label="Active listings"
+            value={activeProperties}
+            hint="Public + accepting enquiries"
+            icon={HomeIcon}
+            tone="success"
+          />
+        </div>
+        <div className="stagger-3">
+          <StatCard
+            label="Pending viewings"
+            value={pendingViewings}
+            hint="Awaiting your response"
+            icon={CalendarCheck}
+            tone="warning"
+          />
+        </div>
+        <div className="stagger-4">
+          <StatCard
+            label="Deals this month"
+            value={monthDeals}
+            hint="Confirmed + commission earned"
+            icon={Handshake}
+            tone="info"
+          />
+        </div>
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+      <div className="mt-5 grid gap-4 xl:grid-cols-3">
         <SurfaceCard
           title="Recent properties"
           description="Your latest 5 listings"
@@ -192,7 +200,7 @@ export default async function DashboardHome({ params }: Props) {
         </SurfaceCard>
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <QuickLink
           locale={locale}
           href="/dashboard/viewings"
@@ -242,14 +250,14 @@ function QuickLink({
   return (
     <Link
       href={`/${locale}${href}`}
-      className="surface group flex items-center gap-3 p-4 transition hover:border-primary/40 hover:shadow-md"
+      className="surface surface-interactive group flex items-center gap-3 p-3.5 animate-fade-in-up"
     >
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary group-hover:bg-primary group-hover:text-primary-foreground">
-        <Icon className="h-5 w-5" />
+      <div className="flex h-9 w-9 items-center justify-center bg-primary-soft text-primary transition-colors duration-200 group-hover:bg-primary group-hover:text-primary-foreground">
+        <Icon className="h-4.5 w-4.5" />
       </div>
       <div className="min-w-0">
-        <div className="text-sm font-semibold text-foreground">{title}</div>
-        <div className="text-xs text-muted-foreground">{description}</div>
+        <div className="text-[13px] font-semibold text-foreground">{title}</div>
+        <div className="text-[11px] text-muted-foreground">{description}</div>
       </div>
     </Link>
   );

@@ -16,16 +16,16 @@ export function HubTile({ href, title, description, icon: Icon, className }: Pro
     <Link
       href={href}
       className={cn(
-        "surface group flex h-full flex-col gap-3 p-5 transition hover:border-primary/40 hover:shadow-md",
+        "surface surface-interactive group flex h-full flex-col gap-3 p-4 animate-fade-in-up",
         className,
       )}
     >
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary transition group-hover:bg-primary group-hover:text-primary-foreground">
+      <div className="flex h-10 w-10 items-center justify-center bg-primary-soft text-primary transition-all duration-200 group-hover:bg-primary group-hover:text-primary-foreground group-hover:scale-110">
         <Icon className="h-5 w-5" />
       </div>
       <div className="space-y-1">
-        <div className="font-semibold text-foreground">{title}</div>
-        <div className="text-sm text-muted-foreground">{description}</div>
+        <div className="text-[14px] font-semibold text-foreground">{title}</div>
+        <div className="text-[12px] text-muted-foreground">{description}</div>
       </div>
     </Link>
   );

@@ -13,8 +13,8 @@ type Props = {
 };
 
 /**
- * Section card used for tables, forms, lists, charts. Optional header row
- * with title + actions, optional sticky footer (e.g. "View all" link).
+ * Section card used for tables, forms, lists, charts. Flat edges, soft
+ * shadow, optional header row with title + actions, optional footer slot.
  */
 export function SurfaceCard({
   title,
@@ -27,20 +27,22 @@ export function SurfaceCard({
 }: Props) {
   const hasHeader = title || description || actions;
   return (
-    <section className={cn("surface", className)}>
+    <section className={cn("surface animate-fade-in-up", className)}>
       {hasHeader ? (
-        <header className="flex flex-col gap-2 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <header className="flex flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            {title ? <h2 className="text-base font-semibold text-foreground">{title}</h2> : null}
+            {title ? (
+              <h2 className="text-[15px] font-semibold tracking-tight text-foreground">{title}</h2>
+            ) : null}
             {description ? (
-              <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+              <p className="mt-0.5 text-[12px] text-muted-foreground">{description}</p>
             ) : null}
           </div>
           {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
         </header>
       ) : null}
-      <div className={cn(flush ? "" : "p-5")}>{children}</div>
-      {footer ? <div className="border-t border-border px-5 py-3">{footer}</div> : null}
+      <div className={cn(flush ? "" : "p-4")}>{children}</div>
+      {footer ? <div className="border-t border-border px-4 py-2.5">{footer}</div> : null}
     </section>
   );
 }

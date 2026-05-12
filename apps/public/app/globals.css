@@ -2,37 +2,155 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Public marketplace palette — Sprint 12 visual overhaul.
+ * Mirrors the dashboard look: flat-edged surfaces (radius 0), soft blue
+ * gradient canvas, gradient card fills, indigo primary. Light-only by
+ * design — if dark mode is wanted later, gate it behind a `.dark` class
+ * toggle, not the OS media query.
+ */
 :root {
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --primary: 222.2 47.4% 11.2%;
-  --primary-foreground: 210 40% 98%;
-  --border: 214.3 31.8% 91.4%;
+  /* Canvas */
+  --background: 220 33% 98%;
+  --foreground: 222 47% 11%;
+
+  /* Surfaces */
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 9% 46%;
+
+  /* Brand */
+  --primary: 224 76% 48%;
+  --primary-foreground: 0 0% 100%;
+  --primary-soft: 224 76% 96%;
+  --accent: 217 91% 60%;
+  --accent-foreground: 0 0% 100%;
+
+  /* States */
+  --success: 152 60% 36%;
+  --success-soft: 152 60% 94%;
+  --warning: 38 92% 50%;
+  --warning-soft: 38 92% 95%;
+  --danger: 0 72% 51%;
+  --danger-soft: 0 72% 96%;
+  --info: 217 91% 60%;
+  --info-soft: 217 91% 95%;
+
+  /* Borders + rings */
+  --border: 220 22% 90%;
+  --input: 220 13% 91%;
+  --ring: 224 76% 48%;
+  --radius: 0;
+
+  /* Gradients — exposed as vars so .surface and body share the same recipe. */
+  --bg-gradient: linear-gradient(
+      135deg,
+      hsl(217 90% 97%) 0%,
+      hsl(220 60% 98%) 35%,
+      hsl(225 80% 96%) 100%
+    ), radial-gradient(ellipse 80% 60% at 0% 0%, hsl(217 95% 94% / 0.55) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 50% at 100% 100%, hsl(224 85% 93% / 0.5) 0%, transparent 60%);
+
+  --surface-gradient: linear-gradient(
+    160deg,
+    hsl(0 0% 100%) 0%,
+    hsl(220 50% 99.3%) 55%,
+    hsl(217 70% 98%) 100%
+  );
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --border: 217.2 32.6% 17.5%;
-  }
+html,
+body {
+  min-height: 100%;
 }
 
 body {
-  background-color: hsl(var(--background));
   color: hsl(var(--foreground));
+  background-color: hsl(var(--background));
+  background-image: var(--bg-gradient);
+  background-attachment: fixed;
 }
 
 @layer components {
-  /* Shared filter input look — keeps the search form readable without
-     pulling in shadcn primitives this sprint. */
+  /* Form input look — keeps the search form readable without pulling in
+     shadcn primitives this sprint. Flat edges, focus ring uses --ring. */
   .search-input {
-    @apply w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary;
+    @apply w-full border border-input bg-card px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .input {
+    @apply w-full border border-input bg-card px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* Reusable surface — flat, soft border, gradient fill, subtle elevation. */
+  .surface {
+    @apply border border-border shadow-[0_1px_2px_rgba(15,23,42,0.04),0_1px_8px_rgba(15,23,42,0.04)] transition-[transform,box-shadow,border-color] duration-200;
+    background-color: hsl(var(--card));
+    background-image: var(--surface-gradient);
+  }
+
+  .surface-interactive {
+    @apply hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_10px_28px_rgba(37,99,235,0.12),0_2px_6px_rgba(15,23,42,0.05)];
+  }
+}
+
+@layer utilities {
+  /* Entry animations — applied on landing cards + property grids. */
+  .animate-fade-in-up {
+    animation: fade-in-up 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .animate-fade-in {
+    animation: fade-in 360ms ease-out both;
+  }
+
+  /* Staggered delays so card rows cascade in. */
+  .stagger-1 {
+    animation-delay: 40ms;
+  }
+  .stagger-2 {
+    animation-delay: 90ms;
+  }
+  .stagger-3 {
+    animation-delay: 140ms;
+  }
+  .stagger-4 {
+    animation-delay: 190ms;
+  }
+  .stagger-5 {
+    animation-delay: 240ms;
+  }
+  .stagger-6 {
+    animation-delay: 290ms;
+  }
+}
+
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up,
+  .animate-fade-in {
+    animation: none !important;
+  }
+  .surface,
+  .surface-interactive {
+    transition: none !important;
   }
 }
