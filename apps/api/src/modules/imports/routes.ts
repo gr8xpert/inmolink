@@ -52,11 +52,12 @@ export async function importRoutes(
       schema: {
         tags: ["imports"],
         summary: "List feed connections visible to the caller",
+        querystring: feedConnectionSchemas.feedConnectionListQuerySchema,
         response: { 200: feedConnectionSchemas.feedConnectionListResponseSchema },
       },
     },
     async (request) => {
-      return listFeedConnections(callerOf(request));
+      return listFeedConnections(callerOf(request), request.query);
     },
   );
 

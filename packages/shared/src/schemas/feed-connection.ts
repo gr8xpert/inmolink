@@ -70,8 +70,22 @@ export const feedConnectionSchema = z.object({
   updatedAt: z.string().datetime(),
 });
 
+export const feedConnectionListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().min(1).max(200).optional(),
+});
+
 export const feedConnectionListResponseSchema = z.object({
   items: z.array(feedConnectionSchema),
+  /**
+   * Numbered pagination metadata. `nextCursor` is omitted because the
+   * imports list isn't cursor-paginated — the response shape matches
+   * the dashboard sweep so the page can branch on `totalPages > 1`.
+   */
+  totalCount: z.number().int().nullable(),
+  page: z.number().int().nullable(),
+  pageSize: z.number().int().nullable(),
+  totalPages: z.number().int().nullable(),
 });
 
 export const feedRunSchema = z.object({

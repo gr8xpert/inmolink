@@ -84,7 +84,11 @@ export const viewingRequestListQuerySchema = z.object({
   /** "owner" → requests *I* received as listing agent. "introducer" →
    *  requests *I* made on someone else's listing. omit → both. */
   role: z.enum(["owner", "introducer"]).optional(),
+  // Pagination — cursor for hot-list / API; page+pageSize for numbered
+  // dashboard. Page mode wins when set; cursor is ignored.
   cursor: z.string().optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().min(1).max(100).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
 export type ViewingRequestListQuery = z.infer<typeof viewingRequestListQuerySchema>;
@@ -146,5 +150,9 @@ export type ViewingRequest = z.infer<typeof viewingRequestSchema>;
 export const viewingRequestListResponseSchema = z.object({
   items: z.array(viewingRequestSchema),
   nextCursor: z.string().nullable(),
+  totalCount: z.number().int().nullable(),
+  page: z.number().int().nullable(),
+  pageSize: z.number().int().nullable(),
+  totalPages: z.number().int().nullable(),
 });
 export type ViewingRequestListResponse = z.infer<typeof viewingRequestListResponseSchema>;

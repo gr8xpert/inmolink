@@ -70,6 +70,8 @@ export const dealListQuerySchema = z.object({
   status: dealStatusSchema.optional(),
   role: z.enum(["owner", "introducer"]).optional(),
   cursor: z.string().optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().min(1).max(100).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
 export type DealListQuery = z.infer<typeof dealListQuerySchema>;
@@ -128,5 +130,9 @@ export type Deal = z.infer<typeof dealSchema>;
 export const dealListResponseSchema = z.object({
   items: z.array(dealSchema),
   nextCursor: z.string().nullable(),
+  totalCount: z.number().int().nullable(),
+  page: z.number().int().nullable(),
+  pageSize: z.number().int().nullable(),
+  totalPages: z.number().int().nullable(),
 });
 export type DealListResponse = z.infer<typeof dealListResponseSchema>;

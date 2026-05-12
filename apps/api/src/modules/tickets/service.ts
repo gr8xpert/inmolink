@@ -65,11 +65,43 @@ function encodeCursor(c: { lastActivityAt: Date; id: string }): string {
   ).toString("base64url");
 }
 
+type TicketRow = Prisma.TicketGetPayload<{
+  include: {
+    openedBy: {
+      select: { firstName: true; lastName: true; agency: { select: { id: true; name: true } } };
+    };
+    assignedTo: { select: { firstName: true; lastName: true } };
+    _count: { select: { messages: true } };
+  };
+}>;
+
+function toTicketSummary(r: TicketRow): ticketSchemas.TicketSummary {
+  return {
+    id: r.id,
+    number: r.number,
+    subject: r.subject,
+    category: r.category as ticketSchemas.TicketCategory,
+    priority: r.priority as ticketSchemas.TicketPriority,
+    status: r.status as ticketSchemas.TicketStatus,
+    openedById: r.openedById,
+    agencyId: r.agencyId,
+    agencyName: r.openedBy.agency?.name ?? null,
+    assignedToId: r.assignedToId,
+    assignedToName: r.assignedTo ? `${r.assignedTo.firstName} ${r.assignedTo.lastName}` : null,
+    openedByName: `${r.openedBy.firstName} ${r.openedBy.lastName}`,
+    lastActivityAt: r.lastActivityAt.toISOString(),
+    createdAt: r.createdAt.toISOString(),
+    messageCount: r._count.messages,
+  };
+}
+
 export async function listTickets(
   user: AuthenticatedUser,
   query: {
     cursor?: string;
     limit?: number;
+    page?: number;
+    pageSize?: number;
     status?: ticketSchemas.TicketStatus;
     priority?: ticketSchemas.TicketPriority;
     category?: ticketSchemas.TicketCategory;
@@ -88,6 +120,40 @@ export async function listTickets(
     if (query.assignedToId) where.assignedToId = query.assignedToId;
     if (query.agencyId) where.agencyId = query.agencyId;
   }
+
+  const include = {
+    openedBy: {
+      select: { firstName: true, lastName: true, agency: { select: { id: true, name: true } } },
+    },
+    assignedTo: { select: { firstName: true, lastName: true } },
+    _count: { select: { messages: true } },
+  } as const;
+
+  // Page mode wins when set — caller-scoped so OFFSET is acceptable.
+  if (query.page) {
+    const pageSize = query.pageSize ?? limit;
+    const skip = (query.page - 1) * pageSize;
+    const [rows, totalCount] = await Promise.all([
+      prisma.ticket.findMany({
+        where,
+        orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }],
+        skip,
+        take: pageSize,
+        include,
+      }),
+      prisma.ticket.count({ where }),
+    ]);
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    return {
+      items: rows.map(toTicketSummary),
+      nextCursor: null,
+      totalCount,
+      page: query.page,
+      pageSize,
+      totalPages,
+    };
+  }
+
   const decoded = decodeCursor(query.cursor);
   if (decoded) {
     where.AND = [
@@ -104,37 +170,19 @@ export async function listTickets(
     where,
     orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }],
     take: limit + 1,
-    include: {
-      openedBy: {
-        select: { firstName: true, lastName: true, agency: { select: { id: true, name: true } } },
-      },
-      assignedTo: { select: { firstName: true, lastName: true } },
-      _count: { select: { messages: true } },
-    },
+    include,
   });
   const hasMore = rows.length > limit;
   const slice = hasMore ? rows.slice(0, limit) : rows;
   const tail = slice[slice.length - 1];
   return {
-    items: slice.map((r) => ({
-      id: r.id,
-      number: r.number,
-      subject: r.subject,
-      category: r.category as ticketSchemas.TicketCategory,
-      priority: r.priority as ticketSchemas.TicketPriority,
-      status: r.status as ticketSchemas.TicketStatus,
-      openedById: r.openedById,
-      agencyId: r.agencyId,
-      agencyName: r.openedBy.agency?.name ?? null,
-      assignedToId: r.assignedToId,
-      assignedToName: r.assignedTo ? `${r.assignedTo.firstName} ${r.assignedTo.lastName}` : null,
-      openedByName: `${r.openedBy.firstName} ${r.openedBy.lastName}`,
-      lastActivityAt: r.lastActivityAt.toISOString(),
-      createdAt: r.createdAt.toISOString(),
-      messageCount: r._count.messages,
-    })),
+    items: slice.map(toTicketSummary),
     nextCursor:
       hasMore && tail ? encodeCursor({ lastActivityAt: tail.lastActivityAt, id: tail.id }) : null,
+    totalCount: null,
+    page: null,
+    pageSize: null,
+    totalPages: null,
   };
 }
 

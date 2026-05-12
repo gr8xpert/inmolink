@@ -113,13 +113,50 @@ function encryptCredentials(
 
 export async function listFeedConnections(
   caller: Caller,
-): Promise<{ items: feedConnectionSchemas.FeedConnection[] }> {
+  query: { page?: number; pageSize?: number } = {},
+): Promise<{
+  items: feedConnectionSchemas.FeedConnection[];
+  totalCount: number | null;
+  page: number | null;
+  pageSize: number | null;
+  totalPages: number | null;
+}> {
+  const where = visibilityFilter(caller);
+
+  if (query.page) {
+    const pageSize = query.pageSize ?? 50;
+    const skip = (query.page - 1) * pageSize;
+    const [rows, totalCount] = await Promise.all([
+      prisma.feedConnection.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: pageSize,
+      }),
+      prisma.feedConnection.count({ where }),
+    ]);
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    return {
+      items: rows.map(toResponse),
+      totalCount,
+      page: query.page,
+      pageSize,
+      totalPages,
+    };
+  }
+
   const rows = await prisma.feedConnection.findMany({
-    where: visibilityFilter(caller),
+    where,
     orderBy: { createdAt: "desc" },
     take: 200,
   });
-  return { items: rows.map(toResponse) };
+  return {
+    items: rows.map(toResponse),
+    totalCount: null,
+    page: null,
+    pageSize: null,
+    totalPages: null,
+  };
 }
 
 export async function getFeedConnection(

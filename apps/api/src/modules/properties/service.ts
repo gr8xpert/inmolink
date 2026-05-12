@@ -64,14 +64,25 @@ export async function listForDashboard(
           allowedVisibility: ["SHARED" as const],
         };
 
-  const { items, hasMore } = await listProperties({ query, viewer });
+  const { items, hasMore, totalCount } = await listProperties({ query, viewer });
   const last = items[items.length - 1];
   const nextCursor =
     hasMore && last ? encodeCursor({ createdAt: last.createdAt, id: last.id }) : null;
 
+  // Numbered pagination metadata when the caller passed `page` — otherwise
+  // null so the client knows to fall back to cursor controls.
+  const page = query.page ?? null;
+  const pageSize = query.page ? (query.pageSize ?? query.limit) : null;
+  const totalPages =
+    totalCount !== null && pageSize ? Math.max(1, Math.ceil(totalCount / pageSize)) : null;
+
   return {
     items: items.map(toListItem),
     nextCursor,
+    totalCount,
+    page,
+    pageSize,
+    totalPages,
   };
 }
 

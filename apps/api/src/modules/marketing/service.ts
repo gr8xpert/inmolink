@@ -202,14 +202,25 @@ export async function getDecryptedConfig(
 export async function listTemplates(
   user: AuthenticatedUser,
   queryAgencyId: string | undefined,
-): Promise<marketingSchemas.EmailTemplate[]> {
+  query: { page?: number; pageSize?: number } = {},
+): Promise<{
+  items: marketingSchemas.EmailTemplate[];
+  totalCount: number | null;
+  page: number | null;
+  pageSize: number | null;
+  totalPages: number | null;
+}> {
   const agencyId = resolveAgencyId(user, queryAgencyId);
-  const rows = await prisma.emailTemplate.findMany({
-    where: { agencyId },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: 200,
-  });
-  return rows.map((r) => ({
+
+  const toOut = (r: {
+    id: string;
+    name: string;
+    subject: string;
+    bodyHtml: string;
+    bodyText: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }): marketingSchemas.EmailTemplate => ({
     id: r.id,
     name: r.name,
     subject: r.subject,
@@ -217,7 +228,42 @@ export async function listTemplates(
     bodyText: r.bodyText,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
-  }));
+  });
+
+  if (query.page) {
+    const pageSize = query.pageSize ?? 50;
+    const skip = (query.page - 1) * pageSize;
+    const [rows, totalCount] = await Promise.all([
+      prisma.emailTemplate.findMany({
+        where: { agencyId },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip,
+        take: pageSize,
+      }),
+      prisma.emailTemplate.count({ where: { agencyId } }),
+    ]);
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    return {
+      items: rows.map(toOut),
+      totalCount,
+      page: query.page,
+      pageSize,
+      totalPages,
+    };
+  }
+
+  const rows = await prisma.emailTemplate.findMany({
+    where: { agencyId },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 200,
+  });
+  return {
+    items: rows.map(toOut),
+    totalCount: null,
+    page: null,
+    pageSize: null,
+    totalPages: null,
+  };
 }
 
 export async function getTemplate(
@@ -314,15 +360,55 @@ export async function removeSuppression(
 
 export async function listSuppressions(
   user: AuthenticatedUser,
-  query: { cursor?: string; limit?: number; q?: string },
+  query: { cursor?: string; limit?: number; page?: number; pageSize?: number; q?: string },
   queryAgencyId: string | undefined,
 ) {
   const agencyId = resolveAgencyId(user, queryAgencyId);
   const limit = Math.min(Math.max(query.limit ?? 50, 1), 200);
-  const decoded = decodeCursor(query.cursor);
 
   const where: Prisma.EmailSuppressionWhereInput = { agencyId };
   if (query.q) where.email = { contains: query.q, mode: "insensitive" };
+
+  const toOut = (r: {
+    id: string;
+    email: string;
+    reason: string;
+    bounceType: string | null;
+    notes: string | null;
+    createdAt: Date;
+  }) => ({
+    id: r.id,
+    email: r.email,
+    reason: r.reason as marketingSchemas.SuppressionReason,
+    bounceType: r.bounceType,
+    notes: r.notes,
+    createdAt: r.createdAt.toISOString(),
+  });
+
+  if (query.page) {
+    const pageSize = query.pageSize ?? limit;
+    const skip = (query.page - 1) * pageSize;
+    const [rows, totalCount] = await Promise.all([
+      prisma.emailSuppression.findMany({
+        where,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip,
+        take: pageSize,
+      }),
+      prisma.emailSuppression.count({ where }),
+    ]);
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    return {
+      items: rows.map(toOut),
+      nextCursor: null,
+      totalCount,
+      page: query.page,
+      pageSize,
+      totalPages,
+    };
+  }
+
+  const decoded = decodeCursor(query.cursor);
   if (decoded) {
     where.OR = [
       { createdAt: { lt: new Date(decoded.createdAt) } },
@@ -340,15 +426,12 @@ export async function listSuppressions(
   const slice = hasMore ? rows.slice(0, limit) : rows;
   const tail = slice[slice.length - 1];
   return {
-    items: slice.map((r) => ({
-      id: r.id,
-      email: r.email,
-      reason: r.reason as marketingSchemas.SuppressionReason,
-      bounceType: r.bounceType,
-      notes: r.notes,
-      createdAt: r.createdAt.toISOString(),
-    })),
+    items: slice.map(toOut),
     nextCursor: hasMore && tail ? encodeCursor({ createdAt: tail.createdAt, id: tail.id }) : null,
+    totalCount: null,
+    page: null,
+    pageSize: null,
+    totalPages: null,
   };
 }
 
@@ -356,12 +439,18 @@ export async function listSuppressions(
 
 export async function listContacts(
   user: AuthenticatedUser,
-  query: { cursor?: string; limit?: number; q?: string; tag?: string },
+  query: {
+    cursor?: string;
+    limit?: number;
+    page?: number;
+    pageSize?: number;
+    q?: string;
+    tag?: string;
+  },
   queryAgencyId: string | undefined,
 ) {
   const agencyId = resolveAgencyId(user, queryAgencyId);
   const limit = Math.min(Math.max(query.limit ?? 50, 1), 200);
-  const decoded = decodeCursor(query.cursor);
 
   const where: Prisma.ContactWhereInput = { agencyId };
   if (query.q) {
@@ -372,6 +461,31 @@ export async function listContacts(
     ];
   }
   if (query.tag) where.tags = { has: query.tag };
+
+  if (query.page) {
+    const pageSize = query.pageSize ?? limit;
+    const skip = (query.page - 1) * pageSize;
+    const [rows, totalCount] = await Promise.all([
+      prisma.contact.findMany({
+        where,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip,
+        take: pageSize,
+      }),
+      prisma.contact.count({ where }),
+    ]);
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    return {
+      items: rows.map(toContactOut),
+      nextCursor: null,
+      totalCount,
+      page: query.page,
+      pageSize,
+      totalPages,
+    };
+  }
+
+  const decoded = decodeCursor(query.cursor);
   if (decoded) {
     where.AND = [
       ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
@@ -396,6 +510,10 @@ export async function listContacts(
   return {
     items: slice.map(toContactOut),
     nextCursor: hasMore && tail ? encodeCursor({ createdAt: tail.createdAt, id: tail.id }) : null,
+    totalCount: null,
+    page: null,
+    pageSize: null,
+    totalPages: null,
   };
 }
 

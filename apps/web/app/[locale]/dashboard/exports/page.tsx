@@ -1,6 +1,7 @@
 import { Button } from "@/components/dashboard/button";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { Pagination } from "@/components/dashboard/pagination";
 import { StatusBadge, toneForStatus } from "@/components/dashboard/status-badge";
 import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { env } from "@/env";
@@ -9,7 +10,6 @@ import { auth } from "@inmolink/auth";
 import type { exportSchemas } from "@inmolink/shared";
 import { FileBarChart } from "lucide-react";
 import { setRequestLocale } from "next-intl/server";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { deleteExportAction } from "./actions";
 import { ExportsAutoRefresh } from "./auto-refresh";
@@ -17,10 +17,26 @@ import { ExportCreateForm } from "./create-form";
 
 type Props = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ kind?: string; status?: string; cursor?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+type ListResponse = {
+  items: exportSchemas.Export[];
+  nextCursor: string | null;
+  totalCount: number | null;
+  page: number | null;
+  pageSize: number | null;
+  totalPages: number | null;
+};
+
+const PAGE_SIZE = 25;
+
 const API_BASE = env.NEXT_PUBLIC_API_URL;
+
+function strParam(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
+}
 
 function formatBytes(b: number | null): string {
   if (!b) return "—";
@@ -41,20 +57,28 @@ function formatRelativeExpiry(iso: string | null): string {
 
 export default async function ExportsPage({ params, searchParams }: Props) {
   const { locale } = await params;
-  const { kind, status, cursor } = await searchParams;
+  const sp = await searchParams;
   setRequestLocale(locale);
   const session = await auth();
   if (!session?.user) redirect(`/${locale}/sign-in`);
 
+  const kind = strParam(sp.kind);
+  const status = strParam(sp.status);
+  const pageNum = Math.max(1, Number(strParam(sp.page) ?? "1") || 1);
+
   const qs = new URLSearchParams();
-  qs.set("limit", "25");
+  qs.set("page", String(pageNum));
+  qs.set("pageSize", String(PAGE_SIZE));
   if (kind) qs.set("kind", kind);
   if (status) qs.set("status", status);
-  if (cursor) qs.set("cursor", cursor);
 
-  let data: { items: exportSchemas.Export[]; nextCursor: string | null } = {
+  let data: ListResponse = {
     items: [],
     nextCursor: null,
+    totalCount: null,
+    page: null,
+    pageSize: null,
+    totalPages: null,
   };
   let listError: string | null = null;
   try {
@@ -64,6 +88,17 @@ export default async function ExportsPage({ params, searchParams }: Props) {
   }
 
   const hasInflight = data.items.some((e) => e.status === "QUEUED" || e.status === "RUNNING");
+
+  const hrefForPage = (n: number): string => {
+    const next = new URLSearchParams();
+    for (const [k, v] of Object.entries(sp)) {
+      if (k === "page" || k === "cursor" || v === undefined) continue;
+      next.set(k, Array.isArray(v) ? (v[0] ?? "") : v);
+    }
+    if (n > 1) next.set("page", String(n));
+    const qstr = next.toString();
+    return qstr ? `/${locale}/dashboard/exports?${qstr}` : `/${locale}/dashboard/exports`;
+  };
 
   return (
     <div className="mx-auto w-full max-w-6xl">
@@ -134,23 +169,20 @@ export default async function ExportsPage({ params, searchParams }: Props) {
         )}
       </SurfaceCard>
 
-      {data.nextCursor && (
-        <div className="mt-4 flex justify-end">
-          <Link
-            href={{
-              pathname: `/${locale}/dashboard/exports`,
-              query: {
-                ...(kind ? { kind } : {}),
-                ...(status ? { status } : {}),
-                cursor: data.nextCursor,
-              },
-            }}
-            className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3.5 text-sm font-medium shadow-sm hover:bg-muted"
-          >
-            Next →
-          </Link>
+      {data.totalPages && data.totalPages > 1 ? (
+        <div className="mt-6 flex flex-col items-center gap-2">
+          <Pagination
+            page={data.page ?? pageNum}
+            totalPages={data.totalPages}
+            hrefForPage={hrefForPage}
+          />
+          {data.totalCount !== null && (
+            <p className="text-xs text-muted-foreground">
+              {data.totalCount} total · page {data.page ?? pageNum} of {data.totalPages}
+            </p>
+          )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

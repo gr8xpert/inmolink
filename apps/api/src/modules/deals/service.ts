@@ -296,6 +296,31 @@ export async function listDeals(
   }
   if (query.status) where.status = query.status;
 
+  // Page mode wins when set — dashboard scope is per-user so OFFSET is fine.
+  if (query.page) {
+    const pageSize = query.pageSize ?? query.limit;
+    const skip = (query.page - 1) * pageSize;
+    const [rows, totalCount] = await Promise.all([
+      prisma.deal.findMany({
+        where,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip,
+        take: pageSize,
+        include: DEAL_INCLUDE,
+      }),
+      prisma.deal.count({ where }),
+    ]);
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    return {
+      items: rows.map((r) => toResponse(r, caller)),
+      nextCursor: null,
+      totalCount,
+      page: query.page,
+      pageSize,
+      totalPages,
+    };
+  }
+
   const cursor = decodeCursor(query.cursor);
   const cursorClause: Prisma.DealWhereInput | null = cursor
     ? {
@@ -321,7 +346,14 @@ export async function listDeals(
           JSON.stringify({ createdAt: tail.createdAt.toISOString(), id: tail.id }),
         ).toString("base64url")
       : null;
-  return { items: slice.map((r) => toResponse(r, caller)), nextCursor };
+  return {
+    items: slice.map((r) => toResponse(r, caller)),
+    nextCursor,
+    totalCount: null,
+    page: null,
+    pageSize: null,
+    totalPages: null,
+  };
 }
 
 export async function getDeal(caller: Caller, id: string): Promise<dealSchemas.Deal> {
@@ -560,7 +592,14 @@ export async function listDisputes(
     hasMore && tail && tail.disputeOpenedAt
       ? encodeCursor({ createdAt: tail.disputeOpenedAt.toISOString(), id: tail.id })
       : null;
-  return { items: slice.map((r) => toResponse(r, _caller)), nextCursor };
+  return {
+    items: slice.map((r) => toResponse(r, _caller)),
+    nextCursor,
+    totalCount: null,
+    page: null,
+    pageSize: null,
+    totalPages: null,
+  };
 }
 
 export async function resolveDispute(

@@ -172,6 +172,19 @@ export const campaignScheduleInputSchema = z.object({
 export const campaignListResponseSchema = z.object({
   items: z.array(campaignSchema),
   nextCursor: z.string().nullable(),
+  totalCount: z.number().int().nullable(),
+  page: z.number().int().nullable(),
+  pageSize: z.number().int().nullable(),
+  totalPages: z.number().int().nullable(),
+});
+
+export const emailTemplateListResponseSchema = z.object({
+  items: z.array(emailTemplateSchema),
+  /** Templates are an unbounded list — `nextCursor` omitted; pagination is page-mode only. */
+  totalCount: z.number().int().nullable(),
+  page: z.number().int().nullable(),
+  pageSize: z.number().int().nullable(),
+  totalPages: z.number().int().nullable(),
 });
 
 // ---- EmailSuppression ----
@@ -198,6 +211,10 @@ export const suppressionSchema = z.object({
 export const suppressionListResponseSchema = z.object({
   items: z.array(suppressionSchema),
   nextCursor: z.string().nullable(),
+  totalCount: z.number().int().nullable(),
+  page: z.number().int().nullable(),
+  pageSize: z.number().int().nullable(),
+  totalPages: z.number().int().nullable(),
 });
 
 // ---- Contact ----
@@ -232,6 +249,10 @@ export const contactSchema = z.object({
 export const contactListResponseSchema = z.object({
   items: z.array(contactSchema),
   nextCursor: z.string().nullable(),
+  totalCount: z.number().int().nullable(),
+  page: z.number().int().nullable(),
+  pageSize: z.number().int().nullable(),
+  totalPages: z.number().int().nullable(),
 });
 
 export const contactBulkInputSchema = z.object({

@@ -72,7 +72,14 @@ const INCLUDE = {
 
 export async function listExports(
   user: AuthenticatedUser,
-  query: { cursor?: string; limit?: number; kind?: string; status?: string },
+  query: {
+    cursor?: string;
+    limit?: number;
+    page?: number;
+    pageSize?: number;
+    kind?: string;
+    status?: string;
+  },
 ) {
   const agencyId = resolveAgencyId(user);
   const cap = Math.min(Math.max(query.limit ?? 25, 1), 100);
@@ -81,6 +88,31 @@ export async function listExports(
   if (user.role === "AGENT") where.requestedById = user.id;
   if (query.kind) where.kind = query.kind as Prisma.ExportWhereInput["kind"];
   if (query.status) where.status = query.status as Prisma.ExportWhereInput["status"];
+
+  // Page mode wins when set — agency-scoped so OFFSET is acceptable.
+  if (query.page) {
+    const pageSize = query.pageSize ?? cap;
+    const skip = (query.page - 1) * pageSize;
+    const [rows, totalCount] = await Promise.all([
+      prisma.export.findMany({
+        where,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip,
+        take: pageSize,
+        include: INCLUDE,
+      }),
+      prisma.export.count({ where }),
+    ]);
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    return {
+      items: rows.map(toOutput),
+      nextCursor: null,
+      totalCount,
+      page: query.page,
+      pageSize,
+      totalPages,
+    };
+  }
 
   const decoded = (() => {
     if (!query.cursor) return null;
@@ -123,6 +155,10 @@ export async function listExports(
             JSON.stringify({ createdAt: tail.createdAt.toISOString(), id: tail.id }),
           ).toString("base64url")
         : null,
+    totalCount: null,
+    page: null,
+    pageSize: null,
+    totalPages: null,
   };
 }
 

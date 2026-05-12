@@ -1,6 +1,7 @@
 import { LinkButton } from "@/components/dashboard/button";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { Pagination } from "@/components/dashboard/pagination";
 import { StatusBadge, toneForStatus } from "@/components/dashboard/status-badge";
 import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { apiFetch } from "@/lib/api";
@@ -14,24 +15,47 @@ import { redirect } from "next/navigation";
 
 type Props = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ status?: string; role?: string; cursor?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+const PAGE_SIZE = 20;
+
+function strParam(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
+}
 
 export default async function ViewingsListPage({ params, searchParams }: Props) {
   const { locale } = await params;
-  const search = await searchParams;
+  const sp = await searchParams;
   setRequestLocale(locale);
   const session = await auth();
   if (!session?.user) redirect(`/${locale}/sign-in`);
   const t = await getTranslations({ locale, namespace: "viewings" });
 
+  const pageNum = Math.max(1, Number(strParam(sp.page) ?? "1") || 1);
   const qs = new URLSearchParams();
-  if (search.status) qs.set("status", search.status);
-  if (search.role) qs.set("role", search.role);
-  if (search.cursor) qs.set("cursor", search.cursor);
+  qs.set("page", String(pageNum));
+  qs.set("pageSize", String(PAGE_SIZE));
+  const status = strParam(sp.status);
+  const role = strParam(sp.role);
+  if (status) qs.set("status", status);
+  if (role) qs.set("role", role);
+
   const list = await apiFetch<viewingRequestSchemas.ViewingRequestListResponse>(
     `/api/dashboard/viewings?${qs.toString()}`,
   );
+
+  const hrefForPage = (n: number): string => {
+    const next = new URLSearchParams();
+    for (const [k, v] of Object.entries(sp)) {
+      if (k === "page" || k === "cursor" || v === undefined) continue;
+      next.set(k, Array.isArray(v) ? (v[0] ?? "") : v);
+    }
+    if (n > 1) next.set("page", String(n));
+    const qstr = next.toString();
+    return qstr ? `/${locale}/dashboard/viewings?${qstr}` : `/${locale}/dashboard/viewings`;
+  };
 
   const formatDateTime = (iso: string | null) =>
     iso ? new Date(iso).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" }) : "—";
@@ -50,7 +74,7 @@ export default async function ViewingsListPage({ params, searchParams }: Props) 
         {(["all", "owner", "introducer"] as const).map((r) => {
           const params = new URLSearchParams();
           if (r !== "all") params.set("role", r);
-          const active = (search.role ?? "all") === r;
+          const active = (role ?? "all") === r;
           return (
             <Link
               key={r}
@@ -115,16 +139,20 @@ export default async function ViewingsListPage({ params, searchParams }: Props) 
         )}
       </SurfaceCard>
 
-      {list.nextCursor && (
-        <div className="mt-4 flex justify-end">
-          <LinkButton
-            href={`/${locale}/dashboard/viewings?${new URLSearchParams({ ...search, cursor: list.nextCursor }).toString()}`}
-            variant="secondary"
-          >
-            {t("next")} →
-          </LinkButton>
+      {list.totalPages && list.totalPages > 1 ? (
+        <div className="mt-6 flex flex-col items-center gap-2">
+          <Pagination
+            page={list.page ?? pageNum}
+            totalPages={list.totalPages}
+            hrefForPage={hrefForPage}
+          />
+          {list.totalCount !== null && (
+            <p className="text-xs text-muted-foreground">
+              {list.totalCount} total · page {list.page ?? pageNum} of {list.totalPages}
+            </p>
+          )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -232,14 +232,17 @@ export async function marketingRoutes(
     {
       schema: {
         tags: ["marketing"],
-        querystring: agencyIdQuery,
-        response: { 200: z.object({ items: z.array(marketingSchemas.emailTemplateSchema) }) },
+        querystring: z.object({
+          agencyId: z.string().optional(),
+          page: z.coerce.number().int().min(1).optional(),
+          pageSize: z.coerce.number().int().min(1).max(200).optional(),
+        }),
+        response: { 200: marketingSchemas.emailTemplateListResponseSchema },
       },
     },
     async (request) => {
       await requireFeature(request, "feature:marketing.templates");
-      const items = await listTemplates(request.requireUser(), request.query.agencyId);
-      return { items };
+      return listTemplates(request.requireUser(), request.query.agencyId, request.query);
     },
   );
 
@@ -350,6 +353,8 @@ export async function marketingRoutes(
           agencyId: z.string().optional(),
           cursor: z.string().optional(),
           limit: z.coerce.number().int().min(1).max(100).optional(),
+          page: z.coerce.number().int().min(1).optional(),
+          pageSize: z.coerce.number().int().min(1).max(100).optional(),
           status: marketingSchemas.campaignStatusSchema.optional(),
         }),
         response: { 200: marketingSchemas.campaignListResponseSchema },
@@ -501,6 +506,8 @@ export async function marketingRoutes(
           agencyId: z.string().optional(),
           cursor: z.string().optional(),
           limit: z.coerce.number().int().min(1).max(200).optional(),
+          page: z.coerce.number().int().min(1).optional(),
+          pageSize: z.coerce.number().int().min(1).max(200).optional(),
           q: z.string().optional(),
         }),
         response: { 200: marketingSchemas.suppressionListResponseSchema },
@@ -555,6 +562,8 @@ export async function marketingRoutes(
           agencyId: z.string().optional(),
           cursor: z.string().optional(),
           limit: z.coerce.number().int().min(1).max(200).optional(),
+          page: z.coerce.number().int().min(1).optional(),
+          pageSize: z.coerce.number().int().min(1).max(200).optional(),
           q: z.string().optional(),
           tag: z.string().optional(),
         }),

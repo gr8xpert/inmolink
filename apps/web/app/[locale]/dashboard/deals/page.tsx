@@ -1,6 +1,7 @@
 import { LinkButton } from "@/components/dashboard/button";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { Pagination } from "@/components/dashboard/pagination";
 import { StatusBadge, toneForStatus } from "@/components/dashboard/status-badge";
 import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { apiFetch } from "@/lib/api";
@@ -13,8 +14,15 @@ import { redirect } from "next/navigation";
 
 type Props = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ status?: string; cursor?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+const PAGE_SIZE = 20;
+
+function strParam(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
+}
 
 function formatMoney(cents: string, currency: string, locale: string): string {
   const n = Number(cents) / 100;
@@ -23,18 +31,33 @@ function formatMoney(cents: string, currency: string, locale: string): string {
 
 export default async function DealsListPage({ params, searchParams }: Props) {
   const { locale } = await params;
-  const search = await searchParams;
+  const sp = await searchParams;
   setRequestLocale(locale);
   const session = await auth();
   if (!session?.user) redirect(`/${locale}/sign-in`);
   const t = await getTranslations({ locale, namespace: "deals" });
 
+  const pageNum = Math.max(1, Number(strParam(sp.page) ?? "1") || 1);
   const qs = new URLSearchParams();
-  if (search.status) qs.set("status", search.status);
-  if (search.cursor) qs.set("cursor", search.cursor);
+  qs.set("page", String(pageNum));
+  qs.set("pageSize", String(PAGE_SIZE));
+  const status = strParam(sp.status);
+  if (status) qs.set("status", status);
+
   const list = await apiFetch<dealSchemas.DealListResponse>(
     `/api/dashboard/deals?${qs.toString()}`,
   );
+
+  const hrefForPage = (n: number): string => {
+    const next = new URLSearchParams();
+    for (const [k, v] of Object.entries(sp)) {
+      if (k === "page" || k === "cursor" || v === undefined) continue;
+      next.set(k, Array.isArray(v) ? (v[0] ?? "") : v);
+    }
+    if (n > 1) next.set("page", String(n));
+    const qstr = next.toString();
+    return qstr ? `/${locale}/dashboard/deals?${qstr}` : `/${locale}/dashboard/deals`;
+  };
 
   return (
     <div className="mx-auto w-full max-w-7xl">
@@ -95,16 +118,20 @@ export default async function DealsListPage({ params, searchParams }: Props) {
         )}
       </SurfaceCard>
 
-      {list.nextCursor && (
-        <div className="mt-4 flex justify-end">
-          <LinkButton
-            href={`/${locale}/dashboard/deals?${new URLSearchParams({ ...search, cursor: list.nextCursor }).toString()}`}
-            variant="secondary"
-          >
-            {t("next")} →
-          </LinkButton>
+      {list.totalPages && list.totalPages > 1 ? (
+        <div className="mt-6 flex flex-col items-center gap-2">
+          <Pagination
+            page={list.page ?? pageNum}
+            totalPages={list.totalPages}
+            hrefForPage={hrefForPage}
+          />
+          {list.totalCount !== null && (
+            <p className="text-xs text-muted-foreground">
+              {list.totalCount} total · page {list.page ?? pageNum} of {list.totalPages}
+            </p>
+          )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

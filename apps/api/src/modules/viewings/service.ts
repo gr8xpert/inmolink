@@ -350,11 +350,37 @@ export async function listViewingRequests(
   }
   if (query.status) where.status = query.status;
 
-  const cursor = decodeCursor(query.cursor);
   const orderBy: Prisma.ViewingRequestOrderByWithRelationInput[] = [
     { createdAt: "desc" },
     { id: "desc" },
   ];
+
+  // Page mode — dashboard scope is small enough that OFFSET is fine.
+  if (query.page) {
+    const pageSize = query.pageSize ?? query.limit;
+    const skip = (query.page - 1) * pageSize;
+    const [rows, totalCount] = await Promise.all([
+      prisma.viewingRequest.findMany({
+        where,
+        orderBy,
+        skip,
+        take: pageSize,
+        include: REQUEST_INCLUDE,
+      }),
+      prisma.viewingRequest.count({ where }),
+    ]);
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    return {
+      items: rows.map((r) => toResponse(r, caller, hexKey, storage)),
+      nextCursor: null,
+      totalCount,
+      page: query.page,
+      pageSize,
+      totalPages,
+    };
+  }
+
+  const cursor = decodeCursor(query.cursor);
   const cursorClause: Prisma.ViewingRequestWhereInput | null = cursor
     ? {
         OR: [
@@ -380,6 +406,10 @@ export async function listViewingRequests(
   return {
     items: slice.map((r) => toResponse(r, caller, hexKey, storage)),
     nextCursor,
+    totalCount: null,
+    page: null,
+    pageSize: null,
+    totalPages: null,
   };
 }
 

@@ -98,8 +98,14 @@ export const propertyListQuerySchema = z.object({
   ownerUserId: z.string().optional(),
   ownerAgencyId: z.string().optional(),
   q: z.string().max(200).optional(),
-  // Cursor pagination per PLAN §11.2 — never OFFSET on hot lists.
+  // Pagination — supports two mutually exclusive modes:
+  //   1. Cursor (PLAN §11.2 default for hot lists, public marketplace).
+  //   2. Page+pageSize (dashboard-only — scoped per user/agency, so the
+  //      row count stays tractable and OFFSET is acceptable).
+  // When `page` is set, cursor is ignored.
   cursor: z.string().optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().min(1).max(100).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
@@ -131,6 +137,12 @@ export type PropertyListItem = z.infer<typeof propertyListItemSchema>;
 export const propertyListResponseSchema = z.object({
   items: z.array(propertyListItemSchema),
   nextCursor: z.string().nullable(),
+  // Numbered pagination metadata. Always emitted; nulls in pure-cursor
+  // mode so the dashboard ui can branch on presence.
+  totalCount: z.number().int().nullable(),
+  page: z.number().int().nullable(),
+  pageSize: z.number().int().nullable(),
+  totalPages: z.number().int().nullable(),
 });
 
 export const propertyDetailSchema = propertyListItemSchema.extend({

@@ -108,6 +108,8 @@ export type TicketDetail = z.infer<typeof ticketDetailSchema>;
 export const ticketListQuerySchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().min(1).max(100).optional(),
   status: ticketStatusSchema.optional(),
   priority: ticketPrioritySchema.optional(),
   category: ticketCategorySchema.optional(),
@@ -120,4 +122,8 @@ export const ticketListQuerySchema = z.object({
 export const ticketListResponseSchema = z.object({
   items: z.array(ticketSummarySchema),
   nextCursor: z.string().nullable(),
+  totalCount: z.number().int().nullable(),
+  page: z.number().int().nullable(),
+  pageSize: z.number().int().nullable(),
+  totalPages: z.number().int().nullable(),
 });

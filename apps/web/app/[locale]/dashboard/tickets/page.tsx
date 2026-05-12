@@ -1,6 +1,7 @@
 import { LinkButton } from "@/components/dashboard/button";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { Pagination } from "@/components/dashboard/pagination";
 import { StatusBadge, toneForStatus } from "@/components/dashboard/status-badge";
 import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { ApiError, apiFetch } from "@/lib/api";
@@ -13,8 +14,19 @@ import { redirect } from "next/navigation";
 
 type Props = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ status?: string; cursor?: string; q?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+type ListResponse = {
+  items: ticketSchemas.TicketSummary[];
+  nextCursor: string | null;
+  totalCount: number | null;
+  page: number | null;
+  pageSize: number | null;
+  totalPages: number | null;
+};
+
+const PAGE_SIZE = 25;
 
 const PRIORITY_TONE: Record<ticketSchemas.TicketPriority, "neutral" | "warning" | "danger"> = {
   LOW: "neutral",
@@ -23,23 +35,36 @@ const PRIORITY_TONE: Record<ticketSchemas.TicketPriority, "neutral" | "warning" 
   URGENT: "danger",
 };
 
+function strParam(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
+}
+
 export default async function TicketsListPage({ params, searchParams }: Props) {
   const { locale } = await params;
-  const { status, cursor, q } = await searchParams;
+  const sp = await searchParams;
   setRequestLocale(locale);
 
   const session = await auth();
   if (!session?.user) redirect(`/${locale}/sign-in`);
 
+  const status = strParam(sp.status);
+  const q = strParam(sp.q);
+  const pageNum = Math.max(1, Number(strParam(sp.page) ?? "1") || 1);
+
   const qs = new URLSearchParams();
-  qs.set("limit", "25");
+  qs.set("page", String(pageNum));
+  qs.set("pageSize", String(PAGE_SIZE));
   if (status) qs.set("status", status);
-  if (cursor) qs.set("cursor", cursor);
   if (q) qs.set("q", q);
 
-  let data: { items: ticketSchemas.TicketSummary[]; nextCursor: string | null } = {
+  let data: ListResponse = {
     items: [],
     nextCursor: null,
+    totalCount: null,
+    page: null,
+    pageSize: null,
+    totalPages: null,
   };
   let listError: string | null = null;
   try {
@@ -47,6 +72,17 @@ export default async function TicketsListPage({ params, searchParams }: Props) {
   } catch (err) {
     listError = err instanceof ApiError ? err.message : "Failed to load";
   }
+
+  const hrefForPage = (n: number): string => {
+    const next = new URLSearchParams();
+    for (const [k, v] of Object.entries(sp)) {
+      if (k === "page" || k === "cursor" || v === undefined) continue;
+      next.set(k, Array.isArray(v) ? (v[0] ?? "") : v);
+    }
+    if (n > 1) next.set("page", String(n));
+    const qstr = next.toString();
+    return qstr ? `/${locale}/dashboard/tickets?${qstr}` : `/${locale}/dashboard/tickets`;
+  };
 
   return (
     <div className="mx-auto w-full max-w-6xl">
@@ -56,6 +92,9 @@ export default async function TicketsListPage({ params, searchParams }: Props) {
         actions={<LinkButton href={`/${locale}/dashboard/tickets/new`}>+ New ticket</LinkButton>}
       />
 
+      {/* Filter form intentionally omits a hidden `page` input — applying a
+          filter resets to page 1 because the browser only submits visible
+          fields. */}
       <form className="mb-6 flex flex-wrap gap-2">
         <select name="status" defaultValue={status ?? ""} className="input max-w-[200px]">
           <option value="">All statuses</option>
@@ -130,23 +169,20 @@ export default async function TicketsListPage({ params, searchParams }: Props) {
         )}
       </SurfaceCard>
 
-      {data.nextCursor && (
-        <div className="mt-4 flex justify-end">
-          <LinkButton
-            href={{
-              pathname: `/${locale}/dashboard/tickets`,
-              query: {
-                ...(status ? { status } : {}),
-                ...(q ? { q } : {}),
-                cursor: data.nextCursor,
-              },
-            }}
-            variant="secondary"
-          >
-            Next →
-          </LinkButton>
+      {data.totalPages && data.totalPages > 1 ? (
+        <div className="mt-6 flex flex-col items-center gap-2">
+          <Pagination
+            page={data.page ?? pageNum}
+            totalPages={data.totalPages}
+            hrefForPage={hrefForPage}
+          />
+          {data.totalCount !== null && (
+            <p className="text-xs text-muted-foreground">
+              {data.totalCount} total · page {data.page ?? pageNum} of {data.totalPages}
+            </p>
+          )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

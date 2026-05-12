@@ -94,6 +94,8 @@ type ListArgs = {
 export async function listProperties({ query, viewer }: ListArgs): Promise<{
   items: ListItemRow[];
   hasMore: boolean;
+  /** Total matching rows (offset-mode only — null on cursor mode). */
+  totalCount: number | null;
 }> {
   const where: Prisma.PropertyWhereInput = {
     deletedAt: null,
@@ -107,7 +109,6 @@ export async function listProperties({ query, viewer }: ListArgs): Promise<{
   };
 
   if (viewer) {
-    // Visibility scope: SHARED + own + own-agency (+ PUBLIC if allowed).
     where.OR = [
       { visibility: { in: viewer.allowedVisibility } },
       { ownerUserId: viewer.userId },
@@ -115,7 +116,25 @@ export async function listProperties({ query, viewer }: ListArgs): Promise<{
     ];
   }
 
-  // Cursor: paginate by (createdAt DESC, id DESC).
+  // Page mode wins when set — dashboard scope is small enough that OFFSET
+  // is fine (per-user/per-agency cap). Cursor mode stays for hot public
+  // surfaces and acts as the default when neither is supplied.
+  if (query.page) {
+    const pageSize = query.pageSize ?? query.limit;
+    const skip = (query.page - 1) * pageSize;
+    const [rows, totalCount] = await Promise.all([
+      prisma.property.findMany({
+        where,
+        select: LIST_SELECT,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip,
+        take: pageSize,
+      }),
+      prisma.property.count({ where }),
+    ]);
+    return { items: rows, hasMore: skip + rows.length < totalCount, totalCount };
+  }
+
   const cursor = query.cursor ? decodeCursor(query.cursor) : null;
   if (cursor) {
     where.AND = [
@@ -138,7 +157,7 @@ export async function listProperties({ query, viewer }: ListArgs): Promise<{
   });
 
   const hasMore = rows.length > limit;
-  return { items: rows.slice(0, limit), hasMore };
+  return { items: rows.slice(0, limit), hasMore, totalCount: null };
 }
 
 export async function getPropertyById(id: string) {

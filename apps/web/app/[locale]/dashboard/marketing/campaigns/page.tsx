@@ -1,6 +1,7 @@
 import { Button } from "@/components/dashboard/button";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { Pagination } from "@/components/dashboard/pagination";
 import { StatusBadge, toneForStatus } from "@/components/dashboard/status-badge";
 import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { ApiError, apiFetch } from "@/lib/api";
@@ -12,25 +13,67 @@ import { redirect } from "next/navigation";
 import { cancelCampaignAction, deleteCampaignAction, sendNowAction } from "./actions";
 import { CampaignForm } from "./campaign-form";
 
-type Props = { params: Promise<{ locale: string }> };
+type Props = {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-export default async function CampaignsPage({ params }: Props) {
+type ListResponse = {
+  items: marketingSchemas.Campaign[];
+  nextCursor: string | null;
+  totalCount: number | null;
+  page: number | null;
+  pageSize: number | null;
+  totalPages: number | null;
+};
+
+const PAGE_SIZE = 25;
+
+function strParam(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
+}
+
+export default async function CampaignsPage({ params, searchParams }: Props) {
   const { locale } = await params;
+  const sp = await searchParams;
   setRequestLocale(locale);
   const session = await auth();
   if (!session?.user) redirect(`/${locale}/sign-in`);
   if (session.user.role === "AGENT") redirect(`/${locale}/dashboard`);
 
-  let data: { items: marketingSchemas.Campaign[]; nextCursor: string | null } = {
+  const pageNum = Math.max(1, Number(strParam(sp.page) ?? "1") || 1);
+  const qs = new URLSearchParams();
+  qs.set("page", String(pageNum));
+  qs.set("pageSize", String(PAGE_SIZE));
+
+  let data: ListResponse = {
     items: [],
     nextCursor: null,
+    totalCount: null,
+    page: null,
+    pageSize: null,
+    totalPages: null,
   };
   let listError: string | null = null;
   try {
-    data = await apiFetch("/api/dashboard/marketing/campaigns?limit=25");
+    data = await apiFetch(`/api/dashboard/marketing/campaigns?${qs.toString()}`);
   } catch (err) {
     listError = err instanceof ApiError ? err.message : "Failed to load";
   }
+
+  const hrefForPage = (n: number): string => {
+    const next = new URLSearchParams();
+    for (const [k, v] of Object.entries(sp)) {
+      if (k === "page" || k === "cursor" || v === undefined) continue;
+      next.set(k, Array.isArray(v) ? (v[0] ?? "") : v);
+    }
+    if (n > 1) next.set("page", String(n));
+    const qstr = next.toString();
+    return qstr
+      ? `/${locale}/dashboard/marketing/campaigns?${qstr}`
+      : `/${locale}/dashboard/marketing/campaigns`;
+  };
 
   return (
     <div className="mx-auto w-full max-w-6xl">
@@ -115,6 +158,21 @@ export default async function CampaignsPage({ params }: Props) {
             </ul>
           )}
         </SurfaceCard>
+
+        {data.totalPages && data.totalPages > 1 ? (
+          <div className="flex flex-col items-center gap-2">
+            <Pagination
+              page={data.page ?? pageNum}
+              totalPages={data.totalPages}
+              hrefForPage={hrefForPage}
+            />
+            {data.totalCount !== null && (
+              <p className="text-xs text-muted-foreground">
+                {data.totalCount} total · page {data.page ?? pageNum} of {data.totalPages}
+              </p>
+            )}
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -61,15 +61,45 @@ function toCampaign(r: CampaignRow): marketingSchemas.Campaign {
 
 export async function listCampaigns(
   user: AuthenticatedUser,
-  query: { cursor?: string; limit?: number; status?: marketingSchemas.CampaignStatus },
+  query: {
+    cursor?: string;
+    limit?: number;
+    page?: number;
+    pageSize?: number;
+    status?: marketingSchemas.CampaignStatus;
+  },
   queryAgencyId: string | undefined,
 ) {
   const agencyId = resolveAgencyId(user, queryAgencyId);
   const limit = Math.min(Math.max(query.limit ?? 25, 1), 100);
-  const decoded = decodeCursor(query.cursor);
 
   const where: Prisma.EmailCampaignWhereInput = { agencyId };
   if (query.status) where.status = query.status;
+
+  if (query.page) {
+    const pageSize = query.pageSize ?? limit;
+    const skip = (query.page - 1) * pageSize;
+    const [rows, totalCount] = await Promise.all([
+      prisma.emailCampaign.findMany({
+        where,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip,
+        take: pageSize,
+      }),
+      prisma.emailCampaign.count({ where }),
+    ]);
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    return {
+      items: rows.map((r) => toCampaign(r as CampaignRow)),
+      nextCursor: null,
+      totalCount,
+      page: query.page,
+      pageSize,
+      totalPages,
+    };
+  }
+
+  const decoded = decodeCursor(query.cursor);
   if (decoded) {
     where.OR = [
       { createdAt: { lt: new Date(decoded.createdAt) } },
@@ -89,6 +119,10 @@ export async function listCampaigns(
   return {
     items: slice.map((r) => toCampaign(r as CampaignRow)),
     nextCursor: hasMore && tail ? encodeCursor({ createdAt: tail.createdAt, id: tail.id }) : null,
+    totalCount: null,
+    page: null,
+    pageSize: null,
+    totalPages: null,
   };
 }
 

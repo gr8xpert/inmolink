@@ -1,6 +1,7 @@
 import { LinkButton } from "@/components/dashboard/button";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { Pagination } from "@/components/dashboard/pagination";
 import { StatusBadge, toneForStatus } from "@/components/dashboard/status-badge";
 import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { ApiError, apiFetch } from "@/lib/api";
@@ -21,7 +22,13 @@ type Props = {
 type ListResponse = {
   items: Array<propertySchemas.PropertyListItem>;
   nextCursor: string | null;
+  totalCount: number | null;
+  page: number | null;
+  pageSize: number | null;
+  totalPages: number | null;
 };
+
+const PAGE_SIZE = 20;
 
 type TypesResponse = { items: taxonomySchemas.PropertyTypeListItem[] };
 type LocationsResponse = { items: taxonomySchemas.LocationListItem[] };
@@ -50,10 +57,10 @@ export default async function PropertiesListPage({ params, searchParams }: Props
   const t = await getTranslations({ locale, namespace: "properties" });
   const sp = await searchParams;
 
+  const pageNum = Math.max(1, Number(strParam(sp.page) ?? "1") || 1);
   const qs = new URLSearchParams();
-  qs.set("limit", "20");
-  const cursor = strParam(sp.cursor);
-  if (cursor) qs.set("cursor", cursor);
+  qs.set("page", String(pageNum));
+  qs.set("pageSize", String(PAGE_SIZE));
   for (const k of FILTER_KEYS) {
     const v = strParam(sp[k]);
     if (v && v.length > 0) qs.set(k, v);
@@ -73,17 +80,16 @@ export default async function PropertiesListPage({ params, searchParams }: Props
     throw err;
   }
 
-  const nextHref = data.nextCursor
-    ? (() => {
-        const next = new URLSearchParams();
-        for (const [k, v] of Object.entries(sp)) {
-          if (k === "cursor" || v === undefined) continue;
-          next.set(k, Array.isArray(v) ? (v[0] ?? "") : v);
-        }
-        next.set("cursor", data.nextCursor);
-        return `/${locale}/dashboard/properties?${next.toString()}`;
-      })()
-    : null;
+  const hrefForPage = (n: number): string => {
+    const next = new URLSearchParams();
+    for (const [k, v] of Object.entries(sp)) {
+      if (k === "page" || k === "cursor" || v === undefined) continue;
+      next.set(k, Array.isArray(v) ? (v[0] ?? "") : v);
+    }
+    if (n > 1) next.set("page", String(n));
+    const qs = next.toString();
+    return qs ? `/${locale}/dashboard/properties?${qs}` : `/${locale}/dashboard/properties`;
+  };
 
   return (
     <div className="mx-auto w-full max-w-7xl">
@@ -169,13 +175,20 @@ export default async function PropertiesListPage({ params, searchParams }: Props
         )}
       </SurfaceCard>
 
-      {nextHref && (
-        <div className="mt-4 flex justify-end">
-          <LinkButton href={nextHref} variant="secondary">
-            {t("nextPage")} →
-          </LinkButton>
+      {data.totalPages && data.totalPages > 1 ? (
+        <div className="mt-6 flex flex-col items-center gap-2">
+          <Pagination
+            page={data.page ?? pageNum}
+            totalPages={data.totalPages}
+            hrefForPage={hrefForPage}
+          />
+          {data.totalCount !== null && (
+            <p className="text-xs text-muted-foreground">
+              {data.totalCount} total · page {data.page ?? pageNum} of {data.totalPages}
+            </p>
+          )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
