@@ -21,6 +21,7 @@
     "@inmolink/db": "workspace:*",
     "@inmolink/shared": "workspace:*",
     "@inmolink/ui": "workspace:*",
+    "lucide-react": "^0.468.0",
     "next": "^15.1.0",
     "next-intl": "^3.26.0",
     "react": "^19.0.0",

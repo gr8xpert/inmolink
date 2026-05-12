@@ -1,7 +1,11 @@
+import { Button } from "@/components/dashboard/button";
+import { EmptyState } from "@/components/dashboard/empty-state";
+import { PageHeader } from "@/components/dashboard/page-header";
+import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { ApiError, apiFetch } from "@/lib/api";
 import { auth } from "@inmolink/auth";
+import { Users } from "lucide-react";
 import { setRequestLocale } from "next-intl/server";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { deleteContactAction } from "./actions";
 import { ContactForm } from "./contact-form";
@@ -46,83 +50,68 @@ export default async function ContactsPage({ params, searchParams }: Props) {
   }
 
   return (
-    <main className="container mx-auto max-w-5xl space-y-6 p-8">
-      <header className="flex items-center justify-between border-b pb-4">
-        <div>
-          <h1 className="text-2xl font-bold">Contacts</h1>
-          <p className="text-sm text-muted-foreground">
-            Recipient pool. Tag contacts to filter audience inside campaigns.
-          </p>
-        </div>
-        <Link
-          href={`/${locale}/dashboard/marketing`}
-          className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          ← Marketing
-        </Link>
-      </header>
+    <div className="mx-auto w-full max-w-5xl">
+      <PageHeader
+        title="Contacts"
+        description="Recipient pool. Tag contacts to filter audience inside campaigns."
+      />
 
-      <form className="flex gap-2">
+      <form className="mb-6 flex flex-wrap gap-2">
         <input
           name="q"
           defaultValue={q ?? ""}
           placeholder="Filter by email / name…"
-          className="input flex-1"
+          className="input flex-1 min-w-[200px]"
         />
         <input name="tag" defaultValue={tag ?? ""} placeholder="Tag" className="input w-32" />
-        <button type="submit" className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
+        <Button type="submit" variant="secondary">
           Search
-        </button>
+        </Button>
       </form>
 
       {listError && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+        <div className="mb-4 rounded-md border border-danger/30 bg-danger-soft p-3 text-sm text-danger">
           {listError}
         </div>
       )}
 
-      <section className="rounded-md border bg-background p-4 shadow-sm">
-        <h2 className="font-semibold">Add contact</h2>
+      <SurfaceCard title="Add contact" className="mb-6">
         <ContactForm locale={locale} />
-      </section>
+      </SurfaceCard>
 
-      <section className="space-y-2">
-        {items.map((c) => (
-          <div
-            key={c.id}
-            className="flex items-center justify-between rounded-md border bg-background p-3 shadow-sm"
-          >
-            <div>
-              <p className="font-medium">
-                {[c.firstName, c.lastName].filter(Boolean).join(" ") || c.email}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {c.email}
-                {c.tags.length > 0 && <> · {c.tags.join(", ")}</>}
-                {c.unsubscribedAt && (
-                  <>
-                    {" "}
-                    · <span className="text-red-700">unsubscribed</span>
-                  </>
-                )}
-              </p>
-            </div>
-            <form action={deleteContactAction}>
-              <input type="hidden" name="id" value={c.id} />
-              <input type="hidden" name="locale" value={locale} />
-              <button
-                type="submit"
-                className="rounded-md border border-red-300 bg-red-50 px-3 py-1.5 text-xs text-red-900 hover:bg-red-100"
-              >
-                Delete
-              </button>
-            </form>
-          </div>
-        ))}
-        {items.length === 0 && !listError && (
-          <p className="text-sm text-muted-foreground">No contacts yet.</p>
+      <SurfaceCard title="Contact list" flush>
+        {items.length === 0 && !listError ? (
+          <EmptyState
+            icon={Users}
+            title="No contacts yet"
+            description="Add your first contact above to build a recipient pool."
+          />
+        ) : (
+          <ul className="divide-y divide-border">
+            {items.map((c) => (
+              <li key={c.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-foreground">
+                    {[c.firstName, c.lastName].filter(Boolean).join(" ") || c.email}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {c.email}
+                    {c.tags.length > 0 && <> · {c.tags.join(", ")}</>}
+                    {c.unsubscribedAt && <span className="text-danger"> · unsubscribed</span>}
+                  </p>
+                </div>
+                <form action={deleteContactAction}>
+                  <input type="hidden" name="id" value={c.id} />
+                  <input type="hidden" name="locale" value={locale} />
+                  <Button type="submit" size="sm" variant="secondary">
+                    Delete
+                  </Button>
+                </form>
+              </li>
+            ))}
+          </ul>
         )}
-      </section>
-    </main>
+      </SurfaceCard>
+    </div>
   );
 }

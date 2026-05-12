@@ -1,3 +1,7 @@
+import { LinkButton } from "@/components/dashboard/button";
+import { PageHeader } from "@/components/dashboard/page-header";
+import { StatusBadge, toneForStatus } from "@/components/dashboard/status-badge";
+import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { apiFetch } from "@/lib/api";
 import { auth } from "@inmolink/auth";
 import type { viewingRequestSchemas } from "@inmolink/shared";
@@ -7,16 +11,6 @@ import { redirect } from "next/navigation";
 import { ViewingActions } from "./viewing-actions";
 
 type Props = { params: Promise<{ locale: string; id: string }> };
-
-const STATUS_COLORS: Record<string, string> = {
-  PENDING: "bg-amber-100 text-amber-800",
-  ACCEPTED: "bg-emerald-100 text-emerald-800",
-  DECLINED: "bg-rose-100 text-rose-800",
-  RESCHEDULED: "bg-sky-100 text-sky-800",
-  CANCELLED: "bg-zinc-100 text-zinc-700",
-  COMPLETED: "bg-violet-100 text-violet-800",
-  EXPIRED: "bg-zinc-100 text-zinc-500",
-};
 
 export default async function ViewingDetailPage({ params }: Props) {
   const { locale, id } = await params;
@@ -36,135 +30,122 @@ export default async function ViewingDetailPage({ params }: Props) {
   const counterparty = isOwner ? v.introducer : v.owner;
 
   return (
-    <main className="container mx-auto max-w-4xl space-y-6 p-8">
-      <header className="flex items-center justify-between border-b pb-4">
-        <div className="space-y-1">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            {t("title")} · {v.id.slice(0, 8)}
-          </p>
-          <h1 className="text-2xl font-bold">{v.property.title ?? v.property.id}</h1>
-          <span
-            className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[v.status] ?? "bg-zinc-100"}`}
-          >
-            {t(`status.${v.status}`)}
-          </span>
-        </div>
-        <Link
-          href={`/${locale}/dashboard/viewings`}
-          className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          ← {t("back")}
-        </Link>
-      </header>
+    <div className="mx-auto w-full max-w-4xl">
+      <PageHeader
+        title={v.property.title ?? v.property.id}
+        description={`${t("title")} · ${v.id.slice(0, 8)}`}
+        actions={<StatusBadge label={t(`status.${v.status}`)} tone={toneForStatus(v.status)} />}
+      />
 
-      <section className="grid gap-6 sm:grid-cols-2">
-        <div className="space-y-3 rounded-md border bg-background p-6 shadow-sm">
-          <h2 className="text-lg font-semibold">{t("detail.parties")}</h2>
-          <p>
-            <span className="text-muted-foreground">{t("detail.owner")}: </span>
-            <Link href={`/${locale}/agent/${v.owner.slug}`} className="hover:underline">
-              {v.owner.firstName} {v.owner.lastName}
-            </Link>
-          </p>
-          <p>
-            <span className="text-muted-foreground">{t("detail.introducer")}: </span>
-            <Link href={`/${locale}/agent/${v.introducer.slug}`} className="hover:underline">
-              {v.introducer.firstName} {v.introducer.lastName}
-            </Link>
-          </p>
-        </div>
-
-        <div className="space-y-3 rounded-md border bg-background p-6 shadow-sm">
-          <h2 className="text-lg font-semibold">{t("detail.client")}</h2>
-          <p className="text-xs text-muted-foreground">{t("detail.encryptedNote")}</p>
-          <dl className="space-y-1 text-sm">
-            <div className="flex gap-2">
-              <dt className="w-20 text-muted-foreground">{t("detail.name")}</dt>
-              <dd className="font-medium">{v.client.name}</dd>
+      <div className="space-y-6">
+        <div className="grid gap-6 sm:grid-cols-2">
+          <SurfaceCard title={t("detail.parties")}>
+            <div className="space-y-2 text-sm">
+              <p>
+                <span className="text-muted-foreground">{t("detail.owner")}: </span>
+                <Link href={`/${locale}/agent/${v.owner.slug}`} className="hover:underline">
+                  {v.owner.firstName} {v.owner.lastName}
+                </Link>
+              </p>
+              <p>
+                <span className="text-muted-foreground">{t("detail.introducer")}: </span>
+                <Link href={`/${locale}/agent/${v.introducer.slug}`} className="hover:underline">
+                  {v.introducer.firstName} {v.introducer.lastName}
+                </Link>
+              </p>
             </div>
-            {v.client.email && (
+          </SurfaceCard>
+
+          <SurfaceCard title={t("detail.client")} description={t("detail.encryptedNote")}>
+            <dl className="space-y-1 text-sm">
               <div className="flex gap-2">
-                <dt className="w-20 text-muted-foreground">{t("detail.email")}</dt>
+                <dt className="w-20 text-muted-foreground">{t("detail.name")}</dt>
+                <dd className="font-medium">{v.client.name}</dd>
+              </div>
+              {v.client.email && (
+                <div className="flex gap-2">
+                  <dt className="w-20 text-muted-foreground">{t("detail.email")}</dt>
+                  <dd>
+                    <a href={`mailto:${v.client.email}`} className="hover:underline">
+                      {v.client.email}
+                    </a>
+                  </dd>
+                </div>
+              )}
+              {v.client.phone && (
+                <div className="flex gap-2">
+                  <dt className="w-20 text-muted-foreground">{t("detail.phone")}</dt>
+                  <dd>
+                    <a
+                      href={`https://wa.me/${v.client.phone.replace(/\D+/g, "")}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="hover:underline"
+                    >
+                      {v.client.phone}
+                    </a>{" "}
+                    <span className="text-xs text-muted-foreground">
+                      {t("detail.whatsappHint")}
+                    </span>
+                  </dd>
+                </div>
+              )}
+              {v.client.notes && (
+                <div className="flex gap-2">
+                  <dt className="w-20 text-muted-foreground">{t("detail.notes")}</dt>
+                  <dd>{v.client.notes}</dd>
+                </div>
+              )}
+            </dl>
+          </SurfaceCard>
+        </div>
+
+        <SurfaceCard title={t("detail.schedule")}>
+          <dl className="space-y-1 text-sm">
+            {v.scheduledAt ? (
+              <div className="flex gap-2">
+                <dt className="w-32 text-muted-foreground">{t("scheduled")}</dt>
+                <dd className="font-medium">
+                  {formatDate(v.scheduledAt)}
+                  {v.durationMinutes ? ` · ${v.durationMinutes}min` : ""}
+                  {v.meetingPoint ? ` · ${v.meetingPoint}` : ""}
+                </dd>
+              </div>
+            ) : (
+              <div>
+                <dt className="text-muted-foreground">{t("detail.preferredDates")}</dt>
                 <dd>
-                  <a href={`mailto:${v.client.email}`} className="hover:underline">
-                    {v.client.email}
-                  </a>
+                  <ul className="mt-1 list-disc pl-5">
+                    {v.preferredDates.map((d) => (
+                      <li key={d}>{formatDate(d)}</li>
+                    ))}
+                  </ul>
                 </dd>
               </div>
             )}
-            {v.client.phone && (
+            <div className="flex gap-2">
+              <dt className="w-32 text-muted-foreground">{t("detail.expires")}</dt>
+              <dd>{formatDate(v.expiresAt)}</dd>
+            </div>
+            {v.outcome && (
               <div className="flex gap-2">
-                <dt className="w-20 text-muted-foreground">{t("detail.phone")}</dt>
-                <dd>
-                  <a
-                    href={`https://wa.me/${v.client.phone.replace(/\D+/g, "")}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="hover:underline"
-                  >
-                    {v.client.phone}
-                  </a>{" "}
-                  <span className="text-xs text-muted-foreground">{t("detail.whatsappHint")}</span>
-                </dd>
-              </div>
-            )}
-            {v.client.notes && (
-              <div className="flex gap-2">
-                <dt className="w-20 text-muted-foreground">{t("detail.notes")}</dt>
-                <dd>{v.client.notes}</dd>
+                <dt className="w-32 text-muted-foreground">{t("detail.outcome")}</dt>
+                <dd>{t(`outcome.${v.outcome}`)}</dd>
               </div>
             )}
           </dl>
-        </div>
-      </section>
+        </SurfaceCard>
 
-      <section className="space-y-3 rounded-md border bg-background p-6 shadow-sm">
-        <h2 className="text-lg font-semibold">{t("detail.schedule")}</h2>
-        <dl className="space-y-1 text-sm">
-          {v.scheduledAt ? (
-            <div className="flex gap-2">
-              <dt className="w-32 text-muted-foreground">{t("scheduled")}</dt>
-              <dd className="font-medium">
-                {formatDate(v.scheduledAt)}
-                {v.durationMinutes ? ` · ${v.durationMinutes}min` : ""}
-                {v.meetingPoint ? ` · ${v.meetingPoint}` : ""}
-              </dd>
-            </div>
-          ) : (
-            <div>
-              <dt className="text-muted-foreground">{t("detail.preferredDates")}</dt>
-              <dd>
-                <ul className="mt-1 list-disc pl-5">
-                  {v.preferredDates.map((d) => (
-                    <li key={d}>{formatDate(d)}</li>
-                  ))}
-                </ul>
-              </dd>
-            </div>
-          )}
-          <div className="flex gap-2">
-            <dt className="w-32 text-muted-foreground">{t("detail.expires")}</dt>
-            <dd>{formatDate(v.expiresAt)}</dd>
+        <ViewingActions locale={locale} viewing={v} isOwner={isOwner} />
+
+        {v.chatThreadId && (
+          <div>
+            <LinkButton href={`/${locale}/dashboard/chat/${v.chatThreadId}`} variant="secondary">
+              {t("detail.openChat", { name: `${counterparty.firstName} ${counterparty.lastName}` })}
+            </LinkButton>
           </div>
-          {v.outcome && (
-            <div className="flex gap-2">
-              <dt className="w-32 text-muted-foreground">{t("detail.outcome")}</dt>
-              <dd>{t(`outcome.${v.outcome}`)}</dd>
-            </div>
-          )}
-        </dl>
-      </section>
-
-      <ViewingActions locale={locale} viewing={v} isOwner={isOwner} />
-
-      {v.chatThreadId && (
-        <Link
-          href={`/${locale}/dashboard/chat/${v.chatThreadId}`}
-          className="inline-block rounded-md border bg-background px-4 py-2 text-sm hover:bg-muted"
-        >
-          {t("detail.openChat", { name: `${counterparty.firstName} ${counterparty.lastName}` })}
-        </Link>
-      )}
-    </main>
+        )}
+      </div>
+    </div>
   );
 }

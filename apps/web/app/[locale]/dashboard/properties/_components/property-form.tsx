@@ -357,7 +357,7 @@ export function PropertyForm(props: Props) {
           <select className="input" {...form.register("locationId")}>
             {locations.map((l) => (
               <option key={l.id} value={l.id}>
-                {l.countryCode} · {l.name} ({l.level})
+                {l.name} ({l.level.toLowerCase()})
               </option>
             ))}
           </select>

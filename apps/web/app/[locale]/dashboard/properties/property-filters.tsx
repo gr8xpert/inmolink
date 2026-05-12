@@ -145,7 +145,7 @@ export function PropertyFilters({ locale, propertyTypes, locations, initial }: P
           <option value="">Anywhere</option>
           {locations.map((l) => (
             <option key={l.id} value={l.id}>
-              {l.countryCode} · {l.name} ({l.level})
+              {l.name} ({l.level.toLowerCase()})
             </option>
           ))}
         </select>

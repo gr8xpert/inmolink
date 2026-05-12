@@ -1,8 +1,8 @@
+import { PageHeader } from "@/components/dashboard/page-header";
 import { ApiError, apiFetch } from "@/lib/api";
 import { auth } from "@inmolink/auth";
 import type { adminPropertyTypeSchemas } from "@inmolink/shared";
 import { setRequestLocale } from "next-intl/server";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AdminPropertyTypes } from "./admin-property-types";
 
@@ -34,23 +34,13 @@ export default async function AdminPropertyTypesPage({ params }: Props) {
   }
 
   return (
-    <main className="container mx-auto max-w-5xl space-y-6 p-8">
-      <header className="flex items-center justify-between border-b pb-4">
-        <div>
-          <h1 className="text-2xl font-bold">Property types</h1>
-          <p className="text-sm text-muted-foreground">
-            Groups + types with translations, Lucide icons (AI-suggested), and reordering.
-          </p>
-        </div>
-        <Link
-          href={`/${locale}/dashboard/admin`}
-          className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          ← Admin
-        </Link>
-      </header>
+    <div className="mx-auto w-full max-w-5xl">
+      <PageHeader
+        title="Property types"
+        description="Groups + types with translations, Lucide icons (AI-suggested), and reordering."
+      />
 
       <AdminPropertyTypes locale={locale} groups={groups.items} types={types.items} />
-    </main>
+    </div>
   );
 }

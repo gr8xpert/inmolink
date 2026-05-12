@@ -1,8 +1,9 @@
+import { PageHeader } from "@/components/dashboard/page-header";
+import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { ApiError, apiFetch } from "@/lib/api";
 import { auth } from "@inmolink/auth";
 import type { taxonomySchemas } from "@inmolink/shared";
 import { setRequestLocale } from "next-intl/server";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PropertyForm } from "../_components/property-form";
 
@@ -33,28 +34,20 @@ export default async function NewPropertyPage({ params }: Props) {
   }
 
   return (
-    <main className="container mx-auto max-w-3xl space-y-6 p-8">
-      <header className="flex items-center justify-between border-b pb-4">
-        <div>
-          <h1 className="text-2xl font-bold">New property</h1>
-          <p className="text-sm text-muted-foreground">
-            Required fields: transaction, price, type, location, English title + description.
-          </p>
-        </div>
-        <Link
-          href={`/${locale}/dashboard/properties`}
-          className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          Cancel
-        </Link>
-      </header>
-
-      <PropertyForm
-        mode="create"
-        locale={locale}
-        propertyTypes={types.items}
-        locations={locations.items}
+    <div className="mx-auto w-full max-w-3xl">
+      <PageHeader
+        title="New property"
+        description="Required fields: transaction, price, type, location, English title + description."
       />
-    </main>
+
+      <SurfaceCard>
+        <PropertyForm
+          mode="create"
+          locale={locale}
+          propertyTypes={types.items}
+          locations={locations.items}
+        />
+      </SurfaceCard>
+    </div>
   );
 }

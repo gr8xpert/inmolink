@@ -1,7 +1,13 @@
+import { LinkButton } from "@/components/dashboard/button";
+import { EmptyState } from "@/components/dashboard/empty-state";
+import { PageHeader } from "@/components/dashboard/page-header";
+import { StatusBadge, toneForStatus } from "@/components/dashboard/status-badge";
+import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { ApiError, apiFetch } from "@/lib/api";
 import { formatDate, formatMoney } from "@/lib/format";
 import { auth } from "@inmolink/auth";
 import type { propertySchemas, taxonomySchemas } from "@inmolink/shared";
+import { Home } from "lucide-react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -34,15 +40,6 @@ function strParam(v: string | string[] | undefined): string | undefined {
   return v;
 }
 
-const STATUS_CHIP: Record<string, string> = {
-  DRAFT: "bg-zinc-100 text-zinc-800",
-  ACTIVE: "bg-emerald-100 text-emerald-800",
-  UNDER_OFFER: "bg-amber-100 text-amber-800",
-  SOLD: "bg-blue-100 text-blue-800",
-  RENTED: "bg-blue-100 text-blue-800",
-  WITHDRAWN: "bg-rose-100 text-rose-800",
-};
-
 export default async function PropertiesListPage({ params, searchParams }: Props) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -53,8 +50,6 @@ export default async function PropertiesListPage({ params, searchParams }: Props
   const t = await getTranslations({ locale, namespace: "properties" });
   const sp = await searchParams;
 
-  // Build the api query from URL searchParams, forwarding only fields the
-  // api list schema understands. Cursor is included when present.
   const qs = new URLSearchParams();
   qs.set("limit", "20");
   const cursor = strParam(sp.cursor);
@@ -78,8 +73,6 @@ export default async function PropertiesListPage({ params, searchParams }: Props
     throw err;
   }
 
-  // Carry-forward filters into the next-page link so pagination doesn't
-  // reset the user's filters.
   const nextHref = data.nextCursor
     ? (() => {
         const next = new URLSearchParams();
@@ -93,97 +86,96 @@ export default async function PropertiesListPage({ params, searchParams }: Props
     : null;
 
   return (
-    <main className="container mx-auto max-w-5xl space-y-6 p-8">
-      <header className="flex items-center justify-between border-b pb-4">
-        <div>
-          <h1 className="text-2xl font-bold">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            href={`/${locale}/dashboard/properties/new`}
-            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90"
-          >
-            {t("createNew")}
-          </Link>
-          <Link
-            href={`/${locale}/dashboard`}
-            className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-          >
-            {t("backToDashboard")}
-          </Link>
-        </div>
-      </header>
-
-      <PropertyFilters
-        locale={locale}
-        propertyTypes={types.items}
-        locations={locations.items}
-        initial={{
-          q: strParam(sp.q) ?? "",
-          status: strParam(sp.status) ?? "",
-          visibility: strParam(sp.visibility) ?? "",
-          transactionType: strParam(sp.transactionType) ?? "",
-          propertyTypeId: strParam(sp.propertyTypeId) ?? "",
-          locationId: strParam(sp.locationId) ?? "",
-        }}
+    <div className="mx-auto w-full max-w-7xl">
+      <PageHeader
+        title={t("title")}
+        description={t("subtitle")}
+        actions={
+          <LinkButton href={`/${locale}/dashboard/properties/new`}>+ {t("createNew")}</LinkButton>
+        }
       />
 
-      {data.items.length === 0 ? (
-        <p className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-          {t("empty")}
-        </p>
-      ) : (
-        <ul className="grid gap-3">
-          {data.items.map((p) => (
-            <li
-              key={p.id}
-              className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
-            >
-              <Link href={`/${locale}/dashboard/properties/${p.id}`} className="block space-y-3">
-                <div className="flex items-baseline justify-between gap-3">
-                  <p className="font-mono text-xs text-muted-foreground">#{p.id.slice(0, 8)}</p>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_CHIP[p.status] ?? "bg-zinc-100 text-zinc-800"}`}
-                  >
-                    {t(`status.${p.status}`)}
-                  </span>
-                </div>
-                <p className="text-xl font-semibold">
-                  {formatMoney(p.priceCents, p.currency, locale)}
-                  {p.priceType === "from" && (
-                    <span className="ml-1 text-sm font-normal text-muted-foreground">
-                      {t("priceFrom")}
-                    </span>
-                  )}
-                  {p.priceType === "poa" && (
-                    <span className="ml-1 text-sm font-normal text-muted-foreground">
-                      {t("pricePoa")}
-                    </span>
-                  )}
-                </p>
-                <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                  <span>{t(`transaction.${p.transactionType}`)}</span>
-                  {p.bedrooms !== null && <span>· {t("bedrooms", { n: p.bedrooms })}</span>}
-                  {p.bathrooms !== null && <span>· {t("bathrooms", { n: p.bathrooms })}</span>}
-                  {p.areaM2 !== null && <span>· {p.areaM2} m²</span>}
-                  <span className="ml-auto text-xs">
-                    {t("created")} {formatDate(p.createdAt, locale)}
-                  </span>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="mb-6">
+        <PropertyFilters
+          locale={locale}
+          propertyTypes={types.items}
+          locations={locations.items}
+          initial={{
+            q: strParam(sp.q) ?? "",
+            status: strParam(sp.status) ?? "",
+            visibility: strParam(sp.visibility) ?? "",
+            transactionType: strParam(sp.transactionType) ?? "",
+            propertyTypeId: strParam(sp.propertyTypeId) ?? "",
+            locationId: strParam(sp.locationId) ?? "",
+          }}
+        />
+      </div>
+
+      <SurfaceCard flush>
+        {data.items.length === 0 ? (
+          <EmptyState
+            icon={Home}
+            title={t("empty")}
+            cta={{ label: `+ ${t("createNew")}`, href: `/${locale}/dashboard/properties/new` }}
+          />
+        ) : (
+          <ul className="divide-y divide-border">
+            {data.items.map((p) => (
+              <li key={p.id}>
+                <Link
+                  href={`/${locale}/dashboard/properties/${p.id}`}
+                  className="block px-5 py-4 transition hover:bg-muted/40"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-mono text-[11px] text-muted-foreground">
+                          #{p.id.slice(0, 8)}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {t(`transaction.${p.transactionType}`)}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 text-lg font-semibold text-foreground">
+                        {formatMoney(p.priceCents, p.currency, locale)}
+                        {p.priceType === "from" && (
+                          <span className="ml-1 text-sm font-normal text-muted-foreground">
+                            {t("priceFrom")}
+                          </span>
+                        )}
+                        {p.priceType === "poa" && (
+                          <span className="ml-1 text-sm font-normal text-muted-foreground">
+                            {t("pricePoa")}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                        {p.bedrooms !== null && <span>{t("bedrooms", { n: p.bedrooms })}</span>}
+                        {p.bathrooms !== null && (
+                          <span>· {t("bathrooms", { n: p.bathrooms })}</span>
+                        )}
+                        {p.areaM2 !== null && <span>· {p.areaM2} m²</span>}
+                        <span>
+                          · {t("created")} {formatDate(p.createdAt, locale)}
+                        </span>
+                      </div>
+                    </div>
+                    <StatusBadge label={t(`status.${p.status}`)} tone={toneForStatus(p.status)} />
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </SurfaceCard>
 
       {nextHref && (
-        <div className="flex justify-end">
-          <Link href={nextHref} className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
-            {t("nextPage")}
-          </Link>
+        <div className="mt-4 flex justify-end">
+          <LinkButton href={nextHref} variant="secondary">
+            {t("nextPage")} →
+          </LinkButton>
         </div>
       )}
-    </main>
+    </div>
   );
 }

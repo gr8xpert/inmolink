@@ -1,6 +1,21 @@
+import { HubTile } from "@/components/dashboard/hub-tile";
+import { PageHeader } from "@/components/dashboard/page-header";
+import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { auth } from "@inmolink/auth";
+import {
+  Activity,
+  AlertTriangle,
+  CreditCard,
+  Inbox,
+  LifeBuoy,
+  Link2,
+  MapPin,
+  Sparkles,
+  Star,
+  Tag,
+  Webhook,
+} from "lucide-react";
 import { setRequestLocale } from "next-intl/server";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SitemapRegenerateButton } from "./sitemap-button";
 
@@ -14,161 +29,96 @@ export default async function AdminLandingPage({ params }: Props) {
 
   const session = await auth();
   if (!session?.user) redirect(`/${locale}/sign-in`);
-  // Match the api's requireSuperAdmin gate. Defence-in-depth — the api
-  // also enforces, but rendering an empty admin shell for non-super-admins
-  // is just noise.
   if (session.user.role !== "SUPER_ADMIN") {
     redirect(`/${locale}/dashboard`);
   }
 
   return (
-    <main className="container mx-auto max-w-4xl space-y-6 p-8">
-      <header className="flex items-center justify-between border-b pb-4">
-        <div>
-          <h1 className="text-2xl font-bold">Admin</h1>
-          <p className="text-sm text-muted-foreground">
-            Super-admin curation surface. Sprint 2 — taxonomy management.
-          </p>
-        </div>
-        <Link
-          href={`/${locale}/dashboard`}
-          className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          Back to dashboard
-        </Link>
-      </header>
+    <div className="mx-auto w-full max-w-7xl">
+      <PageHeader title="Admin console" description="Super-admin curation surface." />
 
-      <section className="grid gap-3 sm:grid-cols-2">
-        <Link
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <HubTile
           href={`/${locale}/dashboard/admin/property-types`}
-          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
-        >
-          <h2 className="font-semibold">Property types</h2>
-          <p className="text-sm text-muted-foreground">
-            Curate the PropertyTypeGroup + PropertyType taxonomy. Translations, icon, AI suggester.
-          </p>
-        </Link>
-
-        <Link
+          title="Property types"
+          description="PropertyTypeGroup + PropertyType taxonomy. Translations + AI icon suggester."
+          icon={Tag}
+        />
+        <HubTile
           href={`/${locale}/dashboard/admin/features`}
-          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
-        >
-          <h2 className="font-semibold">Features</h2>
-          <p className="text-sm text-muted-foreground">
-            Curate the amenity catalog (pool, parking, sea view, …). Translations + Lucide icons +
-            AI suggester.
-          </p>
-        </Link>
-
-        <Link
+          title="Features"
+          description="Amenity catalog. Translations, Lucide icons, AI suggester."
+          icon={Sparkles}
+        />
+        <HubTile
           href={`/${locale}/dashboard/admin/locations`}
-          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
-        >
-          <h2 className="font-semibold">Locations</h2>
-          <p className="text-sm text-muted-foreground">
-            4-level tree (Country → Region → City → Area). Translations + lat/long + SEO meta.
-          </p>
-        </Link>
-
-        <Link
+          title="Locations"
+          description="Country → Region → City → Area tree. Translations + lat/long + SEO meta."
+          icon={MapPin}
+        />
+        <HubTile
           href={`/${locale}/dashboard/admin/location-groups`}
-          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
-        >
-          <h2 className="font-semibold">Location groups</h2>
-          <p className="text-sm text-muted-foreground">
-            Editorial bundles like &ldquo;Costa del Sol&rdquo;. Translations + member picker +
-            per-member reorder.
-          </p>
-        </Link>
-
-        <Link
+          title="Location groups"
+          description="Editorial bundles. Translations + member picker + reorder."
+          icon={MapPin}
+        />
+        <HubTile
           href={`/${locale}/dashboard/admin/feed-type-maps`}
-          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
-        >
-          <h2 className="font-semibold">Feed type mappings</h2>
-          <p className="text-sm text-muted-foreground">
-            Map raw connector labels (Kyero "Townhouse", Resale "Adosado", …) to canonical property
-            types so imports route correctly.
-          </p>
-        </Link>
-
-        <Link
+          title="Feed type mappings"
+          description="Map raw connector labels to canonical property types."
+          icon={Link2}
+        />
+        <HubTile
           href={`/${locale}/dashboard/admin/disputes`}
-          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
-        >
-          <h2 className="font-semibold">Disputes queue</h2>
-          <p className="text-sm text-muted-foreground">
-            Resolve deals where the listing agent and introducer disagree. Each resolution is
-            audit-logged.
-          </p>
-        </Link>
-
-        <Link
+          title="Disputes queue"
+          description="Resolve deals where listing agent and introducer disagree."
+          icon={AlertTriangle}
+        />
+        <HubTile
           href={`/${locale}/dashboard/admin/billing`}
-          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
-        >
-          <h2 className="font-semibold">Billing &amp; grants</h2>
-          <p className="text-sm text-muted-foreground">
-            Browse agency subscriptions; manually grant a plan tier (with optional expiry) or revoke
-            back to FREE.
-          </p>
-        </Link>
-
-        <Link
+          title="Billing & grants"
+          description="Browse subscriptions, grant or revoke plan tiers."
+          icon={CreditCard}
+        />
+        <HubTile
           href={`/${locale}/dashboard/admin/featured-listings`}
-          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
-        >
-          <h2 className="font-semibold">Featured listings</h2>
-          <p className="text-sm text-muted-foreground">
-            Curate the homepage / location / search / agency-profile featured slots. PRO-only
-            agencies eligible.
-          </p>
-        </Link>
-
-        <Link
+          title="Featured listings"
+          description="Curate homepage / location / agency-profile slots. PRO-only eligible."
+          icon={Star}
+        />
+        <HubTile
           href={`/${locale}/dashboard/tickets`}
-          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
-        >
-          <h2 className="font-semibold">Tickets queue</h2>
-          <p className="text-sm text-muted-foreground">
-            Triage support tickets from agents. Reply, assign, and walk the OPEN → IN_PROGRESS →
-            RESOLVED → CLOSED state machine.
-          </p>
-        </Link>
-
-        <Link
+          title="Tickets queue"
+          description="Triage support tickets from agents."
+          icon={LifeBuoy}
+        />
+        <HubTile
           href={`/${locale}/dashboard/admin/audit-log`}
-          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
-        >
-          <h2 className="font-semibold">Audit log</h2>
-          <p className="text-sm text-muted-foreground">
-            Security-sensitive events — logins, password changes, plan grants, dispute resolutions.
-            Filterable by event, actor, agency, and target.
-          </p>
-        </Link>
-
-        <Link
+          title="Audit log"
+          description="Security-sensitive events. Filterable by event, actor, agency, target."
+          icon={Activity}
+        />
+        <HubTile
           href={`/${locale}/dashboard/admin/webhook-deliveries`}
-          className="rounded-md border bg-background p-4 shadow-sm transition hover:bg-muted/30"
-        >
-          <h2 className="font-semibold">Webhook deliveries</h2>
-          <p className="text-sm text-muted-foreground">
-            Inspect every outbound delivery across agencies. Filter by status, event type, or
-            agency. Replay any delivery on demand.
-          </p>
-        </Link>
-      </section>
+          title="Webhook deliveries"
+          description="Every outbound delivery across agencies. Filter, replay."
+          icon={Webhook}
+        />
+        <HubTile
+          href={`/${locale}/dashboard/notifications`}
+          title="Notifications"
+          description="Activity feed across your account."
+          icon={Inbox}
+        />
+      </div>
 
-      <section className="space-y-3 rounded-md border bg-muted/30 p-4">
-        <div>
-          <h2 className="font-semibold">Sitemap</h2>
-          <p className="text-sm text-muted-foreground">
-            The worker regenerates daily at 02:00 UTC. Trigger manually if a publishing burst needs
-            to land in search results faster.
-          </p>
-        </div>
+      <SurfaceCard
+        title="Sitemap"
+        description="Worker regenerates daily at 02:00 UTC. Trigger manually to push a publishing burst into search results faster."
+        className="mt-6"
+      >
         <SitemapRegenerateButton locale={locale} />
-      </section>
-    </main>
+      </SurfaceCard>
+    </div>
   );
 }

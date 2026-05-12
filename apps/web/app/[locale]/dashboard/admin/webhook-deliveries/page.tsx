@@ -1,3 +1,7 @@
+import { Button, LinkButton } from "@/components/dashboard/button";
+import { PageHeader } from "@/components/dashboard/page-header";
+import { StatusBadge, toneForStatus } from "@/components/dashboard/status-badge";
+import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { ApiError, apiFetch } from "@/lib/api";
 import { auth } from "@inmolink/auth";
 import type { webhookSchemas } from "@inmolink/shared";
@@ -13,13 +17,6 @@ type Props = {
     eventType?: string;
     agencyId?: string;
   }>;
-};
-
-const STATUS_BADGE: Record<webhookSchemas.WebhookDeliveryStatus, string> = {
-  PENDING: "bg-blue-100 text-blue-900",
-  SUCCEEDED: "bg-emerald-100 text-emerald-900",
-  FAILED: "bg-amber-100 text-amber-900",
-  DEAD_LETTERED: "bg-red-100 text-red-900",
 };
 
 const EVENT_TYPES = [
@@ -67,129 +64,120 @@ export default async function WebhookDeliveriesPage({ params, searchParams }: Pr
   }
 
   return (
-    <main className="container mx-auto max-w-6xl space-y-6 p-8">
-      <header className="flex items-center justify-between border-b pb-4">
-        <div>
-          <h1 className="text-2xl font-bold">Webhook deliveries</h1>
-          <p className="text-sm text-muted-foreground">
-            Outbound webhook deliveries across every agency. Click a row to see attempt history;
-            replay any delivery (succeeded or dead-lettered) from there.
-          </p>
-        </div>
-        <Link
-          href={`/${locale}/dashboard/admin`}
-          className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          ← Admin
-        </Link>
-      </header>
+    <div className="mx-auto w-full max-w-6xl">
+      <PageHeader
+        title="Webhook deliveries"
+        description="Outbound webhook deliveries across every agency. Click a row to see attempt history; replay any delivery (succeeded or dead-lettered) from there."
+      />
 
-      <form className="flex flex-wrap gap-2">
-        <select name="status" defaultValue={status ?? ""} className="input">
-          <option value="">All statuses</option>
-          <option value="PENDING">Pending</option>
-          <option value="SUCCEEDED">Succeeded</option>
-          <option value="FAILED">Failed</option>
-          <option value="DEAD_LETTERED">Dead-lettered</option>
-        </select>
-        <select name="eventType" defaultValue={eventType ?? ""} className="input">
-          <option value="">All event types</option>
-          {EVENT_TYPES.map((e) => (
-            <option key={e} value={e}>
-              {e}
-            </option>
-          ))}
-        </select>
-        <input
-          name="agencyId"
-          defaultValue={agencyId ?? ""}
-          placeholder="agencyId"
-          className="input"
-        />
-        <button type="submit" className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
-          Filter
-        </button>
-      </form>
+      <div className="space-y-6">
+        <SurfaceCard>
+          <form className="flex flex-wrap gap-2">
+            <select name="status" defaultValue={status ?? ""} className="input">
+              <option value="">All statuses</option>
+              <option value="PENDING">Pending</option>
+              <option value="SUCCEEDED">Succeeded</option>
+              <option value="FAILED">Failed</option>
+              <option value="DEAD_LETTERED">Dead-lettered</option>
+            </select>
+            <select name="eventType" defaultValue={eventType ?? ""} className="input">
+              <option value="">All event types</option>
+              {EVENT_TYPES.map((e) => (
+                <option key={e} value={e}>
+                  {e}
+                </option>
+              ))}
+            </select>
+            <input
+              name="agencyId"
+              defaultValue={agencyId ?? ""}
+              placeholder="agencyId"
+              className="input"
+            />
+            <Button type="submit" variant="secondary">
+              Filter
+            </Button>
+          </form>
+        </SurfaceCard>
 
-      {listError && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
-          {listError}
-        </div>
-      )}
+        {listError && (
+          <div className="rounded-md border border-danger/30 bg-danger-soft p-3 text-sm text-danger">
+            {listError}
+          </div>
+        )}
 
-      <section className="overflow-x-auto rounded-md border bg-background shadow-sm">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-3 py-2">When</th>
-              <th className="px-3 py-2">Event</th>
-              <th className="px-3 py-2">Endpoint</th>
-              <th className="px-3 py-2">Agency</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2 text-right">Attempts</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {data.items.map((d) => (
-              <tr key={d.id} className="border-t hover:bg-muted/30">
-                <td className="px-3 py-2 text-xs">
-                  {new Date(d.createdAt).toLocaleString(locale)}
-                </td>
-                <td className="px-3 py-2">
-                  <span className="rounded bg-muted px-2 py-0.5 text-xs font-semibold uppercase">
-                    {d.eventType}
-                  </span>
-                </td>
-                <td className="px-3 py-2 break-all font-mono text-[10px]">{d.endpointUrl}</td>
-                <td className="px-3 py-2 text-xs">{d.agencyName ?? d.agencyId.slice(0, 12)}</td>
-                <td className="px-3 py-2">
-                  <span
-                    className={`rounded px-2 py-0.5 text-xs font-semibold uppercase ${STATUS_BADGE[d.status]}`}
-                  >
-                    {d.status}
-                  </span>
-                </td>
-                <td className="px-3 py-2 text-right text-xs">{d.attemptCount}</td>
-                <td className="px-3 py-2">
-                  <Link
-                    href={`/${locale}/dashboard/admin/webhook-deliveries/${d.id}`}
-                    className="text-xs text-blue-700 hover:underline"
-                  >
-                    View
-                  </Link>
-                </td>
-              </tr>
-            ))}
-            {data.items.length === 0 && !listError && (
-              <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-sm text-muted-foreground">
-                  No deliveries.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </section>
+        <SurfaceCard flush>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-5 py-3">When</th>
+                  <th className="px-5 py-3">Event</th>
+                  <th className="px-5 py-3">Endpoint</th>
+                  <th className="px-5 py-3">Agency</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3 text-right">Attempts</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {data.items.map((d) => (
+                  <tr key={d.id} className="border-t border-border hover:bg-muted/30">
+                    <td className="px-5 py-3 text-xs">
+                      {new Date(d.createdAt).toLocaleString(locale)}
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className="rounded bg-muted px-2 py-0.5 text-xs font-semibold uppercase">
+                        {d.eventType}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 break-all font-mono text-[10px]">{d.endpointUrl}</td>
+                    <td className="px-5 py-3 text-xs">{d.agencyName ?? d.agencyId.slice(0, 12)}</td>
+                    <td className="px-5 py-3">
+                      <StatusBadge label={d.status} tone={toneForStatus(d.status)} />
+                    </td>
+                    <td className="px-5 py-3 text-right text-xs">{d.attemptCount}</td>
+                    <td className="px-5 py-3">
+                      <Link
+                        href={`/${locale}/dashboard/admin/webhook-deliveries/${d.id}`}
+                        className="text-xs font-medium text-primary hover:underline"
+                      >
+                        View →
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+                {data.items.length === 0 && !listError && (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-6 text-center text-sm text-muted-foreground">
+                      No deliveries.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </SurfaceCard>
 
-      {data.nextCursor && (
-        <div className="flex justify-end">
-          <Link
-            href={{
-              pathname: `/${locale}/dashboard/admin/webhook-deliveries`,
-              query: {
-                ...(status ? { status } : {}),
-                ...(eventType ? { eventType } : {}),
-                ...(agencyId ? { agencyId } : {}),
-                cursor: data.nextCursor,
-              },
-            }}
-            className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-          >
-            Next →
-          </Link>
-        </div>
-      )}
-    </main>
+        {data.nextCursor && (
+          <div className="flex justify-end">
+            <LinkButton
+              variant="secondary"
+              href={{
+                pathname: `/${locale}/dashboard/admin/webhook-deliveries`,
+                query: {
+                  ...(status ? { status } : {}),
+                  ...(eventType ? { eventType } : {}),
+                  ...(agencyId ? { agencyId } : {}),
+                  cursor: data.nextCursor,
+                },
+              }}
+            >
+              Next →
+            </LinkButton>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

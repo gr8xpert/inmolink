@@ -1,6 +1,7 @@
+import { PageHeader } from "@/components/dashboard/page-header";
+import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { auth } from "@inmolink/auth";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ImportForm } from "../import-form";
 
@@ -16,17 +17,12 @@ export default async function NewImportPage({ params }: Props) {
   const t = await getTranslations({ locale, namespace: "imports" });
 
   return (
-    <main className="container mx-auto max-w-2xl space-y-6 p-8">
-      <div className="border-b pb-4">
-        <Link
-          href={`/${locale}/dashboard/imports`}
-          className="text-sm text-muted-foreground hover:underline"
-        >
-          ← {t("title")}
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold">{t("create.title")}</h1>
-      </div>
-      <ImportForm locale={locale} mode="create" />
-    </main>
+    <div className="mx-auto w-full max-w-2xl">
+      <PageHeader title={t("create.title")} />
+
+      <SurfaceCard>
+        <ImportForm locale={locale} mode="create" />
+      </SurfaceCard>
+    </div>
   );
 }

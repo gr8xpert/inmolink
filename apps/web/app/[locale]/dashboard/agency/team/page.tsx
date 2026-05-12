@@ -1,8 +1,9 @@
+import { PageHeader } from "@/components/dashboard/page-header";
+import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { apiFetch } from "@/lib/api";
 import { auth } from "@inmolink/auth";
 import type { inviteSchemas } from "@inmolink/shared";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { TeamManager } from "./team-manager";
 
@@ -16,7 +17,6 @@ export default async function TeamPage({ params }: Props) {
   if (!session?.user) redirect(`/${locale}/sign-in`);
   if (!session.user.agencyId) redirect(`/${locale}/dashboard`);
   if (session.user.role === "AGENT") {
-    // Agents can't manage the team — bounce back to the agency landing.
     redirect(`/${locale}/dashboard/agency`);
   }
 
@@ -24,19 +24,12 @@ export default async function TeamPage({ params }: Props) {
   const team = await apiFetch<inviteSchemas.TeamResponse>("/api/dashboard/agency/team");
 
   return (
-    <main className="container mx-auto max-w-3xl space-y-6 p-8">
-      <div className="border-b pb-4">
-        <Link
-          href={`/${locale}/dashboard/agency`}
-          className="text-sm text-muted-foreground hover:underline"
-        >
-          ← {t("title")}
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold">{t("team.title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("team.subtitle")}</p>
-      </div>
+    <div className="mx-auto w-full max-w-4xl">
+      <PageHeader title={t("team.title")} description={t("team.subtitle")} />
 
-      <TeamManager locale={locale} initial={team} />
-    </main>
+      <SurfaceCard flush>
+        <TeamManager locale={locale} initial={team} />
+      </SurfaceCard>
+    </div>
   );
 }

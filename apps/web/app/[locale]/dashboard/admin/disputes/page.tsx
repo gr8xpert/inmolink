@@ -1,6 +1,11 @@
+import { LinkButton } from "@/components/dashboard/button";
+import { EmptyState } from "@/components/dashboard/empty-state";
+import { PageHeader } from "@/components/dashboard/page-header";
+import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { apiFetch } from "@/lib/api";
 import { auth } from "@inmolink/auth";
 import type { dealSchemas } from "@inmolink/shared";
+import { ShieldAlert } from "lucide-react";
 import { setRequestLocale } from "next-intl/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -30,65 +35,60 @@ export default async function DisputesQueuePage({ params, searchParams }: Props)
   );
 
   return (
-    <main className="container mx-auto max-w-5xl space-y-6 p-8">
-      <header className="flex items-center justify-between border-b pb-4">
-        <div>
-          <h1 className="text-2xl font-bold">Disputes queue</h1>
-          <p className="text-sm text-muted-foreground">
-            Deals flagged for super-admin review. Resolve each by accepting or cancelling the
-            snapshot.
-          </p>
-        </div>
-        <Link
-          href={`/${locale}/dashboard/admin`}
-          className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          ← Admin
-        </Link>
-      </header>
+    <div className="mx-auto w-full max-w-5xl">
+      <PageHeader
+        title="Disputes queue"
+        description="Deals flagged for super-admin review. Resolve each by accepting or cancelling the snapshot."
+      />
 
-      {list.items.length === 0 ? (
-        <p className="rounded-md border bg-background p-6 text-center text-sm text-muted-foreground">
-          No open disputes.
-        </p>
-      ) : (
-        <ul className="divide-y rounded-md border bg-background shadow-sm">
-          {list.items.map((d) => (
-            <li key={d.id}>
-              <Link
-                href={`/${locale}/dashboard/deals/${d.id}`}
-                className="block p-4 hover:bg-muted/40"
-              >
-                <p className="font-medium">{d.property.title ?? d.property.id}</p>
-                <p className="text-sm text-muted-foreground">
-                  {d.owner.firstName} {d.owner.lastName} ↔ {d.introducer.firstName}{" "}
-                  {d.introducer.lastName} ·{" "}
-                  <span className="font-mono">
-                    {formatMoney(d.agreedPriceCents, d.currency, locale)}
-                  </span>
-                </p>
-                {d.disputeReason && (
-                  <p className="mt-2 line-clamp-2 text-sm text-rose-700">{d.disputeReason}</p>
-                )}
-                {d.disputeOpenedAt && (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Opened {new Date(d.disputeOpenedAt).toLocaleString(locale)}
-                  </p>
-                )}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="space-y-6">
+        <SurfaceCard flush>
+          {list.items.length === 0 ? (
+            <EmptyState icon={ShieldAlert} title="No open disputes" />
+          ) : (
+            <ul className="divide-y divide-border">
+              {list.items.map((d) => (
+                <li key={d.id}>
+                  <Link
+                    href={`/${locale}/dashboard/deals/${d.id}`}
+                    className="block px-5 py-4 transition hover:bg-muted/40"
+                  >
+                    <p className="font-medium text-foreground">
+                      {d.property.title ?? d.property.id}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {d.owner.firstName} {d.owner.lastName} ↔ {d.introducer.firstName}{" "}
+                      {d.introducer.lastName} ·{" "}
+                      <span className="font-mono">
+                        {formatMoney(d.agreedPriceCents, d.currency, locale)}
+                      </span>
+                    </p>
+                    {d.disputeReason && (
+                      <p className="mt-2 line-clamp-2 text-sm text-danger">{d.disputeReason}</p>
+                    )}
+                    {d.disputeOpenedAt && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Opened {new Date(d.disputeOpenedAt).toLocaleString(locale)}
+                      </p>
+                    )}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </SurfaceCard>
 
-      {list.nextCursor && (
-        <Link
-          href={`/${locale}/dashboard/admin/disputes?cursor=${list.nextCursor}`}
-          className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          Next page
-        </Link>
-      )}
-    </main>
+        {list.nextCursor && (
+          <div className="flex justify-end">
+            <LinkButton
+              variant="secondary"
+              href={`/${locale}/dashboard/admin/disputes?cursor=${list.nextCursor}`}
+            >
+              Next page →
+            </LinkButton>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

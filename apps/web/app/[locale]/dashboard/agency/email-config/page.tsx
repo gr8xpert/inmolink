@@ -1,8 +1,9 @@
+import { PageHeader } from "@/components/dashboard/page-header";
+import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { ApiError, apiFetch } from "@/lib/api";
 import { auth } from "@inmolink/auth";
 import type { marketingSchemas } from "@inmolink/shared";
 import { setRequestLocale } from "next-intl/server";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { EmailConfigForm } from "./email-config-form";
 
@@ -26,29 +27,21 @@ export default async function EmailConfigPage({ params }: Props) {
   }
 
   return (
-    <main className="container mx-auto max-w-3xl space-y-6 p-8">
-      <header className="flex items-center justify-between border-b pb-4">
-        <div>
-          <h1 className="text-2xl font-bold">SMTP &amp; DKIM</h1>
-          <p className="text-sm text-muted-foreground">
-            Per-agency outgoing email credentials. PRO plan required.
-          </p>
-        </div>
-        <Link
-          href={`/${locale}/dashboard/marketing`}
-          className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          ← Marketing
-        </Link>
-      </header>
+    <div className="mx-auto w-full max-w-3xl">
+      <PageHeader
+        title="SMTP & DKIM"
+        description="Per-agency outgoing email credentials. PRO plan required."
+      />
 
       {loadError && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+        <div className="mb-4 rounded-md border border-danger/30 bg-danger-soft p-3 text-sm text-danger">
           {loadError}
         </div>
       )}
 
-      <EmailConfigForm locale={locale} initial={config} userEmail={session.user.email ?? null} />
-    </main>
+      <SurfaceCard>
+        <EmailConfigForm locale={locale} initial={config} userEmail={session.user.email ?? null} />
+      </SurfaceCard>
+    </div>
   );
 }

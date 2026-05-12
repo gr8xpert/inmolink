@@ -1,6 +1,11 @@
+import { EmptyState } from "@/components/dashboard/empty-state";
+import { PageHeader } from "@/components/dashboard/page-header";
+import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { apiFetch } from "@/lib/api";
 import { auth } from "@inmolink/auth";
 import type { notificationSchemas } from "@inmolink/shared";
+import { cn } from "@inmolink/ui";
+import { Bell } from "lucide-react";
 import { setRequestLocale } from "next-intl/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -32,85 +37,93 @@ export default async function NotificationsPage({ params, searchParams }: Props)
     `/api/dashboard/notifications?${qs.toString()}`,
   );
 
-  return (
-    <main className="container mx-auto max-w-3xl space-y-4 p-8">
-      <header className="flex items-center justify-between border-b pb-4">
-        <div>
-          <h1 className="text-2xl font-bold">Notifications</h1>
-          <p className="text-sm text-muted-foreground">
-            {list.unreadCount} unread · activity related to your viewings, deals, and chats.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/${locale}/dashboard`}
-            className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-          >
-            ← Dashboard
-          </Link>
-          <MarkAllReadButton locale={locale} />
-        </div>
-      </header>
+  const unreadOnly = sp.unreadOnly === "true";
 
-      <nav className="flex gap-2 text-sm">
+  return (
+    <div className="mx-auto w-full max-w-3xl">
+      <PageHeader
+        title="Notifications"
+        description={`${list.unreadCount} unread · activity from your viewings, deals, and chats.`}
+        actions={<MarkAllReadButton locale={locale} />}
+      />
+
+      <nav className="mb-6 flex gap-1.5 text-sm">
         <Link
           href={`/${locale}/dashboard/notifications`}
-          className={`rounded-md border px-3 py-1.5 ${sp.unreadOnly === "true" ? "hover:bg-muted" : "bg-foreground text-background"}`}
+          className={cn(
+            "rounded-md px-3 py-1.5 font-medium transition",
+            !unreadOnly
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
+          )}
         >
           All
         </Link>
         <Link
           href={`/${locale}/dashboard/notifications?unreadOnly=true`}
-          className={`rounded-md border px-3 py-1.5 ${sp.unreadOnly === "true" ? "bg-foreground text-background" : "hover:bg-muted"}`}
+          className={cn(
+            "rounded-md px-3 py-1.5 font-medium transition",
+            unreadOnly
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
+          )}
         >
           Unread only
         </Link>
       </nav>
 
-      {list.items.length === 0 ? (
-        <p className="rounded-md border bg-background p-6 text-center text-sm text-muted-foreground">
-          No notifications.
-        </p>
-      ) : (
-        <ul className="divide-y rounded-md border bg-background shadow-sm">
-          {list.items.map((n) => {
-            const href = KIND_TO_LINK(n);
-            const body = (
-              <div className="flex items-start gap-3 p-4">
-                {!n.readAt && (
-                  <span className="mt-1 inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
-                )}
-                <div className="flex-1">
-                  <p className="font-medium">{n.kind.replace(/_/g, " ").toLowerCase()}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(n.createdAt).toLocaleString(locale)}
-                  </p>
+      <SurfaceCard flush>
+        {list.items.length === 0 ? (
+          <EmptyState icon={Bell} title="No notifications" description="You're all caught up." />
+        ) : (
+          <ul className="divide-y divide-border">
+            {list.items.map((n) => {
+              const href = KIND_TO_LINK(n);
+              const body = (
+                <div className="flex items-start gap-3 px-5 py-4">
+                  <span
+                    className={cn(
+                      "mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full",
+                      n.readAt ? "bg-transparent" : "bg-primary",
+                    )}
+                    aria-hidden="true"
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium capitalize text-foreground">
+                      {n.kind.replace(/_/g, " ").toLowerCase()}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {new Date(n.createdAt).toLocaleString(locale)}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            );
-            return (
-              <li key={n.id} className={n.readAt ? "" : "bg-emerald-50/30"}>
-                {href ? (
-                  <Link href={`/${locale}${href}`} className="block hover:bg-muted/40">
-                    {body}
-                  </Link>
-                ) : (
-                  body
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+              );
+              return (
+                <li key={n.id} className={cn(!n.readAt && "bg-primary-soft/40")}>
+                  {href ? (
+                    <Link href={`/${locale}${href}`} className="block transition hover:bg-muted/40">
+                      {body}
+                    </Link>
+                  ) : (
+                    body
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </SurfaceCard>
 
       {list.nextCursor && (
-        <Link
-          href={`/${locale}/dashboard/notifications?${new URLSearchParams({ ...sp, cursor: list.nextCursor }).toString()}`}
-          className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          Next page
-        </Link>
+        <div className="mt-4 flex justify-end">
+          <Link
+            href={`/${locale}/dashboard/notifications?${new URLSearchParams({ ...sp, cursor: list.nextCursor }).toString()}`}
+            className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3.5 text-sm font-medium shadow-sm hover:bg-muted"
+          >
+            Next page →
+          </Link>
+        </div>
       )}
-    </main>
+    </div>
   );
 }

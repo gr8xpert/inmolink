@@ -1,8 +1,9 @@
+import { PageHeader } from "@/components/dashboard/page-header";
+import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { ApiError, apiFetch } from "@/lib/api";
 import { auth } from "@inmolink/auth";
 import type { feedConnectionSchemas } from "@inmolink/shared";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ImportForm } from "../import-form";
 import { RunHistory } from "./run-history";
@@ -33,28 +34,22 @@ export default async function ImportDetailPage({ params }: Props) {
   const t = await getTranslations({ locale, namespace: "imports" });
 
   return (
-    <main className="container mx-auto max-w-3xl space-y-6 p-8">
-      <div className="border-b pb-4">
-        <Link
-          href={`/${locale}/dashboard/imports`}
-          className="text-sm text-muted-foreground hover:underline"
-        >
-          ← {t("title")}
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold flex items-center gap-2">
-          <span className="rounded bg-muted px-2 py-0.5 text-sm font-mono">{connection.kind}</span>
-          <span className="truncate">{connection.feedUrl}</span>
-        </h1>
+    <div className="mx-auto w-full max-w-3xl">
+      <PageHeader title={connection.feedUrl} description={connection.kind} />
+
+      <div className="space-y-6">
         {connection.lastError && (
-          <p className="mt-2 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+          <div className="rounded-md border border-danger/30 bg-danger-soft p-3 text-sm text-danger">
             {t("lastErrorPrefix")}: {connection.lastError}
-          </p>
+          </div>
         )}
+
+        <SurfaceCard>
+          <ImportForm locale={locale} mode="edit" initial={connection} />
+        </SurfaceCard>
+
+        <RunHistory locale={locale} connectionId={connection.id} runs={runs.items} />
       </div>
-
-      <ImportForm locale={locale} mode="edit" initial={connection} />
-
-      <RunHistory locale={locale} connectionId={connection.id} runs={runs.items} />
-    </main>
+    </div>
   );
 }

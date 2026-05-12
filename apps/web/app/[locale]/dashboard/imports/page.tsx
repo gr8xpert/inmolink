@@ -1,8 +1,10 @@
+import { LinkButton } from "@/components/dashboard/button";
+import { PageHeader } from "@/components/dashboard/page-header";
+import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { apiFetch } from "@/lib/api";
 import { auth } from "@inmolink/auth";
 import type { feedConnectionSchemas } from "@inmolink/shared";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ImportsList } from "./imports-list";
 import { ManualUpload } from "./manual-upload";
@@ -22,31 +24,22 @@ export default async function ImportsListPage({ params }: Props) {
   );
 
   return (
-    <main className="container mx-auto max-w-4xl space-y-6 p-8">
-      <header className="flex items-center justify-between border-b pb-4">
-        <div>
-          <h1 className="text-2xl font-bold">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/${locale}/dashboard`}
-            className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-          >
-            ← {t("back")}
-          </Link>
-          <Link
-            href={`/${locale}/dashboard/imports/new`}
-            className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:opacity-90"
-          >
-            {t("addNew")}
-          </Link>
-        </div>
-      </header>
+    <div className="mx-auto w-full max-w-5xl">
+      <PageHeader
+        title={t("title")}
+        description={t("subtitle")}
+        actions={<LinkButton href={`/${locale}/dashboard/imports/new`}>+ {t("addNew")}</LinkButton>}
+      />
 
-      <ImportsList locale={locale} initial={list.items} />
+      <div className="space-y-6">
+        <SurfaceCard title="Connected feeds" flush>
+          <ImportsList locale={locale} initial={list.items} />
+        </SurfaceCard>
 
-      <ManualUpload locale={locale} />
-    </main>
+        <SurfaceCard title="Manual upload" description="One-off CSV / XLSX upload">
+          <ManualUpload locale={locale} />
+        </SurfaceCard>
+      </div>
+    </div>
   );
 }

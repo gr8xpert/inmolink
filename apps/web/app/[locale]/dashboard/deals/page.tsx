@@ -1,6 +1,12 @@
+import { LinkButton } from "@/components/dashboard/button";
+import { EmptyState } from "@/components/dashboard/empty-state";
+import { PageHeader } from "@/components/dashboard/page-header";
+import { StatusBadge, toneForStatus } from "@/components/dashboard/status-badge";
+import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { apiFetch } from "@/lib/api";
 import { auth } from "@inmolink/auth";
 import type { dealSchemas } from "@inmolink/shared";
+import { Handshake } from "lucide-react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -8,15 +14,6 @@ import { redirect } from "next/navigation";
 type Props = {
   params: Promise<{ locale: string }>;
   searchParams: Promise<{ status?: string; cursor?: string }>;
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  PENDING_BOTH: "bg-amber-100 text-amber-800",
-  PENDING_OWNER: "bg-amber-100 text-amber-800",
-  PENDING_INTRODUCER: "bg-amber-100 text-amber-800",
-  CONFIRMED: "bg-emerald-100 text-emerald-800",
-  DISPUTED: "bg-rose-100 text-rose-800",
-  CANCELLED: "bg-zinc-100 text-zinc-700",
 };
 
 function formatMoney(cents: string, currency: string, locale: string): string {
@@ -40,75 +37,74 @@ export default async function DealsListPage({ params, searchParams }: Props) {
   );
 
   return (
-    <main className="container mx-auto max-w-5xl space-y-6 p-8">
-      <header className="flex items-center justify-between border-b pb-4">
-        <div>
-          <h1 className="text-2xl font-bold">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
-        </div>
-        <Link
-          href={`/${locale}/dashboard`}
-          className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          ← {t("back")}
-        </Link>
-      </header>
+    <div className="mx-auto w-full max-w-7xl">
+      <PageHeader
+        title={t("title")}
+        description={t("subtitle")}
+        actions={
+          <LinkButton href={`/${locale}/dashboard/deals/new`}>+ {t("submitNew")}</LinkButton>
+        }
+      />
 
-      {list.items.length === 0 ? (
-        <p className="rounded-md border bg-background p-6 text-center text-sm text-muted-foreground">
-          {t("empty")}
-        </p>
-      ) : (
-        <ul className="divide-y rounded-md border bg-background shadow-sm">
-          {list.items.map((d) => {
-            const counterparty =
-              session.user?.id === d.owner.id
-                ? `${d.introducer.firstName} ${d.introducer.lastName}`
-                : `${d.owner.firstName} ${d.owner.lastName}`;
-            return (
-              <li key={d.id}>
-                <Link
-                  href={`/${locale}/dashboard/deals/${d.id}`}
-                  className="block p-4 hover:bg-muted/40"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium">{d.property.title ?? d.property.id}</p>
-                      <p className="text-sm text-muted-foreground">
-                        with {counterparty} ·{" "}
-                        <span className="font-mono">
-                          {formatMoney(d.agreedPriceCents, d.currency, locale)}
-                        </span>
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {t("fields.totalCommission")}:{" "}
-                        <span className="font-mono">
-                          {formatMoney(d.totalCommissionCents, d.currency, locale)}
-                        </span>{" "}
-                        · {Number(d.commissionPct).toFixed(2)}%
-                      </p>
+      <SurfaceCard flush>
+        {list.items.length === 0 ? (
+          <EmptyState
+            icon={Handshake}
+            title={t("empty")}
+            cta={{ label: `+ ${t("submitNew")}`, href: `/${locale}/dashboard/deals/new` }}
+          />
+        ) : (
+          <ul className="divide-y divide-border">
+            {list.items.map((d) => {
+              const counterparty =
+                session.user?.id === d.owner.id
+                  ? `${d.introducer.firstName} ${d.introducer.lastName}`
+                  : `${d.owner.firstName} ${d.owner.lastName}`;
+              return (
+                <li key={d.id}>
+                  <Link
+                    href={`/${locale}/dashboard/deals/${d.id}`}
+                    className="block px-5 py-4 transition hover:bg-muted/40"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium text-foreground">
+                          {d.property.title ?? d.property.id}
+                        </div>
+                        <div className="mt-0.5 text-sm text-muted-foreground">
+                          with {counterparty} ·{" "}
+                          <span className="font-mono">
+                            {formatMoney(d.agreedPriceCents, d.currency, locale)}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {t("fields.totalCommission")}:{" "}
+                          <span className="font-mono">
+                            {formatMoney(d.totalCommissionCents, d.currency, locale)}
+                          </span>{" "}
+                          · {Number(d.commissionPct).toFixed(2)}%
+                        </div>
+                      </div>
+                      <StatusBadge label={t(`status.${d.status}`)} tone={toneForStatus(d.status)} />
                     </div>
-                    <span
-                      className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[d.status] ?? "bg-zinc-100"}`}
-                    >
-                      {t(`status.${d.status}`)}
-                    </span>
-                  </div>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </SurfaceCard>
 
       {list.nextCursor && (
-        <Link
-          href={`/${locale}/dashboard/deals?${new URLSearchParams({ ...search, cursor: list.nextCursor }).toString()}`}
-          className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          {t("next")}
-        </Link>
+        <div className="mt-4 flex justify-end">
+          <LinkButton
+            href={`/${locale}/dashboard/deals?${new URLSearchParams({ ...search, cursor: list.nextCursor }).toString()}`}
+            variant="secondary"
+          >
+            {t("next")} →
+          </LinkButton>
+        </div>
       )}
-    </main>
+    </div>
   );
 }

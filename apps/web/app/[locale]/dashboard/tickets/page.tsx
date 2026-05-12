@@ -1,6 +1,12 @@
+import { LinkButton } from "@/components/dashboard/button";
+import { EmptyState } from "@/components/dashboard/empty-state";
+import { PageHeader } from "@/components/dashboard/page-header";
+import { StatusBadge, toneForStatus } from "@/components/dashboard/status-badge";
+import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { ApiError, apiFetch } from "@/lib/api";
 import { auth } from "@inmolink/auth";
 import type { ticketSchemas } from "@inmolink/shared";
+import { LifeBuoy } from "lucide-react";
 import { setRequestLocale } from "next-intl/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -10,18 +16,11 @@ type Props = {
   searchParams: Promise<{ status?: string; cursor?: string; q?: string }>;
 };
 
-const STATUS_BADGE: Record<ticketSchemas.TicketStatus, string> = {
-  OPEN: "bg-blue-100 text-blue-900",
-  IN_PROGRESS: "bg-amber-100 text-amber-900",
-  RESOLVED: "bg-emerald-100 text-emerald-900",
-  CLOSED: "bg-muted",
-};
-
-const PRIORITY_BADGE: Record<ticketSchemas.TicketPriority, string> = {
-  LOW: "bg-muted",
-  NORMAL: "bg-muted",
-  HIGH: "bg-amber-100 text-amber-900",
-  URGENT: "bg-red-100 text-red-900",
+const PRIORITY_TONE: Record<ticketSchemas.TicketPriority, "neutral" | "warning" | "danger"> = {
+  LOW: "neutral",
+  NORMAL: "neutral",
+  HIGH: "warning",
+  URGENT: "danger",
 };
 
 export default async function TicketsListPage({ params, searchParams }: Props) {
@@ -50,32 +49,15 @@ export default async function TicketsListPage({ params, searchParams }: Props) {
   }
 
   return (
-    <main className="container mx-auto max-w-5xl space-y-6 p-8">
-      <header className="flex items-center justify-between border-b pb-4">
-        <div>
-          <h1 className="text-2xl font-bold">Tickets</h1>
-          <p className="text-sm text-muted-foreground">
-            Support requests. Open one for bugs, billing, or account questions.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            href={`/${locale}/dashboard`}
-            className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-          >
-            ← Dashboard
-          </Link>
-          <Link
-            href={`/${locale}/dashboard/tickets/new`}
-            className="rounded-md bg-foreground px-3 py-1.5 text-sm text-background hover:opacity-90"
-          >
-            + New ticket
-          </Link>
-        </div>
-      </header>
+    <div className="mx-auto w-full max-w-6xl">
+      <PageHeader
+        title="Support tickets"
+        description="Open one for bugs, billing, or account questions."
+        actions={<LinkButton href={`/${locale}/dashboard/tickets/new`}>+ New ticket</LinkButton>}
+      />
 
-      <form className="flex gap-2">
-        <select name="status" defaultValue={status ?? ""} className="input">
+      <form className="mb-6 flex flex-wrap gap-2">
+        <select name="status" defaultValue={status ?? ""} className="input max-w-[200px]">
           <option value="">All statuses</option>
           <option value="OPEN">Open</option>
           <option value="IN_PROGRESS">In progress</option>
@@ -86,58 +68,71 @@ export default async function TicketsListPage({ params, searchParams }: Props) {
           name="q"
           defaultValue={q ?? ""}
           placeholder="Search subject…"
-          className="input flex-1"
+          className="input flex-1 min-w-[200px]"
         />
-        <button type="submit" className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
+        <button
+          type="submit"
+          className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3.5 text-sm font-medium shadow-sm hover:bg-muted"
+        >
           Filter
         </button>
       </form>
 
       {listError && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+        <div className="mb-4 rounded-md border border-danger/30 bg-danger-soft p-3 text-sm text-danger">
           {listError}
         </div>
       )}
 
-      <section className="space-y-2">
-        {data.items.map((t) => (
-          <Link
-            key={t.id}
-            href={`/${locale}/dashboard/tickets/${t.id}`}
-            className="flex items-center justify-between rounded-md border bg-background p-3 shadow-sm transition hover:bg-muted/30"
-          >
-            <div>
-              <p className="font-medium">
-                <span className="text-muted-foreground">#{t.number}</span> {t.subject}
-              </p>
-              <p className="mt-1 text-xs">
-                <span
-                  className={`rounded px-2 py-0.5 font-semibold uppercase ${STATUS_BADGE[t.status]}`}
+      <SurfaceCard flush>
+        {data.items.length === 0 && !listError ? (
+          <EmptyState
+            icon={LifeBuoy}
+            title="No tickets yet"
+            description="Open one if you hit a bug or need help with billing."
+            cta={{ label: "+ New ticket", href: `/${locale}/dashboard/tickets/new` }}
+          />
+        ) : (
+          <ul className="divide-y divide-border">
+            {data.items.map((ticket) => (
+              <li key={ticket.id}>
+                <Link
+                  href={`/${locale}/dashboard/tickets/${ticket.id}`}
+                  className="block px-5 py-4 transition hover:bg-muted/40"
                 >
-                  {t.status}
-                </span>{" "}
-                <span
-                  className={`rounded px-2 py-0.5 font-semibold uppercase ${PRIORITY_BADGE[t.priority]}`}
-                >
-                  {t.priority}
-                </span>{" "}
-                <span className="text-muted-foreground">
-                  {t.category} · {t.openedByName}
-                  {t.assignedToName && <> · assigned {t.assignedToName}</>} · {t.messageCount} msgs
-                  · {new Date(t.lastActivityAt).toLocaleString(locale)}
-                </span>
-              </p>
-            </div>
-          </Link>
-        ))}
-        {data.items.length === 0 && !listError && (
-          <p className="text-sm text-muted-foreground">No tickets yet.</p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-mono text-[11px] text-muted-foreground">
+                          #{ticket.number}
+                        </span>
+                        <span className="truncate font-medium text-foreground">
+                          {ticket.subject}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <span>{ticket.category}</span>
+                        <span>· {ticket.openedByName}</span>
+                        {ticket.assignedToName && <span>· assigned {ticket.assignedToName}</span>}
+                        <span>· {ticket.messageCount} msgs</span>
+                        <span>· {new Date(ticket.lastActivityAt).toLocaleString(locale)}</span>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1.5">
+                      <StatusBadge label={ticket.status} tone={toneForStatus(ticket.status)} />
+                      <StatusBadge label={ticket.priority} tone={PRIORITY_TONE[ticket.priority]} />
+                    </div>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
         )}
-      </section>
+      </SurfaceCard>
 
       {data.nextCursor && (
-        <div className="flex justify-end">
-          <Link
+        <div className="mt-4 flex justify-end">
+          <LinkButton
             href={{
               pathname: `/${locale}/dashboard/tickets`,
               query: {
@@ -146,12 +141,12 @@ export default async function TicketsListPage({ params, searchParams }: Props) {
                 cursor: data.nextCursor,
               },
             }}
-            className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+            variant="secondary"
           >
             Next →
-          </Link>
+          </LinkButton>
         </div>
       )}
-    </main>
+    </div>
   );
 }

@@ -1,8 +1,8 @@
+import { PageHeader } from "@/components/dashboard/page-header";
 import { ApiError, apiFetch } from "@/lib/api";
 import { auth } from "@inmolink/auth";
 import type { adminLocationGroupSchemas, adminLocationSchemas } from "@inmolink/shared";
 import { setRequestLocale } from "next-intl/server";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AdminLocationGroups } from "./admin-location-groups";
 
@@ -34,24 +34,13 @@ export default async function AdminLocationGroupsPage({ params }: Props) {
   }
 
   return (
-    <main className="container mx-auto max-w-5xl space-y-6 p-8">
-      <header className="flex items-center justify-between border-b pb-4">
-        <div>
-          <h1 className="text-2xl font-bold">Location groups</h1>
-          <p className="text-sm text-muted-foreground">
-            Editorial bundles like &ldquo;Costa del Sol&rdquo; that aggregate locations outside the
-            strict tree. Translations + member picker + per-member reorder.
-          </p>
-        </div>
-        <Link
-          href={`/${locale}/dashboard/admin`}
-          className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          ← Admin
-        </Link>
-      </header>
+    <div className="mx-auto w-full max-w-5xl">
+      <PageHeader
+        title="Location groups"
+        description={`Editorial bundles like "Costa del Sol" that aggregate locations outside the strict tree. Translations + member picker + per-member reorder.`}
+      />
 
       <AdminLocationGroups locale={locale} groups={groups.items} allLocations={locations.items} />
-    </main>
+    </div>
   );
 }

@@ -1,8 +1,9 @@
+import { PageHeader } from "@/components/dashboard/page-header";
+import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { ApiError, apiFetch } from "@/lib/api";
 import { auth } from "@inmolink/auth";
 import type { propertySchemas, taxonomySchemas } from "@inmolink/shared";
 import { setRequestLocale } from "next-intl/server";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { PropertyForm } from "../../_components/property-form";
 import { FieldLocksManager } from "./field-locks-manager";
@@ -51,35 +52,28 @@ export default async function EditPropertyPage({ params }: Props) {
   }
 
   return (
-    <main className="container mx-auto max-w-3xl space-y-6 p-8">
-      <header className="flex items-baseline justify-between gap-3 border-b pb-4">
-        <div className="space-y-1">
-          <p className="font-mono text-xs text-muted-foreground">#{property.id}</p>
-          <h1 className="text-2xl font-bold">Edit property</h1>
-        </div>
-        <Link
-          href={`/${locale}/dashboard/properties/${id}`}
-          className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          Cancel
-        </Link>
-      </header>
+    <div className="mx-auto w-full max-w-3xl">
+      <PageHeader title="Edit property" description={`#${property.id}`} />
 
-      <PropertyForm
-        mode="edit"
-        locale={locale}
-        propertyId={id}
-        initial={property}
-        propertyTypes={types.items}
-        locations={locations.items}
-      />
+      <div className="space-y-6">
+        <SurfaceCard>
+          <PropertyForm
+            mode="edit"
+            locale={locale}
+            propertyId={id}
+            initial={property}
+            propertyTypes={types.items}
+            locations={locations.items}
+          />
+        </SurfaceCard>
 
-      <FieldLocksManager
-        locale={locale}
-        propertyId={id}
-        source={property.source}
-        initialLocked={property.lockedFields}
-      />
-    </main>
+        <FieldLocksManager
+          locale={locale}
+          propertyId={id}
+          source={property.source}
+          initialLocked={property.lockedFields}
+        />
+      </div>
+    </div>
   );
 }

@@ -2,26 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Light dashboard palette — Sprint 12 visual overhaul.
+ * Indigo primary on slate canvas. Sidebar is a soft slate surface with
+ * dark text + a filled-blue active state. No auto dark-mode flip — the
+ * dashboard is light-only by design; if dark mode is wanted later, gate
+ * it behind a `.dark` class toggle, not the OS media query.
+ */
 :root {
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --primary: 222.2 47.4% 11.2%;
-  --primary-foreground: 210 40% 98%;
-  --border: 214.3 31.8% 91.4%;
-}
+  /* Canvas */
+  --background: 220 33% 98%;
+  --foreground: 222 47% 11%;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --border: 217.2 32.6% 17.5%;
-  }
+  /* Surfaces */
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 9% 46%;
+
+  /* Brand */
+  --primary: 224 76% 48%;
+  --primary-foreground: 0 0% 100%;
+  --primary-soft: 224 76% 96%;
+  --accent: 217 91% 60%;
+  --accent-foreground: 0 0% 100%;
+
+  /* Sidebar — light surface with dark text + filled-blue active. */
+  --sidebar: 220 33% 99%;
+  --sidebar-foreground: 222 47% 11%;
+  --sidebar-muted: 220 9% 46%;
+  --sidebar-active: 224 76% 48%;
+  --sidebar-hover: 220 14% 94%;
+  --sidebar-border: 220 13% 91%;
+
+  /* States */
+  --success: 152 60% 36%;
+  --success-soft: 152 60% 94%;
+  --warning: 38 92% 50%;
+  --warning-soft: 38 92% 95%;
+  --danger: 0 72% 51%;
+  --danger-soft: 0 72% 96%;
+  --info: 217 91% 60%;
+  --info-soft: 217 91% 95%;
+
+  /* Borders + rings */
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 224 76% 48%;
+  --radius: 0.625rem;
 }
 
 body {
@@ -30,9 +58,13 @@ body {
 }
 
 @layer components {
-  /* Shared form input look — keeps the property form readable without
-     pulling in shadcn's full Input/Select primitives this sprint. */
+  /* Form input — matches the new outline, focus ring uses --ring. */
   .input {
-    @apply w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary;
+    @apply w-full rounded-md border border-input bg-card px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* Reusable surface — every list/detail/form card uses this. */
+  .surface {
+    @apply rounded-xl border border-border bg-card shadow-sm;
   }
 }

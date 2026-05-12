@@ -1,7 +1,13 @@
+import { Button } from "@/components/dashboard/button";
+import { EmptyState } from "@/components/dashboard/empty-state";
+import { PageHeader } from "@/components/dashboard/page-header";
+import { StatusBadge, toneForStatus } from "@/components/dashboard/status-badge";
+import { SurfaceCard } from "@/components/dashboard/surface-card";
 import { env } from "@/env";
 import { ApiError, apiFetch } from "@/lib/api";
 import { auth } from "@inmolink/auth";
 import type { exportSchemas } from "@inmolink/shared";
+import { FileBarChart } from "lucide-react";
 import { setRequestLocale } from "next-intl/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -14,13 +20,6 @@ type Props = {
   searchParams: Promise<{ kind?: string; status?: string; cursor?: string }>;
 };
 
-const STATUS_BADGE: Record<exportSchemas.ExportStatus, string> = {
-  QUEUED: "bg-blue-100 text-blue-900",
-  RUNNING: "bg-amber-100 text-amber-900",
-  SUCCESS: "bg-emerald-100 text-emerald-900",
-  FAILED: "bg-red-100 text-red-900",
-};
-
 const API_BASE = env.NEXT_PUBLIC_API_URL;
 
 function formatBytes(b: number | null): string {
@@ -30,7 +29,7 @@ function formatBytes(b: number | null): string {
   return `${(b / 1024 / 1024).toFixed(1)}MB`;
 }
 
-function formatRelativeExpiry(iso: string | null, _locale: string): string {
+function formatRelativeExpiry(iso: string | null): string {
   if (!iso) return "—";
   const ms = new Date(iso).getTime() - Date.now();
   if (ms < 0) return "expired";
@@ -67,86 +66,76 @@ export default async function ExportsPage({ params, searchParams }: Props) {
   const hasInflight = data.items.some((e) => e.status === "QUEUED" || e.status === "RUNNING");
 
   return (
-    <main className="container mx-auto max-w-5xl space-y-6 p-8">
+    <div className="mx-auto w-full max-w-6xl">
       <ExportsAutoRefresh hasInflight={hasInflight} />
-      <header className="flex items-center justify-between border-b pb-4">
-        <div>
-          <h1 className="text-2xl font-bold">Exports</h1>
-          <p className="text-sm text-muted-foreground">
-            Bulk-download your inventory as CSV or PDF brochure / portfolio. Files expire after 7
-            days. PRO plan required for both kinds.
-          </p>
-        </div>
-        <Link
-          href={`/${locale}/dashboard`}
-          className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          ← Dashboard
-        </Link>
-      </header>
+      <PageHeader
+        title="Exports"
+        description="Bulk-download your inventory as CSV or PDF brochure / portfolio. Files expire after 7 days. PRO plan required."
+      />
 
       {listError && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+        <div className="mb-4 rounded-md border border-danger/30 bg-danger-soft p-3 text-sm text-danger">
           {listError}
         </div>
       )}
 
-      <section className="rounded-md border bg-background p-4 shadow-sm">
-        <h2 className="font-semibold">New export</h2>
+      <SurfaceCard title="New export" className="mb-6">
         <ExportCreateForm locale={locale} />
-      </section>
+      </SurfaceCard>
 
-      <section className="space-y-2">
-        {data.items.map((e) => (
-          <div
-            key={e.id}
-            className="flex flex-col gap-2 rounded-md border bg-background p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div>
-              <p className="font-medium">{e.kind}</p>
-              <p className="mt-1 text-xs">
-                <span
-                  className={`rounded px-2 py-0.5 font-semibold uppercase ${STATUS_BADGE[e.status]}`}
-                >
-                  {e.status}
-                </span>{" "}
-                <span className="text-muted-foreground">
-                  {formatBytes(e.resultBytes)} · {e.locale} ·{" "}
-                  {new Date(e.createdAt).toLocaleString(locale)} ·{" "}
-                  {formatRelativeExpiry(e.expiresAt, locale)} · by {e.requestedByName}
-                </span>
-              </p>
-              {e.errorMessage && <p className="mt-1 text-xs text-red-700">{e.errorMessage}</p>}
-            </div>
-            <div className="flex gap-2">
-              {e.status === "SUCCESS" && (
-                <a
-                  href={`${API_BASE}/api/dashboard/exports/${encodeURIComponent(e.id)}/download`}
-                  className="rounded-md bg-foreground px-3 py-1.5 text-xs text-background hover:opacity-90"
-                >
-                  Download
-                </a>
-              )}
-              <form action={deleteExportAction}>
-                <input type="hidden" name="id" value={e.id} />
-                <input type="hidden" name="locale" value={locale} />
-                <button
-                  type="submit"
-                  className="rounded-md border border-red-300 bg-red-50 px-3 py-1.5 text-xs text-red-900 hover:bg-red-100"
-                >
-                  Delete
-                </button>
-              </form>
-            </div>
-          </div>
-        ))}
-        {data.items.length === 0 && !listError && (
-          <p className="text-sm text-muted-foreground">No exports yet.</p>
+      <SurfaceCard title="Recent exports" flush>
+        {data.items.length === 0 && !listError ? (
+          <EmptyState
+            icon={FileBarChart}
+            title="No exports yet"
+            description="Generate your first CSV or PDF using the form above."
+          />
+        ) : (
+          <ul className="divide-y divide-border">
+            {data.items.map((e) => (
+              <li
+                key={e.id}
+                className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-foreground">{e.kind}</span>
+                    <StatusBadge label={e.status} tone={toneForStatus(e.status)} />
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {formatBytes(e.resultBytes)} · {e.locale} ·{" "}
+                    {new Date(e.createdAt).toLocaleString(locale)} ·{" "}
+                    {formatRelativeExpiry(e.expiresAt)} · by {e.requestedByName}
+                  </div>
+                  {e.errorMessage && (
+                    <div className="mt-1 text-xs text-danger">{e.errorMessage}</div>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  {e.status === "SUCCESS" && (
+                    <a
+                      href={`${API_BASE}/api/dashboard/exports/${encodeURIComponent(e.id)}/download`}
+                      className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground shadow-sm hover:bg-primary/90"
+                    >
+                      Download
+                    </a>
+                  )}
+                  <form action={deleteExportAction}>
+                    <input type="hidden" name="id" value={e.id} />
+                    <input type="hidden" name="locale" value={locale} />
+                    <Button type="submit" variant="secondary" size="sm">
+                      Delete
+                    </Button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
-      </section>
+      </SurfaceCard>
 
       {data.nextCursor && (
-        <div className="flex justify-end">
+        <div className="mt-4 flex justify-end">
           <Link
             href={{
               pathname: `/${locale}/dashboard/exports`,
@@ -156,12 +145,12 @@ export default async function ExportsPage({ params, searchParams }: Props) {
                 cursor: data.nextCursor,
               },
             }}
-            className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+            className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3.5 text-sm font-medium shadow-sm hover:bg-muted"
           >
             Next →
           </Link>
         </div>
       )}
-    </main>
+    </div>
   );
 }
