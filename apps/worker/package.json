@@ -24,7 +24,7 @@
     "@inmolink/shared": "workspace:*",
     "@inmolink/storage": "workspace:*",
     "@prisma/client": "^6.0.0",
-    "bullmq": "^5.34.0",
+    "bullmq": "^5.76.7",
     "ioredis": "^5.4.1",
     "nodemailer": "^8.0.5",
     "pino": "^9.5.0",
