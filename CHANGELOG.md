@@ -10,6 +10,68 @@ Version `0.0.0` covers the planning phase (no shipped code yet). Sprint 1 will p
 
 ## [Unreleased]
 
+### Fixed (smoke test pass, 2026-05-15)
+
+- **Feed connectors follow redirects SSRF-safely.** New `packages/imports/src/connectors/safe-fetch.ts` follows up to 5 hops, re-running `assertSafeUrl` on each redirect target. Kyero + generic-xml (and resale-online via generic-xml) routed through it. Fixes manual run against `http://crm.abracasabra.es/.../Test_feed.xml` which 301-redirects to HTTPS — previously failed, now imports 272 items in ~3s. See `TROUBLESHOOTING.md` entry dated 2026-05-15.
+- **Redis `maxmemory-policy` flipped from `allkeys-lru` to `noeviction`.** BullMQ stores job state, schedulers, and locks in Redis — eviction is unsafe. Workers were logging the warning on every queue init. Updated `docker-compose.yml` and applied at runtime via `CONFIG SET`. See `TROUBLESHOOTING.md` entry dated 2026-05-15.
+
+### Fixed (Codex re-review, 2026-05-13)
+
+- **`apps/web` production build no longer pulls Node builtins into the edge bundle.** `packages/shared/src/ssrf.ts` is now edge-safe — switched to regex-based IPv4/IPv6 detection and dropped all `node:dns` / `node:net` imports. The DNS-resolving async guard moved to a new `packages/shared/src/ssrf-node.ts` exposed via the `@inmolink/shared/ssrf-node` subpath (added to `packages/shared/package.json` `exports`). Worker, imports, and webhook delivery now import `assertSafeUrl` from that subpath. The Zod schemas keep importing the static guard from the root path. `next build` for `apps/web` now compiles successfully (was failing with `UnhandledSchemeError: Reading from "node:dns"` because `auth.config.ts` transitively pulled the SSRF module into the Auth.js edge graph).
+
+### Fixed (Codex review follow-up, 2026-05-13)
+
+- **Typecheck + lint clean.** `turbo run typecheck` 14/14, `turbo run test` 5/5, `biome check .` exit 0, `prisma validate` valid. Addresses every blocker Codex raised in `docs/reviews/claude-fix-pass-review-2026-05-13.md`.
+  - Added `ioredis@^5.4.1` dep to `packages/auth/package.json` (login throttle).
+  - `packages/shared/src/ssrf.ts` switched to `import * as net from "node:net"`, replaced bare `NaN` with `Number.NaN`, dropped the dead `bits === 0` branch.
+  - `apps/api/src/modules/chat/service.ts` direct-thread create now uses `findFirst` → `create` → catch `P2002` → re-read (Prisma can't model the new partial unique index as an `upsert` key).
+  - `USER_LOGIN_FAILED` added to the shared Zod `auditEventTypeSchema` and the dashboard audit-log filter list.
+- **Upload MIME sniff no longer pulls full objects into API memory.** New `Storage.readHead(key, bytes)` interface method; R2 uses S3 `Range:` requests, local-fs uses `fileHandle.read`. `registerUploads` buffers only the leading 4 KB instead of up to 500 MB.
+- **Lead campaign audiences disabled until consent column exists.** `loadAudience` throws `ForbiddenError` on `source === "leads"` — restoration steps documented inline.
+- **Nginx deploy steps complete.** Tracked file `nginx/meilisearch.service` added. Deploy runbook now copies `nginx/cloudflare-ips.conf` into `/etc/nginx/conf.d/` before `nginx -t`, so the `include` resolves on a fresh install.
+- **Biome overrides.** Added rule overrides for `packages/db/{seed,bootstrap-prod}.ts` to silence `noConsoleLog` (mirrors the existing `**/scripts/**/*.ts` override). Removed redundant inline `biome-ignore` comments in seed.ts.
+
+### Security (pre-deploy fix pass, 2026-05-13)
+
+- **2FA login no longer leaks credentials.** Sign-in page (`apps/web/app/[locale]/sign-in/page.tsx`) replaces the email+password URL/hidden-field round-trip with a 5-minute httpOnly AES-256-GCM cookie scoped to `/{locale}/sign-in`. Credentials never appear in URLs, browser history, or hidden inputs.
+- **Production seed split.** `packages/db/seed.ts` now refuses to run under `NODE_ENV=production`. New `packages/db/bootstrap-prod.ts` requires `ADMIN_EMAIL` + `ADMIN_PASSWORD`, rejects dev-default passwords and the `inmolink.local` domain, never prints the password. Deploy runbook updated to use `pnpm --filter @inmolink/db bootstrap:prod` with a `read -s` flow.
+- **Tenant-scoped property dedup.** `Property` unique changed from `(source, externalRef)` to `(ownerAgencyId, source, externalRef)` — two agencies importing the same Kyero feed can no longer overwrite each other (migration `20260513120000_property_tenant_scoped_unique`).
+- **SSRF guard.** New `@inmolink/shared/ssrf` blocks localhost / RFC1918 / link-local / cloud metadata / multicast / reserved / ULA / shorthand names with DNS post-resolution check. Wired into webhook URL validation + worker delivery (`assertSafeUrl` re-check, `redirect: "manual"`), feed-connection registration, both Kyero + generic-XML connector fetches, and feed image-attach.
+- **Upload MIME enforcement.** Removed `image/svg+xml` from the upload allow-list. `apps/api/src/modules/uploads/service.ts` now sniffs leading 4 KB bytes (`apps/api/src/modules/uploads/mime-sniff.ts`) and rejects when the sniffed format doesn't match the claimed MIME (HEIC/HEIF normalised as the same class). Feed-import images additionally re-validated with `sharp.metadata({failOn:"error"})`.
+- **Visibility filter is now role-aware.** `apps/api/src/modules/properties/repository.ts` only ORs in the agency-scope clause for `AGENCY_ADMIN`; `AGENT` callers can no longer list other agents' PRIVATE rows in the same agency.
+- **Public coords coarsened.** `apps/api/src/modules/public/property-routes.ts` rounds latitude / longitude to 2 decimals (~1.1 km) before responding; full precision stays in the dashboard surface.
+- **Login throttle + audit.** Credentials login in `packages/auth/src/auth.ts` checks a Redis-backed counter (15 attempts / 15 min per email, fails open if Redis is down) and writes every authorize() outcome (success, unknown user, inactive, no password, bad password, bad TOTP, throttled) to `AuditLog` with the new `USER_LOGIN_FAILED` enum value (migration `20260513120200_user_login_failed_audit`).
+- **Chat thread uniqueness fixed.** Dropped the broad `@@unique([kind, userMin, userMax])` on `ChatThread` and replaced with a partial unique `WHERE kind = 'DIRECT'` (migration `20260513120100_chat_thread_partial_unique`) — repeat viewings between the same owner + introducer no longer collide.
+- **Real-time chat actually delivers.** `apps/api/src/realtime/io.ts` now handles `chat:thread:join` / `chat:thread:leave` with participant authorisation, so socket events reach the open chat panel.
+
+### Changed (pre-deploy fix pass, 2026-05-13)
+
+- **Auth cookie cross-subdomain.** `packages/auth/src/auth.config.ts` accepts an optional `AUTH_COOKIE_DOMAIN` so the session cookie issued on `app.inmolink.eu` is sent to `api.inmolink.eu` in production. Localhost remains host-only.
+- **Storage fails closed in prod.** `apps/api/src/storage.ts` + `apps/worker/src/storage.ts` throw at boot when `NODE_ENV=production` and R2 env is incomplete. API additionally requires `R2_PUBLIC_BASE_URL` in production.
+- **URL envs split.** Added `APP_BASE_URL` (dashboard) + `API_BASE_URL` (API), kept `PUBLIC_BASE_URL` (marketplace). Invite acceptance links now use `APP_BASE_URL`; Stripe checkout success/cancel + portal returns use `APP_BASE_URL`. `.env.example.production` rewritten with the three-origin model and `AUTH_COOKIE_DOMAIN`.
+- **PM2 ecosystem.** Removed `wait_ready` from all four apps (no ready signal emitted today), resolved `cwd` to absolute paths, documented the per-app `.env.production` loading pattern (`ecosystem.config.cjs`).
+- **Feed import lock has stale recovery.** `apps/worker/src/processors/feed-import/processor.ts` accepts the lock if `lockedAt` is older than 30 min, so a crashed worker no longer permanently blocks future imports.
+- **Marketing pipeline.** Campaigns require `consentGivenAt` for contact audiences (`apps/api/src/modules/marketing/campaign-service.ts`). Email send processor marks the recipient `FAILED` on final attempt so campaigns can finalise (`apps/worker/src/processors/email-send/processor.ts`). Click-link rewrite handles single/double quotes + case-insensitive `href`, skips `tel:` / `sms:` / `javascript:` / `data:` and relative paths.
+- **Dashboard property search wired.** `q` now ILIKEs `externalRef` and any translation `title` / `description`.
+- **Public search feature filter.** When `q + featureIds` are both set, route falls back to Postgres so feature filtering is honoured (Meilisearch doc shape doesn't index ids yet).
+- **Public deleted-property redirect.** New static `apps/public/app/[locale]/property/withdrawn/page.tsx` page; deleted property pages 301 there with a CTA back to locale search instead of redirecting bare home.
+- **Export templates localised.** `apps/worker/src/processors/export-generate/templates.ts` now has `LABELS` for en/es/de/fr and a `labelsForLocale()` helper; both brochure and portfolio PDFs render labels in the export's locale.
+- **Swagger docs gated behind production.** `/docs` returns 404 in production unless `API_DOCS_ENABLED=true`.
+- **Public list rate-limit through validated config.** `PUBLIC_LIST_RATE_LIMIT_MAX` + `PUBLIC_LIST_RATE_LIMIT_WINDOW` moved from raw `process.env` reads to Zod-validated config in `apps/api/src/config.ts`.
+- **Dashboard pagination capped.** `MAX_DASHBOARD_PAGE = 200` bounds OFFSET for property list queries.
+- **Media cleanup keeps DB row on blob-delete failure** so a transient R2 outage doesn't orphan blobs.
+- **Nginx config.** Lead route rate-limit now matches the actual `/api/public/leads` path. `nginx/cloudflare-ips.conf` added with current Cloudflare IPv4 + IPv6 ranges and `real_ip_recursive on`.
+- **Cross-platform clean scripts.** `scripts/clean.mjs` replaces `rm -rf` in all 13 package.json `clean` scripts so PowerShell + Linux behave identically.
+- **Status messaging in README.** Now reads "v1 feature-complete · pre-deploy hardening · not yet production-deployed."
+
+### Added (pre-deploy review, 2026-05-12)
+
+- **Pre-deploy review artifacts** under `docs/reviews/`: an honest production-readiness review and a Claude-ready issue list covering security, deployment, real-time, media, visibility, and documentation drift blockers before first VPS deployment with real data.
+- **Master Claude fix handoff** at `docs/reviews/claude-master-fix-list-2026-05-12.md`, consolidating the deeper module-by-module audit into one prioritized file with exact references, acceptance checks, and a suggested fix order.
+- **Claude fix-pass review** at `docs/reviews/claude-fix-pass-review-2026-05-13.md`, capturing remaining compile, lint, schema, deploy-doc, consent, and residual SSRF concerns after the first automated fix pass.
+- **Second fix-pass re-check** added to the Claude review file, documenting the remaining `apps/web` production build blocker caused by Node-only SSRF imports leaking into the Next edge/auth bundle.
+- **Final fix-pass verification** added to the Claude review file after the SSRF edge-bundle split, recording passing app builds, focused tests, typechecks, Biome, Prisma validation, and whitespace checks.
+
 ### Changed (Dashboard visual overhaul, 2026-05-12)
 
 - **Flat-edged design system.** Set `--radius: 0` and overrode Tailwind `borderRadius` so every `rounded-{sm,md,lg,xl,2xl,3xl}` collapses to 0 across the dashboard. `rounded-full` preserved for avatars, badges, status pills, notification dot. Surfaces, cards, buttons, inputs, and the sidebar brand chip now render with sharp corners per reference design.

@@ -7,11 +7,8 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 
-// Bench-overridable cap; defaults to 120 req/min like the prior hardcoded
-// value. Set PUBLIC_LIST_RATE_LIMIT_MAX during k6 runs to bypass scraper
-// protection when one IP issues all the load (PLAN §11.12).
-const PUBLIC_LIST_RATE_LIMIT_MAX = Number(process.env.PUBLIC_LIST_RATE_LIMIT_MAX ?? 120);
-const PUBLIC_LIST_RATE_LIMIT_WINDOW = process.env.PUBLIC_LIST_RATE_LIMIT_WINDOW ?? "1 minute";
+// Bench-overridable cap; defaults to 120 req/min. Resolved per-route from
+// the validated env config so invalid values fail boot — see config.ts.
 
 /** Opaque cursor over (createdAt, id). Mirrors apps/api dashboard list. */
 function encodeCursor(c: { createdAt: Date; id: string }): string {
@@ -79,11 +76,27 @@ const localeQuery = z.object({
 
 const idParam = z.object({ id: z.string().min(1) });
 
+/**
+ * Round a latitude / longitude to ~2 decimals so public consumers get an
+ * approximate location (street-block fuzziness, ~1.1 km) instead of the
+ * full-precision address.
+ */
+function roundCoord(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
 export async function publicPropertyRoutes(
   app: FastifyInstance,
-  opts: { storage: Storage; search?: SearchAdapter | null },
+  opts: {
+    storage: Storage;
+    search?: SearchAdapter | null;
+    rateLimitMax?: number;
+    rateLimitWindow?: string;
+  },
 ): Promise<void> {
   const { storage, search = null } = opts;
+  const PUBLIC_LIST_RATE_LIMIT_MAX = opts.rateLimitMax ?? 120;
+  const PUBLIC_LIST_RATE_LIMIT_WINDOW = opts.rateLimitWindow ?? "1 minute";
   const fastify = app.withTypeProvider<ZodTypeProvider>();
 
   fastify.get(
@@ -110,7 +123,11 @@ export async function publicPropertyRoutes(
       // cover/agency data the doc shape doesn't carry. Browse-mode (no q)
       // stays Postgres-cursor for deterministic chronological listing.
       const trimmedQ = q.q?.trim();
-      if (trimmedQ && search) {
+      // Meilisearch doc shape does not yet index feature ids, so when the
+      // caller filters on featureIds we fall back to Postgres so the
+      // returned set actually honours the filter. Track this in #21 fix.
+      const hasFeatureFilter = !!(q.featureIds && q.featureIds.length > 0);
+      if (trimmedQ && search && !hasFeatureFilter) {
         const offset = q.cursor ? (decodeSearchCursor(q.cursor) ?? 0) : 0;
 
         const result = await search.search({
@@ -426,8 +443,12 @@ export async function publicPropertyRoutes(
         yearBuilt: row.yearBuilt,
         propertyTypeId: row.propertyTypeId,
         locationId: row.locationId,
-        latitude: row.latitude ? Number(row.latitude) : null,
-        longitude: row.longitude ? Number(row.longitude) : null,
+        // Coarsened to ~1.1 km (2 decimals) for public consumption — the
+        // dashboard keeps the full-precision value for authorised users.
+        // Map UI still renders the marker; nobody can geo-fingerprint the
+        // listing to an exact address.
+        latitude: row.latitude ? roundCoord(Number(row.latitude)) : null,
+        longitude: row.longitude ? roundCoord(Number(row.longitude)) : null,
         virtualTourUrl: row.virtualTourUrl,
         publishedAt: row.publishedAt ? row.publishedAt.toISOString() : null,
         updatedAt: row.updatedAt.toISOString(),

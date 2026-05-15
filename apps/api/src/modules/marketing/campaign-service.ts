@@ -260,7 +260,14 @@ async function loadAudience(
   const source = filter?.source ?? "contacts";
 
   if (source === "contacts") {
-    const where: Prisma.ContactWhereInput = { agencyId, unsubscribedAt: null };
+    // GDPR: campaigns require explicit marketing consent (`consentGivenAt`).
+    // Contacts without consent are silently dropped from the audience even
+    // if they're not unsubscribed — opt-in is the lawful basis for sending.
+    const where: Prisma.ContactWhereInput = {
+      agencyId,
+      unsubscribedAt: null,
+      consentGivenAt: { not: null },
+    };
     if (filter?.tags && filter.tags.length > 0) where.tags = { hasSome: filter.tags };
     const rows = await prisma.contact.findMany({
       where,
@@ -276,25 +283,19 @@ async function loadAudience(
     }));
   }
 
-  // source === "leads" — Lead.email is nullable; we drop null-email leads
-  // since campaigns can't reach them. Phone-only leads are out of scope
-  // for email marketing by definition.
-  const where: Prisma.LeadWhereInput = { agencyId, email: { not: null } };
-  if (filter?.propertyId) where.propertyId = filter.propertyId;
-  const rows = await prisma.lead.findMany({
-    where,
-    select: { id: true, email: true, name: true, propertyId: true },
-    take: 5_000,
-  });
-  return rows
-    .filter((l): l is typeof l & { email: string } => Boolean(l.email))
-    .map((l) => ({
-      email: l.email,
-      name: l.name,
-      contactId: null,
-      leadId: l.id,
-      context: { firstName: l.name ?? "", email: l.email, propertyId: l.propertyId ?? "" },
-    }));
+  // source === "leads" — disabled until Lead.consentGivenAt exists.
+  //
+  // Leads enter via the marketplace lead form, which is "legitimate-interest"
+  // for the immediate property reply only. Bulk-marketing to a lead audience
+  // without an explicit opt-in is not GDPR-safe, so we refuse the path
+  // entirely instead of silently sending. The corresponding UI affordance
+  // should be hidden behind the same feature flag. See review #25.
+  //
+  // To restore: add Lead.consentGivenAt, reinstate the previous loader (see
+  // git history) with `where.consentGivenAt = { not: null }` + suppression.
+  throw new ForbiddenError(
+    "Lead-source campaigns are disabled until explicit marketing consent is captured on Lead.",
+  );
 }
 
 export async function sendCampaignNow(

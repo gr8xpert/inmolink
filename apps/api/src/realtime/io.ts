@@ -1,3 +1,4 @@
+import { prisma } from "@inmolink/db";
 import type { UserRole } from "@inmolink/shared";
 import { createAdapter } from "@socket.io/redis-adapter";
 import type { FastifyInstance } from "fastify";
@@ -99,6 +100,55 @@ export function installSocketIO(
     // Per-user room — used by notification fanout and unicast events.
     socket.join(`user:${u.id}`);
     app.log.info({ socketId: socket.id, userId: u.id }, "socket connected");
+
+    // chat:thread:join — client asks to subscribe to live messages in a
+    // specific thread. We must verify the caller is a participant (or a
+    // super-admin) BEFORE joining `thread:<id>`; otherwise any authenticated
+    // user could subscribe to any thread.
+    socket.on("chat:thread:join", async (raw: unknown, ack?: (resp: unknown) => void) => {
+      try {
+        const threadId =
+          typeof raw === "object" && raw !== null && "threadId" in raw
+            ? String((raw as { threadId: unknown }).threadId)
+            : "";
+        if (!/^[a-z0-9]{8,32}$/i.test(threadId)) {
+          ack?.({ ok: false, error: "INVALID_THREAD_ID" });
+          return;
+        }
+        const thread = await prisma.chatThread.findUnique({
+          where: { id: threadId },
+          select: { participantAUserId: true, participantBUserId: true },
+        });
+        if (!thread) {
+          ack?.({ ok: false, error: "NOT_FOUND" });
+          return;
+        }
+        const isParticipant =
+          thread.participantAUserId === u.id || thread.participantBUserId === u.id;
+        if (!isParticipant && u.role !== "SUPER_ADMIN") {
+          ack?.({ ok: false, error: "FORBIDDEN" });
+          return;
+        }
+        await socket.join(`thread:${threadId}`);
+        ack?.({ ok: true });
+      } catch (err) {
+        app.log.warn({ err, userId: u.id }, "chat:thread:join error");
+        ack?.({ ok: false, error: "INTERNAL" });
+      }
+    });
+
+    socket.on("chat:thread:leave", async (raw: unknown, ack?: (resp: unknown) => void) => {
+      const threadId =
+        typeof raw === "object" && raw !== null && "threadId" in raw
+          ? String((raw as { threadId: unknown }).threadId)
+          : "";
+      if (!threadId) {
+        ack?.({ ok: false, error: "INVALID_THREAD_ID" });
+        return;
+      }
+      await socket.leave(`thread:${threadId}`);
+      ack?.({ ok: true });
+    });
 
     socket.on("disconnect", (reason) => {
       app.log.debug({ socketId: socket.id, userId: u.id, reason }, "socket disconnected");

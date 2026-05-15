@@ -39,8 +39,9 @@ export function Pagination({ page, totalPages, hrefForPage, siblingCount = 1, cl
 
       {pages.map((p, idx) =>
         p === "…" ? (
+          // Stable key: anchor the gap to its neighbouring page numbers.
           <span
-            key={`gap-${idx}`}
+            key={`gap-${pages[idx - 1] ?? "head"}-${pages[idx + 1] ?? "tail"}`}
             className="px-2 text-sm text-muted-foreground"
             aria-hidden="true"
           >

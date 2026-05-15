@@ -6,9 +6,22 @@
  * lands in Sprint 12 as a separate `seed-load-test.ts`.
  *
  * Run: pnpm db:seed
+ *
+ * SAFETY: this script is dev-only. It refuses to run when NODE_ENV=production
+ * to prevent the default admin credential from ever landing on a real server.
+ * Production bootstrap lives in `packages/db/bootstrap-prod.ts` and requires
+ * explicit ADMIN_EMAIL + ADMIN_PASSWORD env vars with no defaults.
  */
 import { hash } from "@node-rs/argon2";
 import { PrismaClient } from "@prisma/client";
+
+if (process.env.NODE_ENV === "production") {
+  console.error(
+    "ERROR: dev seed cannot run with NODE_ENV=production.\n" +
+      "Use `pnpm --filter @inmolink/db bootstrap:prod` and supply ADMIN_EMAIL + ADMIN_PASSWORD.",
+  );
+  process.exit(1);
+}
 
 const prisma = new PrismaClient();
 
@@ -239,17 +252,11 @@ async function main(): Promise<void> {
     });
   }
 
-  // biome-ignore lint/suspicious/noConsoleLog: seed script
   console.log("Seed complete:");
-  // biome-ignore lint/suspicious/noConsoleLog: seed script
   console.log("  - plans (FREE, PRO)");
-  // biome-ignore lint/suspicious/noConsoleLog: seed script
   console.log("  - super-admin agency: inmolink-admin");
-  // biome-ignore lint/suspicious/noConsoleLog: seed script
   console.log("  - super-admin user:  admin@inmolink.local");
-  // biome-ignore lint/suspicious/noConsoleLog: seed script
   console.log(`  - dev password:      ${DEV_ADMIN_PASSWORD}`);
-  // biome-ignore lint/suspicious/noConsoleLog: seed script
   console.log("  - 5 property types, 1 group, 3 cities under Spain");
 }
 

@@ -53,8 +53,9 @@ services:
       - redis-server
       - "--maxmemory"
       - "1gb"
+      # BullMQ requires noeviction so jobs/state aren't evicted under memory pressure
       - "--maxmemory-policy"
-      - "allkeys-lru"
+      - "noeviction"
       # BullMQ + persistence (PLAN §11.14)
       - "--appendonly"
       - "yes"

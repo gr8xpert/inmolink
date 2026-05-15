@@ -12,6 +12,30 @@ Real bugs we hit and the root cause + fix. **Newest at the top.**
 
 ---
 
+## 2026-05-15 — Kyero/Generic XML connectors fail on 301 redirects
+
+**Symptom**: Manual feed import against `http://crm.abracasabra.es/property/feed/1/.../Test_feed.xml` reported `Kyero fetch failed: 301 Moved Permanently`. FeedRun marked FAILED with 0 items. Production feed hosts now serve HTTP→HTTPS redirects that the connector refused to follow.
+
+**Root cause**: Both `kyero.ts` and `generic-xml.ts` use `fetch(url, { redirect: "manual" })` to prevent SSRF via cross-host redirect (`assertSafeUrl` only validates the initial URL — a redirect target could be `http://169.254.169.254/...`). Manual mode meant a 3xx response was treated as the final response, so the connector errored out instead of following the safe http→https hop.
+
+**Fix**: Added `packages/imports/src/connectors/safe-fetch.ts` — follows redirects manually with a 5-hop cap and re-runs `assertSafeUrl` on every redirect target before fetching it. Kyero + generic-xml + resale-online (via generic-xml) now use this helper. Manual run after the fix completed in 3s with 272 items.
+
+**Prevention**: Helper is the only path connectors should take to feed URLs; future connectors should import `safeFetchWithRedirects` rather than calling `fetch` directly against `input.feedUrl`.
+
+---
+
+## 2026-05-15 — Redis `allkeys-lru` evicts BullMQ state
+
+**Symptom**: Every BullMQ worker startup logged `IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"` (one line per queue). Under sustained load Redis could evict job/state keys and cause stuck or silently-dropped jobs.
+
+**Root cause**: `docker-compose.yml` started Redis with `--maxmemory-policy allkeys-lru`. BullMQ uses Redis as durable state for jobs, schedulers, and locks — eviction of those keys is unsafe.
+
+**Fix**: Switched `docker-compose.yml` redis service to `--maxmemory-policy noeviction`. Runtime `CONFIG SET maxmemory-policy noeviction` applied to the live container too. `CONFIG REWRITE` failed because the container runs without a config file — the docker-compose change is what persists across recreate.
+
+**Prevention**: Document the BullMQ requirement in the deploy runbook. If we ever switch Redis to a managed provider, set the policy explicitly on the instance.
+
+---
+
 ## 2026-05-11 — Phase C bench cluster: `seed:bulk` broken, response 500s, k6 hits scrape cap
 
 Four chained issues surfaced once the load bench actually started exercising the public surface against synthetic data. Documented as one entry because they were a single debugging arc.

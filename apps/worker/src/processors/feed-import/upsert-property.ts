@@ -66,7 +66,13 @@ export async function upsertPropertyFromListing(args: {
   const targetVisibility: PropertyVisibility = "SHARED";
 
   const existing = await prisma.property.findUnique({
-    where: { source_externalRef: { source, externalRef: listing.externalRef } },
+    where: {
+      ownerAgencyId_source_externalRef: {
+        ownerAgencyId,
+        source,
+        externalRef: listing.externalRef,
+      },
+    },
     select: {
       id: true,
       lockedFields: true,

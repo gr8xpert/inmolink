@@ -77,20 +77,35 @@ export function makeMediaCleanupProcessor(deps: {
         }
       }
 
-      // 1b. Delete the source blob (best-effort).
+      // 1b. Delete the source blob. If R2 returns an error, push the
+      //     scheduledDeleteAt out and KEEP the DB row so the next sweep
+      //     retries the delete. Otherwise we'd orphan the blob forever and
+      //     pay storage cost indefinitely.
+      let blobDeleted = true;
       try {
         await storage.delete(m.r2Key);
       } catch (err) {
-        log.warn({ err, key: m.r2Key, mediaObjectId: m.id }, "source blob delete failed");
+        blobDeleted = false;
+        log.warn(
+          { err, key: m.r2Key, mediaObjectId: m.id },
+          "source blob delete failed — will retry next sweep",
+        );
+        await prisma.mediaObject.update({
+          where: { id: m.id },
+          data: { scheduledDeleteAt: new Date(Date.now() + 60 * 60 * 1000) }, // +1h
+        });
       }
 
-      // 1c. Delete the MediaObject row. FK SetNull keeps variant rows alive
-      //     so the scheduled-delete grace can run its course.
-      try {
-        await prisma.mediaObject.delete({ where: { id: m.id } });
-        mediaObjectsReaped += 1;
-      } catch (err) {
-        log.error({ err, mediaObjectId: m.id }, "MediaObject row delete failed");
+      // 1c. Delete the MediaObject row only if the blob is gone. FK SetNull
+      //     keeps variant rows alive so the scheduled-delete grace can run
+      //     its course.
+      if (blobDeleted) {
+        try {
+          await prisma.mediaObject.delete({ where: { id: m.id } });
+          mediaObjectsReaped += 1;
+        } catch (err) {
+          log.error({ err, mediaObjectId: m.id }, "MediaObject row delete failed");
+        }
       }
     }
 
@@ -103,16 +118,27 @@ export function makeMediaCleanupProcessor(deps: {
 
     for (const v of variantOrphans) {
       const key = variantKeyFromHash(v.hash);
+      let blobDeleted = true;
       try {
         await storage.delete(key);
       } catch (err) {
-        log.warn({ err, key, variantId: v.id }, "variant blob delete failed");
+        blobDeleted = false;
+        log.warn(
+          { err, key, variantId: v.id },
+          "variant blob delete failed — will retry next sweep",
+        );
+        await prisma.mediaVariant.update({
+          where: { id: v.id },
+          data: { scheduledDeleteAt: new Date(Date.now() + 60 * 60 * 1000) },
+        });
       }
-      try {
-        await prisma.mediaVariant.delete({ where: { id: v.id } });
-        variantsReaped += 1;
-      } catch (err) {
-        log.error({ err, variantId: v.id }, "MediaVariant row delete failed");
+      if (blobDeleted) {
+        try {
+          await prisma.mediaVariant.delete({ where: { id: v.id } });
+          variantsReaped += 1;
+        } catch (err) {
+          log.error({ err, variantId: v.id }, "MediaVariant row delete failed");
+        }
       }
     }
 

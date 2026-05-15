@@ -26,6 +26,9 @@ const HASH_A = "a".repeat(64);
 const HASH_B = "b".repeat(64);
 const HASH_C = "c".repeat(64);
 
+// 12-byte buffer that magic-byte sniffs as image/jpeg (FF D8 FF).
+const JPEG_HEAD = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0, 0, 0]);
+
 const fakeStorage = (): Storage =>
   ({
     kind: "r2",
@@ -37,6 +40,10 @@ const fakeStorage = (): Storage =>
     })),
     fetchAndHash: vi.fn(),
     download: vi.fn(),
+    // readHead is the new sniff-window source. Tests that exercise the
+    // novel-hash path mock it with JPEG magic so the MIME-mismatch guard
+    // accepts the upload.
+    readHead: vi.fn(async () => JPEG_HEAD),
     put: vi.fn(),
     exists: vi.fn(),
     delete: vi.fn(),

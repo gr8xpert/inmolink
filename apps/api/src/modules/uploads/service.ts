@@ -4,6 +4,7 @@ import { type Storage, StorageObjectMissingError, keyFromHash } from "@inmolink/
 import type { Prisma } from "@prisma/client";
 import type { Queue } from "bullmq";
 import { enqueueEagerImageVariants } from "../../lib/queues";
+import { sniffActualMimeType } from "./mime-sniff";
 
 /**
  * Two-step upload flow with content-addressable dedup. PLAN §5.1 / ADR 0002.
@@ -130,6 +131,31 @@ export async function registerUploads(
       throw new UploadVerifyError(
         `Hash mismatch: client claimed ${u.hash.slice(0, 16)}…, server computed ${serverHash.slice(0, 16)}…`,
       );
+    }
+
+    // Magic-byte check: trust actual bytes, not the client-claimed mimeType.
+    // Range-read only the leading 4 KB — enough for every supported format
+    // to identify itself. Crucially we DON'T pull the full object back into
+    // API memory (uploads can be 500 MB; 50 per request).
+    try {
+      const window = await storage.readHead(key, 4096);
+      const sniff = sniffActualMimeType(window, u.mimeType);
+      if (!sniff.mimeType) {
+        throw new UploadVerifyError(
+          `Could not identify content type for hash ${u.hash.slice(0, 16)}…`,
+        );
+      }
+      if (!sniff.matches) {
+        throw new UploadVerifyError(
+          `MIME mismatch: client claimed ${u.mimeType}, server sniffed ${sniff.mimeType}`,
+        );
+      }
+    } catch (e: unknown) {
+      if (e instanceof UploadVerifyError) throw e;
+      if (e instanceof StorageObjectMissingError) {
+        throw new UploadMissingError(`Upload for hash ${u.hash.slice(0, 16)}… disappeared`);
+      }
+      throw e;
     }
 
     const scheduledDeleteAt = new Date(Date.now() + ORPHAN_GRACE_HOURS * 3600 * 1000);

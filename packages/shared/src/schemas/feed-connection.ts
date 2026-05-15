@@ -1,5 +1,25 @@
 import { z } from "zod";
+import { assertSafeUrlStatic } from "../ssrf";
 import { genericXmlConfigSchema } from "./feed-import";
+
+/**
+ * Feed URL: HTTPS (and http allowed for legacy XML providers; revisit when
+ * Kyero/Resale Online enforce HTTPS). Always rejects private/reserved hosts
+ * so the worker cannot be tricked into fetching localhost or cloud metadata.
+ */
+const feedUrlSchema = z
+  .string()
+  .url()
+  .superRefine((value, ctx) => {
+    try {
+      assertSafeUrlStatic(value, { allowHttp: true });
+    } catch (e) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: e instanceof Error ? e.message : "Invalid feed URL",
+      });
+    }
+  });
 
 /**
  * FeedConnection CRUD + run history schemas (PLAN §11.5).
@@ -34,7 +54,7 @@ export const cronScheduleSchema = z
 
 export const feedConnectionCreateSchema = z.object({
   kind: feedConnectorKindSchema,
-  feedUrl: z.string().url(),
+  feedUrl: feedUrlSchema,
   credentials: z.record(z.string(), z.string()).nullable().optional(),
   fieldMappings: genericXmlConfigSchema.nullable().optional(),
   syncEnabled: z.boolean().default(true),
@@ -42,7 +62,7 @@ export const feedConnectionCreateSchema = z.object({
 });
 
 export const feedConnectionUpdateSchema = z.object({
-  feedUrl: z.string().url().optional(),
+  feedUrl: feedUrlSchema.optional(),
   /** Set to null to clear stored credentials. Omit to leave unchanged. */
   credentials: z.record(z.string(), z.string()).nullable().optional(),
   fieldMappings: genericXmlConfigSchema.nullable().optional(),

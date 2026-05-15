@@ -5,6 +5,7 @@
  */
 export * from "./locales";
 export * from "./permissions";
+export * from "./ssrf";
 export * as adminFeatureSchemas from "./schemas/admin-features";
 export * as adminFeedTypeMapSchemas from "./schemas/admin-feed-type-maps";
 export * as feedConnectionSchemas from "./schemas/feed-connection";

@@ -22,6 +22,7 @@ import { LOCALES, type Locale } from "@inmolink/shared";
 import sax from "sax";
 import type { FeatureName, FeedConnector, FeedFetchInput, NormalizedListing } from "../connector";
 import { AsyncQueue } from "../stream-queue";
+import { safeFetchWithRedirects } from "./safe-fetch";
 
 type DraftProperty = {
   externalRef?: string;
@@ -61,7 +62,10 @@ export class KyeroConnector implements FeedConnector {
 }
 
 async function* parseKyeroFromUrl(input: FeedFetchInput): AsyncIterable<NormalizedListing> {
-  const res = await fetch(input.feedUrl, { signal: input.signal });
+  const res = await safeFetchWithRedirects(input.feedUrl, {
+    signal: input.signal,
+    allowHttp: true,
+  });
   if (!res.ok || !res.body) {
     throw new Error(`Kyero fetch failed: ${res.status} ${res.statusText}`);
   }

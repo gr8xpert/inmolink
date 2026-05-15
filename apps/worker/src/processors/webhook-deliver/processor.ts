@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import { decryptFromString } from "@inmolink/auth";
 import { prisma } from "@inmolink/db";
 import { webhookSchemas } from "@inmolink/shared";
+import { SsrfBlockedError, assertSafeUrl } from "@inmolink/shared/ssrf-node";
 import type { Job, Processor } from "bullmq";
 import type pino from "pino";
 
@@ -95,11 +96,21 @@ export function makeWebhookDeliverProcessor(opts: Args): Processor {
     let permanentFailure = false;
 
     try {
+      // SSRF re-check at delivery time — endpoint URL passed input validation
+      // at registration but DNS may have changed (rebinding). Manual redirects
+      // so we don't follow a 30x into a private network.
+      try {
+        await assertSafeUrl(delivery.endpoint.url, { allowHttp: false });
+      } catch (e) {
+        permanentFailure = true;
+        throw e instanceof SsrfBlockedError ? e : new Error("SSRF check failed");
+      }
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10_000);
       try {
         const res = await fetch(delivery.endpoint.url, {
           method: "POST",
+          redirect: "manual",
           headers: {
             "content-type": "application/json",
             "user-agent": "Inmolink-Webhooks/1.0",

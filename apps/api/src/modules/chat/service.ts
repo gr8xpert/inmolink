@@ -214,22 +214,41 @@ export async function getOrCreateDirectThread(
   const userMin = a as string;
   const userMax = b as string;
 
-  // upsert via @@unique(kind, userMin, userMax)
-  const thread = await prisma.chatThread.upsert({
-    where: { uniqueDirectThread: { kind: "DIRECT", userMin, userMax } },
-    create: {
-      kind: "DIRECT",
-      participantAUserId: caller.userId,
-      participantBUserId: other.id,
-      userMin,
-      userMax,
-    },
-    update: {},
-    include: {
-      participantA: { select: PARTICIPANT_SELECT },
-      participantB: { select: PARTICIPANT_SELECT },
-    },
+  // Direct-thread uniqueness is now a PARTIAL unique index (WHERE kind = 'DIRECT')
+  // — Prisma can't model partial unique as a `findUnique` / `upsert` key, so we
+  // do the get-or-create dance manually: findFirst, then create, then catch the
+  // P2002 race by re-reading.
+  const include = {
+    participantA: { select: PARTICIPANT_SELECT },
+    participantB: { select: PARTICIPANT_SELECT },
+  } as const;
+  let thread = await prisma.chatThread.findFirst({
+    where: { kind: "DIRECT", userMin, userMax },
+    include,
   });
+  if (!thread) {
+    try {
+      thread = await prisma.chatThread.create({
+        data: {
+          kind: "DIRECT",
+          participantAUserId: caller.userId,
+          participantBUserId: other.id,
+          userMin,
+          userMax,
+        },
+        include,
+      });
+    } catch (err) {
+      const code = (err as { code?: string })?.code;
+      if (code !== "P2002") throw err;
+      const found = await prisma.chatThread.findFirst({
+        where: { kind: "DIRECT", userMin, userMax },
+        include,
+      });
+      if (!found) throw err;
+      thread = found;
+    }
+  }
   return {
     id: thread.id,
     kind: thread.kind,

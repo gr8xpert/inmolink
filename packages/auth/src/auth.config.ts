@@ -43,6 +43,18 @@ declare module "next-auth/jwt" {
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
+/**
+ * Parent cookie domain for cross-subdomain session sharing.
+ *
+ * In production the dashboard runs on `app.inmolink.eu` and the api on
+ * `api.inmolink.eu`. If the session cookie is host-only, the browser never
+ * sends it to the api host and Socket.io auth + dashboard fetches break.
+ *
+ * Set AUTH_COOKIE_DOMAIN to the eTLD+1 (e.g. `.inmolink.eu`) for prod. Leave
+ * unset for localhost so browsers accept a host-only cookie.
+ */
+const AUTH_COOKIE_DOMAIN = process.env.AUTH_COOKIE_DOMAIN?.trim() || undefined;
+
 export const authConfig = {
   session: {
     strategy: "jwt",
@@ -62,6 +74,11 @@ export const authConfig = {
         sameSite: "lax",
         secure: IS_PROD,
         path: "/",
+        // `__Secure-` prefix forbids cookies bound to a domain without `secure`,
+        // which we already set above. Domain must include leading dot for
+        // cross-subdomain sharing on legacy clients; modern browsers accept
+        // either form.
+        ...(AUTH_COOKIE_DOMAIN ? { domain: AUTH_COOKIE_DOMAIN } : {}),
       },
     },
   },

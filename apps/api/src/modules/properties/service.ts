@@ -59,8 +59,11 @@ export async function listForDashboard(
       : {
           userId: user.id,
           agencyId: user.agencyId,
-          // Dashboard hides PUBLIC noise; agents see SHARED across the
-          // platform plus their own (regardless of visibility).
+          // AGENT vs AGENCY_ADMIN gates the agency-scope OR clause in the
+          // repository — agents must not see other agents' private rows.
+          role: user.role === "AGENCY_ADMIN" ? ("AGENCY_ADMIN" as const) : ("AGENT" as const),
+          // Dashboard hides PUBLIC noise; everyone sees SHARED plus their
+          // own (regardless of visibility).
           allowedVisibility: ["SHARED" as const],
         };
 

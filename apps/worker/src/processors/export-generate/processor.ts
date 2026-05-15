@@ -5,7 +5,7 @@ import type { Storage } from "@inmolink/storage";
 import type { Prisma } from "@prisma/client";
 import type { Job, Processor } from "bullmq";
 import type pino from "pino";
-import { PORTFOLIO_TEMPLATE, PROPERTY_BROCHURE_TEMPLATE } from "./templates";
+import { PORTFOLIO_TEMPLATE, PROPERTY_BROCHURE_TEMPLATE, labelsForLocale } from "./templates";
 
 /**
  * EXPORT_GENERATE processor (PLAN §11.11).
@@ -85,6 +85,7 @@ export function makeExportGenerateProcessor(opts: Args): Processor {
           template: PROPERTY_BROCHURE_TEMPLATE,
           data: {
             locale: exportRow.locale,
+            labels: labelsForLocale(exportRow.locale),
             agency: { name: agencyName },
             property: buildPropertyData(head, exportRow.locale, opts.storage),
             generatedAt: new Date().toISOString().slice(0, 10),
@@ -98,6 +99,7 @@ export function makeExportGenerateProcessor(opts: Args): Processor {
           template: PORTFOLIO_TEMPLATE,
           data: {
             locale: exportRow.locale,
+            labels: labelsForLocale(exportRow.locale),
             agency: { name: agencyName },
             properties: properties.map((p) => buildPropertyData(p, exportRow.locale, opts.storage)),
             generatedAt: new Date().toISOString().slice(0, 10),

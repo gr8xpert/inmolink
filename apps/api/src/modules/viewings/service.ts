@@ -135,6 +135,27 @@ function encodeCursor(args: { createdAt: string; id: string }): string {
   return Buffer.from(JSON.stringify(args)).toString("base64url");
 }
 
+/**
+ * Map Prisma's TransactionType enum (uppercase) to the lowercase wire enum
+ * the shared schema expects. Centralised so the cast lives in one place and
+ * a future enum drift breaks one site instead of many.
+ */
+function normalizeTxType(
+  value: "SALE" | "RENT" | "SHORT_TERM" | string,
+): "sale" | "rent" | "rentlong" | "rentshort" {
+  switch (value) {
+    case "SALE":
+      return "sale";
+    case "RENT":
+      return "rent";
+    case "SHORT_TERM":
+      return "rentshort";
+    default:
+      // Defensive — should never hit unless the enum changes.
+      return "sale";
+  }
+}
+
 function pickTitle(translations: Array<{ locale: string; title: string; slug: string }>): {
   title: string | null;
   slug: string | null;
@@ -186,7 +207,7 @@ function toResponse(
       slug: t.slug,
       priceCents: row.property.priceCents.toString(),
       currency: row.property.currency,
-      transactionType: row.property.transactionType as "sale" | "rent" | "rentlong" | "rentshort",
+      transactionType: normalizeTxType(row.property.transactionType),
       coverImageUrl: cover ? storage.publicUrl(cover.r2Key) : null,
     },
     owner: {

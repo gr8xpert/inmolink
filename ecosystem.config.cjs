@@ -6,13 +6,28 @@
 //   - apps/worker: fork ×2, max 2GB each (sharp + Puppeteer can spike memory)
 //
 // Adjust `instances` based on actual VPS core count.
-// Use: pm2 start ecosystem.config.cjs --env production
+// Use: pm2 start ecosystem.config.cjs
+//
+// ENV LOADING:
+//   PM2 does NOT auto-load .env files. Each app reads its own
+//   `apps/<app>/.env.production` via the framework (Next bakes NEXT_PUBLIC_*
+//   at build time; runtime envs land via dotenv loaders inside each app).
+//   PM2 only injects NODE_ENV here; everything else lives in per-app env files
+//   on the VPS so secrets are never duplicated across processes.
+//
+// READINESS:
+//   `wait_ready` requires the child to call `process.send("ready")`. Next.js
+//   `next start` and Fastify (as written today) do not signal ready, so
+//   wait_ready is disabled to avoid PM2 hanging on first start.
+//   Re-enable per-app once that app starts emitting a real ready signal.
+
+const path = require("node:path");
 
 module.exports = {
   apps: [
     {
       name: "inmolink-web",
-      cwd: "./apps/web",
+      cwd: path.resolve(__dirname, "apps/web"),
       script: "node_modules/next/dist/bin/next",
       args: "start -p 3000",
       instances: 2,
@@ -23,12 +38,11 @@ module.exports = {
       out_file: "./logs/web.out.log",
       time: true,
       kill_timeout: 10000, // graceful shutdown window for in-flight requests
-      wait_ready: true,
       listen_timeout: 30000,
     },
     {
       name: "inmolink-public",
-      cwd: "./apps/public",
+      cwd: path.resolve(__dirname, "apps/public"),
       script: "node_modules/next/dist/bin/next",
       args: "start -p 3002",
       instances: 2,
@@ -39,12 +53,11 @@ module.exports = {
       out_file: "./logs/public.out.log",
       time: true,
       kill_timeout: 10000,
-      wait_ready: true,
       listen_timeout: 30000,
     },
     {
       name: "inmolink-api",
-      cwd: "./apps/api",
+      cwd: path.resolve(__dirname, "apps/api"),
       script: "dist/server.js",
       instances: 2,
       exec_mode: "cluster",
@@ -54,12 +67,11 @@ module.exports = {
       out_file: "./logs/api.out.log",
       time: true,
       kill_timeout: 15000, // longer for in-flight WebSocket drain
-      wait_ready: true,
       listen_timeout: 30000,
     },
     {
       name: "inmolink-worker",
-      cwd: "./apps/worker",
+      cwd: path.resolve(__dirname, "apps/worker"),
       script: "dist/worker.js",
       instances: 2,
       // BullMQ workers can run multiple processes safely; each pulls jobs from

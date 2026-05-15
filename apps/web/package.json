@@ -9,7 +9,7 @@
     "start": "next start -p 3000",
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf .next .turbo node_modules"
+    "clean": "node ../../scripts/clean.mjs .next .turbo node_modules"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

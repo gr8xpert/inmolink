@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
 import { prisma } from "@inmolink/db";
 import { mediaSchemas } from "@inmolink/shared";
+import { assertSafeUrl } from "@inmolink/shared/ssrf-node";
 import { type Storage, keyFromHash } from "@inmolink/storage";
 import type { Prisma } from "@prisma/client";
 import type { Queue } from "bullmq";
 import type { Logger } from "pino";
+import sharp from "sharp";
 
 /**
  * Download a feed-supplied image URL, hash the bytes, and attach it to the
@@ -30,7 +32,13 @@ export async function downloadAndDedupImage(args: {
   signal?: AbortSignal;
 }): Promise<{ mediaObjectId: string; sha256: string; bytes: number; mimeType: string }> {
   const maxBytes = args.maxBytes ?? 25 * 1024 * 1024; // 25 MB per image (parity with the dashboard cap)
-  const res = await fetch(args.url, { signal: args.signal });
+
+  // SSRF guard: refuse to fetch feed-supplied URLs pointing at localhost,
+  // private networks, link-local, or cloud metadata endpoints. We allow
+  // http:// here because some legacy XML providers still serve unencrypted.
+  await assertSafeUrl(args.url, { allowHttp: true });
+
+  const res = await fetch(args.url, { signal: args.signal, redirect: "manual" });
   if (!res.ok) {
     throw new Error(`Image fetch failed for ${args.url}: ${res.status} ${res.statusText}`);
   }
@@ -43,8 +51,25 @@ export async function downloadAndDedupImage(args: {
     throw new Error(`Image at ${args.url} body exceeds maxBytes (${buf.length} > ${maxBytes})`);
   }
 
-  const sha256 = createHash("sha256").update(buf).digest("hex");
+  // Validate that we actually got raster image bytes. Magic-byte sniff
+  // narrows the candidate set; sharp.metadata() proves the bytes decode as
+  // an image of the claimed format. Reject SVG (script-bearing).
   const mimeType = sniffMimeType(buf, res.headers.get("content-type"));
+  if (!mimeType.startsWith("image/") || mimeType === "image/svg+xml") {
+    throw new Error(`Image at ${args.url} is not a supported raster image (${mimeType})`);
+  }
+  try {
+    const meta = await sharp(buf, { failOn: "error" }).metadata();
+    if (!meta.format || !["jpeg", "png", "webp", "gif", "avif"].includes(meta.format)) {
+      throw new Error(`unsupported image format: ${meta.format ?? "unknown"}`);
+    }
+  } catch (err) {
+    throw new Error(
+      `Image at ${args.url} failed decode: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  const sha256 = createHash("sha256").update(buf).digest("hex");
 
   // Dedup: if a MediaObject with this hash exists, no upload needed.
   const existing = await prisma.mediaObject.findUnique({

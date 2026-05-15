@@ -9,7 +9,7 @@
     "start": "next start -p 3002",
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf .next .turbo node_modules"
+    "clean": "node ../../scripts/clean.mjs .next .turbo node_modules"
   },
   "dependencies": {
     "@inmolink/db": "workspace:*",

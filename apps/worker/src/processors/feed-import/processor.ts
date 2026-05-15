@@ -60,9 +60,21 @@ export function makeFeedImportProcessor(deps: {
     // feed must stop scheduled runs); MANUAL / RETRY triggers run regardless
     // since the api created the FeedRun explicitly (e.g. one-off uploads
     // live with syncEnabled=false from the start).
-    const lockWhere: { id: string; isLocked: boolean; syncEnabled?: boolean } = {
+    //
+    // Stale-lock recovery: if a previous run crashed before releasing the
+    // lock, `isLocked=true` would block all future imports forever. We
+    // refuse to wait more than STALE_LOCK_MS — when lockedAt is older than
+    // that, take the lock even though isLocked is still true.
+    const STALE_LOCK_MS = 30 * 60 * 1000; // 30 min — generous vs. our 10 min typical run
+
+    const staleCutoff = new Date(Date.now() - STALE_LOCK_MS);
+    const lockWhere: {
+      id: string;
+      syncEnabled?: boolean;
+      OR: Array<{ isLocked: false } | { lockedAt: { lt: Date } | null }>;
+    } = {
       id: data.feedConnectionId,
-      isLocked: false,
+      OR: [{ isLocked: false }, { lockedAt: { lt: staleCutoff } }],
     };
     if (data.triggeredBy === "CRON") lockWhere.syncEnabled = true;
 

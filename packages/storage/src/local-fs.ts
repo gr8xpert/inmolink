@@ -107,6 +107,23 @@ export class LocalFsStorage implements Storage {
     }
   }
 
+  async readHead(key: string, bytes: number): Promise<Buffer> {
+    let fh: import("node:fs/promises").FileHandle | null = null;
+    try {
+      fh = await fs.open(this.absPath(key), "r");
+      const buf = Buffer.alloc(bytes);
+      const { bytesRead } = await fh.read(buf, 0, bytes, 0);
+      return buf.subarray(0, bytesRead);
+    } catch (e: unknown) {
+      if ((e as { code?: string })?.code === "ENOENT") {
+        throw new StorageObjectMissingError(key);
+      }
+      throw e;
+    } finally {
+      await fh?.close();
+    }
+  }
+
   async put(key: string, body: Buffer, _contentType: string): Promise<void> {
     // contentType is informational only on the local fs backend — kept on the
     // signature so callers can write storage-agnostic code. The dev /serve

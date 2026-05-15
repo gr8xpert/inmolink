@@ -70,6 +70,16 @@ export interface Storage {
   download(key: string): Promise<Buffer>;
 
   /**
+   * Read only the first `bytes` of an object. Used by `/api/uploads/register`
+   * to magic-byte-sniff content without buffering full 500 MB uploads into
+   * API memory. Implementations should use HTTP Range when supported (R2).
+   *
+   * Returns whatever bytes are available (may be fewer than requested for
+   * small objects). Throws StorageObjectMissingError if the key is absent.
+   */
+  readHead(key: string, bytes: number): Promise<Buffer>;
+
+  /**
    * Direct PUT — used by the variant worker to upload generated variants.
    * Browsers never call this path; they use createUploadUrl() instead.
    */

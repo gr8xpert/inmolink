@@ -24,9 +24,10 @@ import { emitWebhookEvent } from "../../lib/webhooks";
  *
  *   - IP stored as salted SHA-256 — we never write the raw value to DB.
  *
- *   - Cloudflare Turnstile: hooked but not verified yet — Sprint 4 wires
- *     the verify call. The schema accepts the token; we mark the row as
- *     `turnstileVerified=false` until then.
+ *   - Cloudflare Turnstile: verified server-side when `TURNSTILE_SECRET`
+ *     is configured. Successful verification flips `turnstileVerified=true`
+ *     on the Lead row. When the secret is unset the field stays `false`
+ *     and the lead is still accepted — degrades gracefully in dev.
  *
  * Once accepted, we:
  *   1. Resolve the agencyId from propertyId (if source=PROPERTY_DETAIL)

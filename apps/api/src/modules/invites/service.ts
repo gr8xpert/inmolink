@@ -62,7 +62,9 @@ function requireAdmin(user: AuthenticatedUser, agencyId: string): void {
 }
 
 function inviteAcceptUrl(env: Env, locale: string, token: string): string {
-  return `${env.PUBLIC_BASE_URL.replace(/\/$/, "")}/${locale}/invite/${encodeURIComponent(token)}`;
+  // Invite acceptance lives on the dashboard app, not the public marketplace
+  // — the agent lands on /invite/<token> and is asked to set a password.
+  return `${env.APP_BASE_URL.replace(/\/$/, "")}/${locale}/invite/${encodeURIComponent(token)}`;
 }
 
 // ========== Dashboard endpoints ==========

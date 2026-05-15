@@ -9,7 +9,7 @@
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "clean": "rm -rf .turbo node_modules"
+    "clean": "node ../../scripts/clean.mjs .turbo node_modules"
   },
   "dependencies": {
     "@inmolink/db": "workspace:*",

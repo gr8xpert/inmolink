@@ -43,6 +43,7 @@ import type {
   NormalizedListing,
 } from "../connector";
 import { AsyncQueue } from "../stream-queue";
+import { safeFetchWithRedirects } from "./safe-fetch";
 
 export type GenericFieldTarget =
   | "externalRef"
@@ -147,7 +148,10 @@ async function* parseGenericFromUrl(
   input: FeedFetchInput,
   config: GenericXmlConfig,
 ): AsyncIterable<NormalizedListing> {
-  const res = await fetch(input.feedUrl, { signal: input.signal });
+  const res = await safeFetchWithRedirects(input.feedUrl, {
+    signal: input.signal,
+    allowHttp: true,
+  });
   if (!res.ok || !res.body) {
     throw new Error(`Generic XML fetch failed: ${res.status} ${res.statusText}`);
   }

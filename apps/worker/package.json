@@ -12,7 +12,7 @@
     "seed:bulk": "tsx --env-file=.env scripts/seed-bulk.ts",
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .turbo node_modules"
+    "clean": "node ../../scripts/clean.mjs dist .turbo node_modules"
   },
   "dependencies": {
     "@inmolink/ai": "workspace:*",

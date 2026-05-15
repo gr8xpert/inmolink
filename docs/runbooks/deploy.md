@@ -64,14 +64,23 @@ curl -L https://install.meilisearch.com | sh
 sudo mv ./meilisearch /usr/local/bin/
 sudo useradd -r -s /bin/false meili
 sudo mkdir -p /var/lib/meili && sudo chown meili:meili /var/lib/meili
-# Systemd unit lives in infra/systemd/meilisearch.service
-sudo cp infra/systemd/meilisearch.service /etc/systemd/system/
+sudo cp nginx/meilisearch.service /etc/systemd/system/meilisearch.service
+sudo systemctl daemon-reload
+# Set MEILI_MASTER_KEY via override (keeps the key out of the repo):
+#   sudo systemctl edit meilisearch
+#   (add) [Service]
+#         Environment=MEILI_MASTER_KEY=<your-key>
 sudo systemctl enable --now meilisearch
 
 # Nginx + certbot
 sudo apt install -y nginx certbot python3-certbot-nginx
-sudo cp infra/nginx/inmolink.conf /etc/nginx/sites-available/inmolink
+# Repo path: nginx/inmolink.conf (the `infra/` prefix in older docs is stale).
+sudo cp nginx/inmolink.conf /etc/nginx/sites-available/inmolink
 sudo ln -sf /etc/nginx/sites-available/inmolink /etc/nginx/sites-enabled/
+# The main config `include`s /etc/nginx/conf.d/cloudflare-ips.conf, so copy
+# it before `nginx -t` or the test will fail.
+sudo mkdir -p /etc/nginx/conf.d
+sudo cp nginx/cloudflare-ips.conf /etc/nginx/conf.d/cloudflare-ips.conf
 sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d inmolink.eu -d www.inmolink.eu -d api.inmolink.eu -d app.inmolink.eu
 
@@ -100,7 +109,14 @@ git clone https://github.com/<org>/inmolink.git
 cd inmolink
 pnpm install --frozen-lockfile
 pnpm prisma migrate deploy   # via @inmolink/db's exec
-pnpm --filter @inmolink/db db:seed
+
+# Production bootstrap — creates plans + super-admin. Refuses dev defaults
+# and never prints the password. Supply via env on one line (avoid shell history):
+#   read -s ADMIN_PW; export ADMIN_PW
+#   ADMIN_EMAIL=ops@inmolink.eu ADMIN_PASSWORD="$ADMIN_PW" \
+#     pnpm --filter @inmolink/db bootstrap:prod
+#   unset ADMIN_PW ADMIN_PASSWORD
+# Do NOT run `pnpm db:seed` in production — it refuses to start when NODE_ENV=production.
 pnpm build                    # all apps via Turbo
 
 # PM2

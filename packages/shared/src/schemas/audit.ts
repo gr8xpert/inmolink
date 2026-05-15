@@ -4,6 +4,7 @@ import { z } from "zod";
 
 export const auditEventTypeSchema = z.enum([
   "USER_LOGIN",
+  "USER_LOGIN_FAILED",
   "USER_LOGOUT",
   "PASSWORD_CHANGED",
   "TOTP_ENABLED",

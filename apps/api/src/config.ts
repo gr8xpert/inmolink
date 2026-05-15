@@ -48,6 +48,11 @@ const envSchema = z.object({
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
 
+  // Public list/search rate limits — central config so invalid values fail
+  // boot validation instead of getting silently coerced at module scope.
+  PUBLIC_LIST_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(120),
+  PUBLIC_LIST_RATE_LIMIT_WINDOW: z.string().default("1 minute"),
+
   // Storage — R2 (production) when R2_ENDPOINT is set; LocalFsStorage
   // (dev fallback) otherwise. PLAN §5 / ADR 0002.
   R2_ENDPOINT: optionalUrl,
@@ -60,8 +65,15 @@ const envSchema = z.object({
   LOCAL_STORAGE_PUBLIC_BASE_URL: z.string().default("http://localhost:3001"),
   LOCAL_STORAGE_ROOT_DIR: z.string().default("./tmp/r2-local"),
 
-  // Public marketplace URL used in email links.
-  PUBLIC_BASE_URL: z.string().default("http://localhost:3000"),
+  // Public marketplace URL — used in marketing/SEO links and public-facing
+  // email content. e.g. https://inmolink.eu
+  PUBLIC_BASE_URL: z.string().default("http://localhost:3002"),
+  // Dashboard app URL — used for invite acceptance links and Stripe
+  // billing portal/session redirects. e.g. https://app.inmolink.eu
+  APP_BASE_URL: z.string().default("http://localhost:3000"),
+  // API origin — used by webhook callbacks (e.g. Stripe), tracking pixel
+  // URLs, and email-tracking links. e.g. https://api.inmolink.eu
+  API_BASE_URL: z.string().default("http://localhost:3001"),
 
   // Resend — optional in dev (we log invite links instead). PLAN §1 row 33.
   RESEND_API_KEY: optionalString,

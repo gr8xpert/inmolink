@@ -89,6 +89,16 @@
           }
         }
       }
+    },
+    {
+      "include": ["packages/db/seed.ts", "packages/db/bootstrap-prod.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsoleLog": "off"
+          }
+        }
+      }
     }
   ]
 }

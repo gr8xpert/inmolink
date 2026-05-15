@@ -6,7 +6,13 @@ All agents share one dashboard, see each other's listings, can request viewings 
 
 ## Status
 
-In active development. v1 in progress (Sprint 0 — Foundation).
+**v1 feature-complete.** Sprints 0–12 closed in code. Now in **pre-deploy
+hardening** — security review fixes (`docs/reviews/`) are being burnt down
+before the first VPS rollout. **Not yet production-deployed.**
+
+See [CHECKLIST.md](./CHECKLIST.md) for the gating checklist and
+[docs/reviews/claude-master-fix-list-2026-05-12.md](./docs/reviews/claude-master-fix-list-2026-05-12.md)
+for the open-issue list driving this phase.
 
 ## Quick links
 

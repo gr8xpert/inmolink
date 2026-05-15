@@ -204,7 +204,12 @@ export async function createDeal(
     },
   });
   if (!vr) throw new NotFoundError("Viewing request not found.");
-  if (!isParty(caller, vr) && caller.role !== "SUPER_ADMIN") {
+  if (!isParty(caller, vr)) {
+    // SUPER_ADMIN cannot create a deal on someone else's viewing — the
+    // submission semantics require the caller to be owner OR introducer
+    // so we can mark exactly one side as submitted/confirmed. Admins
+    // should resolve disputes through the dispute-resolution path, not by
+    // forging a deal as a non-party.
     throw new ForbiddenError("Only parties to the viewing can submit a deal.");
   }
   if (vr.status !== "COMPLETED") {

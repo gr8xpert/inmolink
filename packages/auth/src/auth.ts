@@ -50,6 +50,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!parsed.success) return null;
 
         const { email, password, totpCode } = parsed.data;
+
+        // Best-effort throttle: stop hammering a single email before we even
+        // hit the DB. Counter lives in Redis when available; otherwise the
+        // gate is a no-op (dev) and the next layer in front of the api
+        // (nginx rate limit) takes the load.
+        const throttled = await checkAndRecordLoginAttempt(email);
+        if (throttled) {
+          await writeAuditLogin(null, email, "FAILED_THROTTLED");
+          return null;
+        }
+
         const user = await prisma.user.findUnique({
           where: { email },
           include: {
@@ -63,12 +74,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           },
         });
 
-        if (!user) return null;
-        if (!user.isActive) return null;
-        if (!user.passwordHash) return null;
+        if (!user) {
+          await writeAuditLogin(null, email, "FAILED_UNKNOWN_USER");
+          return null;
+        }
+        if (!user.isActive) {
+          await writeAuditLogin(user.id, email, "FAILED_INACTIVE");
+          return null;
+        }
+        if (!user.passwordHash) {
+          await writeAuditLogin(user.id, email, "FAILED_NO_PASSWORD");
+          return null;
+        }
 
         const ok = await verifyPassword(password, user.passwordHash);
-        if (!ok) return null;
+        if (!ok) {
+          await writeAuditLogin(user.id, email, "FAILED_BAD_PASSWORD");
+          return null;
+        }
 
         // Two-factor gate.
         if (user.settings?.totpEnabledAt && user.settings.totpSecretEnc) {
@@ -93,8 +116,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               key,
             );
           }
-          if (!secondFactorOk) throw new TotpInvalid();
+          if (!secondFactorOk) {
+            await writeAuditLogin(user.id, email, "FAILED_BAD_TOTP");
+            throw new TotpInvalid();
+          }
         }
+
+        await writeAuditLogin(user.id, email, "SUCCESS");
 
         // Returned object becomes the `user` argument in the jwt callback.
         return {
@@ -110,6 +138,77 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 });
 
 type RecoveryEntry = { hash: string; used: boolean };
+
+/**
+ * Best-effort credentials-login throttle.
+ *
+ * Lazy-imports `ioredis` so the auth package keeps working in test/dev when
+ * no Redis is available. Window: 15 attempts per email per 15 minutes.
+ *
+ * Returns `true` when the attempt should be refused. We always increment the
+ * counter so that a stream of bad attempts keeps the gate closed.
+ */
+const LOGIN_MAX_ATTEMPTS = 15;
+const LOGIN_WINDOW_SECONDS = 15 * 60;
+
+let cachedRedis: import("ioredis").Redis | null | undefined;
+async function getRedis(): Promise<import("ioredis").Redis | null> {
+  if (cachedRedis !== undefined) return cachedRedis;
+  const url = process.env.REDIS_URL;
+  if (!url) {
+    cachedRedis = null;
+    return null;
+  }
+  try {
+    const { Redis } = await import("ioredis");
+    cachedRedis = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 1 });
+    return cachedRedis;
+  } catch {
+    cachedRedis = null;
+    return null;
+  }
+}
+
+async function checkAndRecordLoginAttempt(email: string): Promise<boolean> {
+  const redis = await getRedis();
+  if (!redis) return false;
+  try {
+    const key = `auth:login:${email.toLowerCase()}`;
+    const n = await redis.incr(key);
+    if (n === 1) await redis.expire(key, LOGIN_WINDOW_SECONDS);
+    return n > LOGIN_MAX_ATTEMPTS;
+  } catch {
+    // Fail open — Redis down should not lock everyone out.
+    return false;
+  }
+}
+
+async function writeAuditLogin(
+  userId: string | null,
+  email: string,
+  outcome:
+    | "SUCCESS"
+    | "FAILED_UNKNOWN_USER"
+    | "FAILED_INACTIVE"
+    | "FAILED_NO_PASSWORD"
+    | "FAILED_BAD_PASSWORD"
+    | "FAILED_BAD_TOTP"
+    | "FAILED_THROTTLED",
+): Promise<void> {
+  try {
+    await prisma.auditLog.create({
+      data: {
+        actorUserId: userId,
+        type: outcome === "SUCCESS" ? "USER_LOGIN" : "USER_LOGIN_FAILED",
+        targetKind: "User",
+        targetId: userId,
+        metadata: { email: email.toLowerCase(), outcome },
+      },
+    });
+  } catch {
+    // Audit write must never break login.
+  }
+}
 
 async function consumeRecoveryCode(
   userId: string,

@@ -1,5 +1,6 @@
-import { AuthError, signIn } from "@inmolink/auth";
+import { AuthError, decryptFromString, encryptToString, signIn } from "@inmolink/auth";
 import { setRequestLocale } from "next-intl/server";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 type Props = {
@@ -16,54 +17,133 @@ type Props = {
 /**
  * Sign-in page with optional TOTP step. Two-factor flow:
  *   1. User submits email + password.
- *   2. authorize() throws TotpRequired → ?code=totp_required.
- *   3. Page swaps to the 2FA step, carrying email + password in hidden
- *      fields (server-side; password is short-lived in the user's UA
- *      until they hit submit again).
- *   4. User submits 6-digit TOTP or recovery code; authorize() consumes
- *      the recovery code if used and returns the User on success.
+ *   2. authorize() throws TotpRequired → action stores the encrypted
+ *      credentials in a short-lived, httpOnly cookie and redirects with
+ *      `?code=totp_required`.
+ *   3. The 2FA step's POST reads + decrypts the cookie and calls signIn
+ *      again with the TOTP code; the cookie is cleared on success or on
+ *      failure outside the 2FA path.
  *
- * Carrying the password through a hidden field is the documented
- * NextAuth pattern for Credentials 2FA. The alternative (server-side
- * pending-login cookie) is heavier; revisit if a UX bug appears.
+ * Credentials never appear in the URL, hidden inputs, or browser history.
+ * Cookie is encrypted with ENCRYPTION_KEY (AES-256-GCM), httpOnly, secure
+ * in production, path=/sign-in, and 5-minute max-age.
  */
+
+const PENDING_COOKIE = "inmolink-2fa-pending";
+const PENDING_COOKIE_TTL_SECONDS = 5 * 60;
+
+function getEncryptionKey(): Buffer {
+  const hex = process.env.ENCRYPTION_KEY;
+  if (!hex) throw new Error("ENCRYPTION_KEY is not configured");
+  return Buffer.from(hex, "hex");
+}
 
 export default async function SignInPage({ params, searchParams }: Props) {
   const { locale } = await params;
-  const { error, code, callbackUrl, pending } = await searchParams;
+  const { error, code, callbackUrl } = await searchParams;
   setRequestLocale(locale);
 
-  const totpStep = code === "totp_required" || code === "totp_invalid" || pending === "1";
+  const cookieStore = await cookies();
+  const pendingCookie = cookieStore.get(PENDING_COOKIE)?.value;
+  const totpStep = !!pendingCookie && (code === "totp_required" || code === "totp_invalid");
 
   async function action(formData: FormData) {
     "use server";
+    const cookieStore = await cookies();
     try {
       const raw = formData.get("callbackUrl")?.toString();
       const safe = raw?.startsWith("/") && !raw.startsWith("//") ? raw : `/${locale}/dashboard`;
       const totpCode = formData.get("totpCode")?.toString();
+
+      let email: string | undefined;
+      let password: string | undefined;
+
+      if (totpCode) {
+        // 2FA submit: recover credentials from the encrypted cookie.
+        const blob = cookieStore.get(PENDING_COOKIE)?.value;
+        if (!blob) {
+          redirect(`/${locale}/sign-in?error=CredentialsSignin`);
+        }
+        try {
+          const payload = JSON.parse(decryptFromString(blob, getEncryptionKey())) as {
+            email: string;
+            password: string;
+            exp: number;
+          };
+          if (payload.exp < Date.now()) {
+            cookieStore.delete(PENDING_COOKIE);
+            redirect(`/${locale}/sign-in?error=CredentialsSignin`);
+          }
+          email = payload.email;
+          password = payload.password;
+        } catch {
+          cookieStore.delete(PENDING_COOKIE);
+          redirect(`/${locale}/sign-in?error=CredentialsSignin`);
+        }
+      } else {
+        email = formData.get("email")?.toString();
+        password = formData.get("password")?.toString();
+      }
+
       await signIn("credentials", {
-        email: formData.get("email"),
-        password: formData.get("password"),
+        email,
+        password,
         ...(totpCode ? { totpCode } : {}),
         redirectTo: safe,
       });
+
+      // Success: clear the pending cookie if it existed.
+      cookieStore.delete(PENDING_COOKIE);
     } catch (e) {
       if (e instanceof AuthError) {
         const t = e.type;
-        // Custom CredentialsSignin codes surface as `error.code` per
-        // Auth.js v5 — re-encode them in the URL so the page swaps to
-        // the 2FA step.
         const errCode = (e as AuthError & { code?: string }).code;
         const params = new URLSearchParams({ error: t });
         if (errCode) params.set("code", errCode);
+
         if (errCode === "totp_required" || errCode === "totp_invalid") {
-          // Round-trip email + password back into the 2FA step.
           const email = formData.get("email")?.toString();
           const password = formData.get("password")?.toString();
-          if (email) params.set("emailRT", email);
-          if (password) params.set("pwRT", password);
-          params.set("pending", "1");
+          // Prefer freshly submitted credentials (first POST); fall back to
+          // the existing pending cookie (re-submit with bad TOTP).
+          let storeEmail = email;
+          let storePassword = password;
+          if (!storeEmail || !storePassword) {
+            const blob = cookieStore.get(PENDING_COOKIE)?.value;
+            if (blob) {
+              try {
+                const payload = JSON.parse(decryptFromString(blob, getEncryptionKey())) as {
+                  email: string;
+                  password: string;
+                };
+                storeEmail = payload.email;
+                storePassword = payload.password;
+              } catch {
+                // ignore — fall through to error redirect without cookie
+              }
+            }
+          }
+          if (storeEmail && storePassword) {
+            const blob = encryptToString(
+              JSON.stringify({
+                email: storeEmail,
+                password: storePassword,
+                exp: Date.now() + PENDING_COOKIE_TTL_SECONDS * 1000,
+              }),
+              getEncryptionKey(),
+            );
+            cookieStore.set(PENDING_COOKIE, blob, {
+              httpOnly: true,
+              sameSite: "lax",
+              secure: process.env.NODE_ENV === "production",
+              path: `/${locale}/sign-in`,
+              maxAge: PENDING_COOKIE_TTL_SECONDS,
+            });
+          }
+        } else {
+          cookieStore.delete(PENDING_COOKIE);
         }
+
         const cb = formData.get("callbackUrl")?.toString();
         if (cb) params.set("callbackUrl", cb);
         redirect(`/${locale}/sign-in?${params.toString()}`);
@@ -71,13 +151,6 @@ export default async function SignInPage({ params, searchParams }: Props) {
       throw e;
     }
   }
-
-  // searchParams.error / code is available; emailRT + pwRT are only present
-  // mid-2FA step. Reading them off searchParams directly works because
-  // searchParams is the authoritative source for the page render.
-  const sp = (await searchParams) as Record<string, string | undefined>;
-  const emailRT = sp.emailRT;
-  const pwRT = sp.pwRT;
 
   const errorMessage =
     code === "totp_required"
@@ -116,24 +189,20 @@ export default async function SignInPage({ params, searchParams }: Props) {
           <input type="hidden" name="callbackUrl" value={callbackUrl ?? ""} />
 
           {totpStep ? (
-            <>
-              <input type="hidden" name="email" value={emailRT ?? ""} />
-              <input type="hidden" name="password" value={pwRT ?? ""} />
-              <div className="space-y-2">
-                <label htmlFor="totpCode" className="text-sm font-medium">
-                  Code (6 digits or recovery code)
-                </label>
-                <input
-                  id="totpCode"
-                  name="totpCode"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  required
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-lg tracking-widest shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-            </>
+            <div className="space-y-2">
+              <label htmlFor="totpCode" className="text-sm font-medium">
+                Code (6 digits or recovery code)
+              </label>
+              <input
+                id="totpCode"
+                name="totpCode"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                required
+                className="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-lg tracking-widest shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
           ) : (
             <>
               <div className="space-y-2">

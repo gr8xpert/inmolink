@@ -1,6 +1,27 @@
 import { z } from "zod";
+import { assertSafeUrlStatic } from "../ssrf";
 
 /** Sprint 10. Outbound webhooks (PLAN §11.10). */
+
+/**
+ * Webhook URL: HTTPS only, no private/reserved hosts. We block at create/update
+ * time (this schema) and re-check at delivery time with the async DNS variant
+ * (worker side) so a public hostname cannot rebind to a private IP between
+ * registration and delivery.
+ */
+const webhookUrlSchema = z
+  .string()
+  .url()
+  .superRefine((value, ctx) => {
+    try {
+      assertSafeUrlStatic(value, { allowHttp: false });
+    } catch (e) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: e instanceof Error ? e.message : "Invalid webhook URL",
+      });
+    }
+  });
 
 export const webhookEventTypeSchema = z.enum([
   "PROPERTY_CREATED",
@@ -32,7 +53,7 @@ export type WebhookDeliveryStatus = z.infer<typeof webhookDeliveryStatusSchema>;
 // ---- Endpoint CRUD ----
 
 export const webhookEndpointInputSchema = z.object({
-  url: z.string().url(),
+  url: webhookUrlSchema,
   events: z.array(webhookEventTypeSchema).min(1).max(15),
   secret: z.string().min(16).max(128).optional(), // omit on update keeps existing
   isActive: z.boolean().default(true),

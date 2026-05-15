@@ -1,0 +1,26 @@
+# systemd unit for Meilisearch on the Inmolink VPS.
+# Install:
+#   sudo cp nginx/meilisearch.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now meilisearch
+#
+# MEILI_MASTER_KEY must be set in the override (sudo systemctl edit meilisearch)
+# rather than committed here. The bind address stays loopback — nginx fronts it.
+
+[Unit]
+Description=Meilisearch
+After=network.target
+
+[Service]
+Type=simple
+User=meili
+Environment=MEILI_ENV=production
+# Override MEILI_MASTER_KEY via `systemctl edit meilisearch`:
+#   [Service]
+#   Environment=MEILI_MASTER_KEY=<your-key>
+ExecStart=/usr/local/bin/meilisearch --db-path /var/lib/meili --http-addr 127.0.0.1:7700
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

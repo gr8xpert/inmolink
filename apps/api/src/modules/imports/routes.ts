@@ -154,11 +154,23 @@ export async function importRoutes(
     },
     async (request, reply) => {
       const caller = callerOf(request);
+      // Manual XML upload is a DEV/SAMPLE-feed convenience: the file is
+      // buffered into memory and persisted as a single object. Production
+      // imports always use URL-based feed connections which the worker
+      // streams via SAX. The 10 MB cap is deliberate — PLAN §11.5 warns
+      // Kyero/Resale Online feeds can exceed 100 MB and must not be
+      // uploaded through this path. Surface that explicitly to the caller
+      // when they bump up against it.
       const data = await request.file({ limits: { fileSize: 10 * 1024 * 1024 } });
       if (!data) {
         throw app.httpErrors.badRequest("Missing file part");
       }
       const buf = await data.toBuffer();
+      if (data.file.truncated) {
+        throw app.httpErrors.payloadTooLarge(
+          "Manual upload exceeds 10 MB. Use a URL-based feed connection for production feeds.",
+        );
+      }
 
       const kindRaw = (data.fields.kind as { value?: string } | undefined)?.value ?? "";
       const fieldMappingsRaw =

@@ -140,23 +140,28 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
     nameSpace: "rl:",
   });
 
-  // OpenAPI / Swagger (PLAN §11.12)
-  await app.register(swagger, {
-    openapi: {
-      info: {
-        title: "Inmolink API",
-        version: "0.0.0",
-        description: "Multi-agent real-estate marketplace API",
+  // OpenAPI / Swagger (PLAN §11.12). Disabled in production unless explicitly
+  // opted in via API_DOCS_ENABLED=true — public docs let attackers enumerate
+  // endpoints and schemas. Keep them on in dev/test for the DX win.
+  const docsEnabled = env.NODE_ENV !== "production" || process.env.API_DOCS_ENABLED === "true";
+  if (docsEnabled) {
+    await app.register(swagger, {
+      openapi: {
+        info: {
+          title: "Inmolink API",
+          version: "0.0.0",
+          description: "Multi-agent real-estate marketplace API",
+        },
+        servers: [{ url: "http://localhost:3001", description: "Local" }],
       },
-      servers: [{ url: "http://localhost:3001", description: "Local" }],
-    },
-    transform: jsonSchemaTransform,
-  });
+      transform: jsonSchemaTransform,
+    });
 
-  await app.register(swaggerUi, {
-    routePrefix: "/docs",
-    uiConfig: { docExpansion: "list", deepLinking: true },
-  });
+    await app.register(swaggerUi, {
+      routePrefix: "/docs",
+      uiConfig: { docExpansion: "list", deepLinking: true },
+    });
+  }
 
   // Auth — parses Auth.js v5 session cookie set by apps/web, attaches
   // request.user. Installs hook + decorator at root scope (no encapsulation),
@@ -268,7 +273,9 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   const billingCtx = {
     stripeSecretKey: env.STRIPE_SECRET_KEY,
     stripeTaxEnabled: env.STRIPE_TAX_ENABLED,
-    publicBaseUrl: env.PUBLIC_BASE_URL,
+    // Billing portal/checkout returns hit the dashboard, not the public
+    // marketplace.
+    publicBaseUrl: env.APP_BASE_URL,
     prices: {
       proMonthlyEur: env.STRIPE_PRICE_PRO_MONTHLY_EUR,
       proYearlyEur: env.STRIPE_PRICE_PRO_YEARLY_EUR,
@@ -309,7 +316,13 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
     hmacSecretHex: env.ENCRYPTION_KEY,
     publicBaseUrl: env.PUBLIC_BASE_URL,
   });
-  await app.register(publicPropertyRoutes, { prefix: "/api/public", storage, search });
+  await app.register(publicPropertyRoutes, {
+    prefix: "/api/public",
+    storage,
+    search,
+    rateLimitMax: env.PUBLIC_LIST_RATE_LIMIT_MAX,
+    rateLimitWindow: env.PUBLIC_LIST_RATE_LIMIT_WINDOW,
+  });
   await app.register(publicLocationRoutes, { prefix: "/api/public" });
   await app.register(publicProfileRoutes, { prefix: "/api/public", storage });
   await app.register(publicSitemapRoutes, { prefix: "/api/public", storage });

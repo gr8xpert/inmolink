@@ -20,6 +20,7 @@ type Props = {
 
 const EVENT_TYPES = [
   "USER_LOGIN",
+  "USER_LOGIN_FAILED",
   "USER_LOGOUT",
   "PASSWORD_CHANGED",
   "TOTP_ENABLED",

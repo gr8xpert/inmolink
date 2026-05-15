@@ -15,9 +15,10 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx seed.ts",
+    "bootstrap:prod": "tsx bootstrap-prod.ts",
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf .turbo node_modules src/generated"
+    "clean": "node ../../scripts/clean.mjs .turbo node_modules src/generated"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0"

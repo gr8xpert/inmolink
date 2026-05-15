@@ -126,6 +126,34 @@ export class R2Storage implements Storage {
     return Buffer.concat(chunks);
   }
 
+  async readHead(key: string, bytes: number): Promise<Buffer> {
+    const range = `bytes=0-${Math.max(0, bytes - 1)}`;
+    const response = await this.client
+      .send(new GetObjectCommand({ Bucket: this.cfg.bucket, Key: key, Range: range }))
+      .catch((e: unknown) => {
+        if (isS3NotFound(e)) throw new StorageObjectMissingError(key);
+        throw e;
+      });
+    if (!response.Body) throw new StorageObjectMissingError(key);
+    const chunks: Buffer[] = [];
+    let total = 0;
+    for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
+      // Defensive: cap in case the server ignores Range (older S3-likes).
+      const remaining = bytes - total;
+      if (remaining <= 0) break;
+      const buf = Buffer.from(chunk);
+      if (buf.length <= remaining) {
+        chunks.push(buf);
+        total += buf.length;
+      } else {
+        chunks.push(buf.subarray(0, remaining));
+        total = bytes;
+        break;
+      }
+    }
+    return Buffer.concat(chunks);
+  }
+
   async put(key: string, body: Buffer, contentType: string): Promise<void> {
     await this.client.send(
       new PutObjectCommand({

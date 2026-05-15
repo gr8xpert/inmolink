@@ -262,8 +262,21 @@ export function makeEmailSendProcessor(opts: Args): Processor {
     } catch (err) {
       const message = err instanceof Error ? err.message : "send failed";
       opts.logger.error({ err: message, recipientId: recipient.id }, "Campaign email failed");
-      // Throw so BullMQ retries; mark FAILED only on the final attempt
-      // (handled in worker.ts via the `failed` event listener).
+      // BullMQ supplies the running attempt number on `job.attemptsMade`.
+      // On the FINAL attempt (no more retries) we must mark the recipient
+      // FAILED here so the campaign can finalize; otherwise the campaign
+      // sits in SENDING forever waiting on a recipient that never moves.
+      const attemptsMade = (job.attemptsMade ?? 0) + 1;
+      const maxAttempts = job.opts?.attempts ?? 1;
+      if (attemptsMade >= maxAttempts) {
+        await prisma.emailCampaignRecipient.update({
+          where: { id: recipient.id },
+          data: { status: "FAILED", errorMessage: message.slice(0, 500) },
+        });
+        // maybeFinalizeCampaign treats FAILED + SENT as both terminal, so
+        // moving the last recipient into FAILED here unblocks finalization.
+        await maybeFinalizeCampaign(campaign.id);
+      }
       throw err;
     }
 
@@ -365,15 +378,26 @@ function rewriteClickLinks(
   secret: string,
   apiBaseUrl: string,
 ): string {
-  return html.replace(/href="([^"]+)"/g, (match, url: string) => {
-    if (
-      url.startsWith("#") ||
-      url.startsWith("mailto:") ||
-      url.startsWith("data:") ||
-      url.startsWith(`${apiBaseUrl}/api/email/`)
-    ) {
-      return match;
-    }
+  // Match `href` attributes in any case, with single or double quotes, and
+  // tolerate whitespace around `=`. We deliberately don't match unquoted
+  // hrefs — email-template engines we use always emit a quote, so unquoted
+  // forms are a sign of malformed input and we leave them alone.
+  const HREF_RE = /\bhref\s*=\s*("([^"]*)"|'([^']*)')/gi;
+
+  // Schemes we never wrap. Match case-insensitively.
+  const SKIP_SCHEMES = /^(?:#|mailto:|tel:|sms:|javascript:|data:|file:)/i;
+
+  return html.replace(HREF_RE, (match, _quoted: string, dq?: string, sq?: string) => {
+    const url = (dq ?? sq ?? "").trim();
+    if (!url) return match;
+    if (SKIP_SCHEMES.test(url)) return match;
+    if (url.startsWith(`${apiBaseUrl}/api/email/`)) return match;
+
+    // Only rewrite http(s) absolute URLs — relative paths in marketing
+    // templates are almost always a template bug and would 404 anyway, but
+    // wrapping them would silently rewrite to a broken absolute URL.
+    if (!/^https?:\/\//i.test(url)) return match;
+
     // Bind the destination URL into the HMAC payload so /c/:tok can't be
     // weaponised as an open redirect (#015).
     const tok = signTrackingToken({ k: "click", r: recipientId, u: url }, secret);

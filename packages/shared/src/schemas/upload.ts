@@ -30,10 +30,10 @@ const allowedMimeTypes = [
   "image/heic",
   "image/heif",
   "image/gif",
-  // Vector — used by the PropertyType admin's custom-icon flow.
-  // Always rendered via `<img src>` (not inline) so embedded scripts can't
-  // execute; size is capped tighter at the route layer.
-  "image/svg+xml",
+  // SVG intentionally excluded: even when rendered via `<img src>` the
+  // server still receives and stores the file, and any future inline render
+  // would expose XSS. Custom PropertyType icons should use a PNG/WebP
+  // upload until a dedicated sanitization pipeline lands.
   // Floor plans
   "application/pdf",
   // Videos

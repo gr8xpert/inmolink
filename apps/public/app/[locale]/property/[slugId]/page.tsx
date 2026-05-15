@@ -122,9 +122,12 @@ export default async function PublicPropertyDetailPage({ params }: Props) {
   if (!parsed) permanentRedirect(`/${locale}`);
 
   const loaded = await loadProperty(locale, parsed.id);
-  // Per PLAN §1 row 9 / "Never": deleted/missing public pages 301 home,
-  // never 404 — preserves SEO equity that Google has already crawled.
-  if (!loaded) permanentRedirect(`/${locale}`);
+  // Per PLAN §1 row 9 / "Never": deleted/missing public pages never 404.
+  // We 301 to a dedicated "withdrawn" page so the user still gets meaningful
+  // context (and the inline link can redirect them to similar listings in
+  // the locale) — bare home redirect is a worse experience for both users
+  // and search engines.
+  if (!loaded) permanentRedirect(`/${locale}/property/withdrawn`);
 
   const { detail, images } = loaded;
 

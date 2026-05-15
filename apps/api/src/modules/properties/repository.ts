@@ -80,13 +80,22 @@ export function decodeCursor(cursor: string): { createdAt: Date; id: string } | 
 type ListArgs = {
   query: propertySchemas.PropertyListQuery;
   /**
-   * Visibility filter applied per session (PLAN §3 "every read query").
-   * - If null: return *all* (super-admin only path).
-   * - Otherwise: rows where visibility ∈ allowed OR ownerUserId === viewerUserId.
+   * Role-aware visibility filter (PLAN §3 "every read query").
+   *
+   * - `null`              → SUPER_ADMIN, sees everything.
+   * - role `AGENT`        → SHARED across the platform + every row owned by
+   *                         this user (irrespective of visibility).
+   *                         Other agents' PRIVATE rows in the same agency
+   *                         remain hidden.
+   * - role `AGENCY_ADMIN` → SHARED + every row owned by this agency.
+   *                         Agency admins are explicitly allowed to manage
+   *                         agency-private inventory.
+   * - role `SUPER_ADMIN`  → handled by passing `null`.
    */
   viewer: {
     userId: string;
     agencyId: string | null;
+    role: "AGENT" | "AGENCY_ADMIN";
     allowedVisibility: ("PRIVATE" | "SHARED" | "PUBLIC")[];
   } | null;
 };
@@ -108,20 +117,58 @@ export async function listProperties({ query, viewer }: ListArgs): Promise<{
     ...(query.ownerAgencyId ? { ownerAgencyId: query.ownerAgencyId } : {}),
   };
 
+  // Dashboard text search across externalRef + any translation title/description.
+  // Dashboard scope is tightly bounded (per-user/per-agency), so a plain ILIKE
+  // on the translation table is acceptable until row counts force a full-text
+  // index. Meilisearch handles public search; the dashboard intentionally hits
+  // Postgres directly so unpublished/private rows are reachable.
+  const q = query.q?.trim();
+  if (q && q.length > 0) {
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+      {
+        OR: [
+          { externalRef: { contains: q, mode: "insensitive" } },
+          {
+            translations: {
+              some: {
+                OR: [
+                  { title: { contains: q, mode: "insensitive" } },
+                  { description: { contains: q, mode: "insensitive" } },
+                ],
+              },
+            },
+          },
+        ],
+      },
+    ];
+  }
+
   if (viewer) {
+    // Agency-wide visibility is reserved for AGENCY_ADMIN — agents can only
+    // see their own private rows. The detail endpoint enforces the same
+    // rule; keep them in lockstep.
+    const allowAgencyScope = viewer.role === "AGENCY_ADMIN" && viewer.agencyId;
     where.OR = [
       { visibility: { in: viewer.allowedVisibility } },
       { ownerUserId: viewer.userId },
-      ...(viewer.agencyId ? [{ ownerAgencyId: viewer.agencyId }] : []),
+      ...(allowAgencyScope ? [{ ownerAgencyId: viewer.agencyId as string }] : []),
     ];
   }
 
   // Page mode wins when set — dashboard scope is small enough that OFFSET
   // is fine (per-user/per-agency cap). Cursor mode stays for hot public
   // surfaces and acts as the default when neither is supplied.
+  //
+  // Cap `page` at a value that keeps `skip` bounded even at the largest
+  // expected agency. PLAN §11.2: hot public surfaces are cursor-only;
+  // dashboard rows for one agency are tens of thousands at the ceiling,
+  // and we surface a hard 200-page cap below to keep `OFFSET` predictable.
+  const MAX_DASHBOARD_PAGE = 200;
   if (query.page) {
+    const safePage = Math.min(query.page, MAX_DASHBOARD_PAGE);
     const pageSize = query.pageSize ?? query.limit;
-    const skip = (query.page - 1) * pageSize;
+    const skip = (safePage - 1) * pageSize;
     const [rows, totalCount] = await Promise.all([
       prisma.property.findMany({
         where,

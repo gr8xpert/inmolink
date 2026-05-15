@@ -413,7 +413,10 @@ model Property {
   featuredListings FeaturedListing[]
   leads            Lead[]
 
-  @@unique([source, externalRef]) // dedup on re-import
+  // Tenant-scoped dedup on re-import. Two agencies importing the same source
+  // with the same externalRef must not collide (one agency would otherwise
+  // overwrite the other's row, translations, and images).
+  @@unique([ownerAgencyId, source, externalRef])
   @@index([ownerUserId])
   @@index([ownerAgencyId])
   @@index([status, visibility])
@@ -438,7 +441,10 @@ model PropertyTranslation {
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
   @@unique([propertyId, locale])
-  @@unique([locale, slug])
+  // No global uniqueness on (locale, slug) — public routes resolve by
+  // `slugId` (slug + id suffix) so two agencies importing "villa-with-sea-view"
+  // in the same locale must coexist. PLAN §11.3 / review #19.
+  @@index([locale, slug])
   @@index([locale])
 }
 
@@ -980,7 +986,11 @@ model ChatThread {
   messages       ChatMessage[]
   reads          ChatThreadRead[]
 
-  @@unique([kind, userMin, userMax], name: "uniqueDirectThread")
+  // NOTE: direct-thread uniqueness is enforced by a PARTIAL unique index on
+  // (userMin, userMax) WHERE kind = 'DIRECT', defined in the SQL migration
+  // 20260513120100_chat_thread_partial_unique. The old broad unique
+  // (kind, userMin, userMax) blocked a second VIEWING thread between the
+  // same two users — viewings need their own thread per request.
   @@index([participantAUserId, lastMessageAt(sort: Desc)])
   @@index([participantBUserId, lastMessageAt(sort: Desc)])
 }
@@ -1593,6 +1603,7 @@ model WebhookDeliveryAttempt {
 
 enum AuditEventType {
   USER_LOGIN
+  USER_LOGIN_FAILED
   USER_LOGOUT
   PASSWORD_CHANGED
   TOTP_ENABLED
