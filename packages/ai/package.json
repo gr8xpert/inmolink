@@ -11,7 +11,7 @@
     "clean": "node ../../scripts/clean.mjs .turbo node_modules"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.32.0",
+    "@anthropic-ai/sdk": "^0.95.1",
     "@inmolink/shared": "workspace:*",
     "zod": "^3.23.8"
   },
