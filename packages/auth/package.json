@@ -18,7 +18,7 @@
     "clean": "node ../../scripts/clean.mjs .turbo node_modules"
   },
   "dependencies": {
-    "@auth/core": "^0.37.0",
+    "@auth/core": "^0.41.2",
     "@auth/prisma-adapter": "^2.7.0",
     "@inmolink/db": "workspace:*",
     "@inmolink/shared": "workspace:*",
