@@ -34,7 +34,7 @@
     "fastify": "^5.1.0",
     "fastify-type-provider-zod": "^4.0.2",
     "ioredis": "^5.4.1",
-    "next-auth": "5.0.0-beta.31",
+    "next-auth": "5.0.0-beta.32",
     "nodemailer": "^8.0.5",
     "pino": "^9.5.0",
     "pino-pretty": "^11.3.0",
